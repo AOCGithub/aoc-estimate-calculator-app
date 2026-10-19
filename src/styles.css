@@ -1,0 +1,154 @@
+/* The existing visual system remains shared while the UI is migrated to React. */
+
+#root {
+  min-height: 100vh;
+}
+
+#mainPanel {
+  min-width: 0;
+}
+
+.field-help {
+  margin-top: -8px;
+  font-size: 12px;
+}
+
+#toast.visible {
+  display: block;
+}
+
+.warning > div + div {
+  margin-top: 6px;
+}
+
+.compact-details > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  color: var(--ink);
+}
+
+.compact-details[open] > summary {
+  margin-bottom: 16px;
+}
+
+.optional-section {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--pale);
+}
+
+.optional-section > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  color: var(--teal);
+  font-weight: 700;
+}
+
+.optional-section[open] > summary {
+  margin-bottom: 18px;
+}
+
+.optional-section > .field:last-child {
+  margin-bottom: 0;
+}
+
+.disclosure-meta {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.journey-context {
+  margin: 0 0 22px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 10px 14px;
+}
+
+.journey-context > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.journey-context p {
+  max-width: 820px;
+  margin: 10px 0 0;
+  font-size: 11px;
+}
+
+.estimate-details {
+  margin-top: 18px;
+}
+
+.estimate-details > h3 {
+  margin-top: 4px;
+}
+
+.required-section {
+  border-color: #bfd7d2;
+}
+
+.required-section > summary {
+  color: var(--ink);
+}
+
+.required-section > summary::marker {
+  color: var(--teal);
+}
+
+.live-context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.live-context__marker {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px rgba(8, 123, 121, 0.12);
+}
+
+.live-context__location {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.live-context__divider,
+.live-context__time-divider {
+  color: #a4b2b2;
+}
+
+@media (max-width: 700px) {
+  .live-context {
+    gap: 5px;
+    font-size: 9px;
+  }
+
+  .live-context__time-divider,
+  .live-context__time {
+    display: none;
+  }
+
+  .live-context + .quiet {
+    margin-left: 0;
+  }
+}
+

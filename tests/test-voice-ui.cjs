@@ -1,0 +1,53 @@
+// Actual application events and FormData serialization via a small DOM adapter.
+// This verifies application behavior, not browser layout.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');let seq=0;const nodes=[];
+class El{
+ constructor(tag='div',attrs={},parent=null){Object.assign(this,{tag,id:attrs.id||'',name:attrs.name||'',type:attrs.type||tag,value:attrs.value||'',checked:false,disabled:false,hidden:'hidden'in attrs,textContent:'',style:{},dataset:{},parentElement:parent||{hidden:false},children:[],listeners:{},attrs,alive:true,_html:'',classList:{toggle(){},add(){},remove(){},contains(){return false}}});for(const [k,v] of Object.entries(attrs))if(k.startsWith('data-'))this.dataset[k.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=v;nodes.push(this);if(parent?.children)parent.children.push(this);}
+ closest(selector){if(selector==='[data-area]'&&this.dataset.area!==undefined)return this;if(selector==='[data-service]'&&this.dataset.service!==undefined)return this;return this.parentElement?.closest?.(selector)||null;}querySelector(selector){if(selector==='strong')return this.children.find(n=>n.tag==='strong');return undefined;}set innerHTML(s){const kill=n=>{n.alive=false;n.children.forEach(kill);};this.children.forEach(kill);this.children=[];this._html=s;const stack=[this];for(const token of s.matchAll(/<\/?([\w-]+)\b([^>]*?)>/g)){const tag=token[1];if(token[0].startsWith('</')){for(let i=stack.length-1;i>0;i--)if(stack[i].tag===tag){stack.length=i;break;}continue;}const attrs={};for(const a of token[2].matchAll(/([\w-]+)(?:="([^"]*)")?/g))attrs[a[1]]=(a[2]??'').replaceAll('&amp;','&').replaceAll('&quot;','\"').replaceAll('&#39;',"'");const e=new El(tag,attrs,stack.at(-1));if(!['input','br','hr','img','meta','link'].includes(tag))stack.push(e);}}
+ get innerHTML(){return this._html;}addEventListener(k,f){this.listeners[k]=f;}setAttribute(){}reportValidity(){return true;}focus(){}scrollIntoView(){}close(){}showModal(){}reset(){for(const n of nodes)if(n.alive&&n.name){n.value='';n.checked=false;}}
+}
+const host=new El();host.innerHTML=fs.readFileSync('legacy/calculator-v1.html','utf8');
+const query=(q)=>nodes.filter(n=>n.alive).filter(n=>{if(q.startsWith('[data-journey='))return n.dataset.journey===q.match(/"([^"]+)"/)[1];if(q==='.journey-step')return n.attrs.class==='journey-step current'||n.attrs.class==='journey-step';if(q==='.journey-service')return n.attrs.class==='journey-service';if(q==='.area-card')return n.attrs.class==='area-card';if(q==='.service')return n.attrs.class==='service';if(q.startsWith('[name=')){const name=q.match(/name="([^"]+)"/)[1];return n.name===name&&(!q.endsWith(':checked')||n.checked);}if(q==='[data-rule]')return n.dataset.rule;if(q==='[data-remove-app]')return n.dataset.removeApp!==undefined;if(q.startsWith('label[for='))return n.tag==='label'&&n.attrs.for===q.match(/"([^"]+)"/)[1];return false;});
+const document={getElementById:id=>nodes.find(n=>n.alive&&n.id===id),querySelectorAll:query,querySelector:q=>query(q)[0]};
+class FD{constructor(){this.rows=nodes.filter(n=>n.alive&&n.name&&!n.disabled&&['input','select','textarea'].includes(n.tag)&&(n.type!=='checkbox'||n.checked)).map(n=>[n.name,String(n.value)]);}[Symbol.iterator](){return this.rows[Symbol.iterator]();}append(k,v){this.rows.push([k,v]);}getAll(k){return this.rows.filter(x=>x[0]===k).map(x=>x[1]);}}
+const ctx={document,FormData:FD,AOC:require('../public/engine.js'),AOCDept:require('../legacy/department.js'),AOCModel:require('../legacy/model.js'),AOCApps:require('../legacy/apps.js'),structuredClone,Intl,localStorage:{getItem(){return null;},setItem(){},removeItem(){}},setTimeout(){},matchMedia:()=>({matches:false}),window:{},navigator:{}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('legacy/app.js','utf8'),ctx);
+const run=src=>vm.runInContext(src,ctx),el=id=>document.getElementById(id),set=(id,v)=>{assert(el(id),id);el(id).value=String(v);},ev=(name,id)=>el('calculator').listeners[name]({target:el(id),preventDefault(){}}),check=(name,value,on=true)=>{const n=query(`[name="${name}"]`).find(n=>n.value===value);assert(n,`${name}: ${value}`);n.checked=on;el('calculator').listeners.change({target:n});},submit=()=>{ev('submit','calculator');return JSON.parse(run('JSON.stringify(last.result)'));};
+
+Object.defineProperty(El.prototype,'tagName',{get(){return this.tag.toUpperCase();}});
+document.body=nodes.find(n=>n.alive&&n.tag==='body');
+const originalQueries=document.querySelectorAll;document.querySelectorAll=q=>q==='[data-answer]'?nodes.filter(n=>n.alive&&n.dataset.answer):originalQueries(q);
+ctx.Blob=Blob;ctx.clearTimeout=()=>{};ctx.AOCIntake=require('../public/intake-contract.js');ctx.AbortSignal=AbortSignal;
+const contract=ctx.AOCIntake, scope=Object.fromEntries(Object.entries(contract.properties).map(([k,v])=>[k,v.type==='array'?[]:null]));
+Object.assign(scope,{service:'workflow',area:'Accounting, Billing & Finance',task:'Create invoices',taskAnswer:ctx.AOCDept.options('invoice')[0].answer,steps:'The same steps',exceptions:'Flag it for a person',sourceAnswer:'Clear and current',appNames:'Wave, Google Drive',people:4,teams:['Finance / Accounting','Operations'],actionAnswer:'Prepare drafts / recommendations for staff approval',changeImpact:'No',impact:'low',legacy:'no',trainingAudience:'One team',cadence:'monthly'});
+const text='Monthly billing uses Wave, Google Drive. There are four people in Finance and Operations. SOPs are current. A person approves every draft.';
+const analysis={title:'Monthly billing system',summary:'One connected process for invoice and work-summary preparation.',responsibilities:['Prepare invoices','Prepare work summaries'],scope,evidence:[{field:'appNames',quote:'Wave, Google Drive'},{field:'people',quote:'four people'},{field:'teams',quote:'Finance and Operations'},{field:'sourceAnswer',quote:'SOPs are current'}],inferences:[{field:'steps',reason:'Same monthly billing cycle; please confirm.'}],questions:[],boundaries:[]};
+ctx.fetch=async url=>({ok:true,json:async()=>url.endsWith('/status')?{configured:true}:url.endsWith('/transcribe')?{text:'Another billing rule from the recording.'}:{status:'success',analysis}});
+let stoppedTracks=0,denyMic=false;
+ctx.navigator.mediaDevices={getUserMedia:async()=>{if(denyMic)throw Object.assign(Error(),{name:'NotAllowedError'});return {getTracks:()=>[{stop(){stoppedTracks++;}}]};}};
+class RecorderMock{static isTypeSupported(t){return t==='audio/webm';}constructor(){this.state='inactive';this.mimeType='audio/webm';}start(){this.state='recording';}stop(){this.state='inactive';this.ondataavailable({data:new Blob(['fixture audio'],{type:'audio/webm'})});this.onstop();}}
+ctx.window.MediaRecorder=RecorderMock;
+
+vm.runInContext(fs.readFileSync('legacy/voice.js','utf8'),ctx);
+let lastApiBody=null;
+ctx.fetch=async (url,options)=>{if(url.endsWith('/status'))return {ok:true,json:async()=>({configured:true})};if(url.endsWith('/analyze'))lastApiBody=JSON.parse(options.body);return {ok:true,json:async()=>({status:'success',analysis})};};
+(async()=>{
+ await run('checkIntake()');assert.equal(el('analyzeProcess').disabled,true);
+ const finance=query('.area-card').find(n=>n.dataset.area==='Accounting, Billing & Finance');assert(finance,'Finance & billing area option');el('areaChoices').listeners.click({target:finance});
+ set('processText',text);await el('processText').listeners.input({target:el('processText')});assert.equal(el('analyzeProcess').disabled,false);
+ await run('analyzeProcess()');assert.equal(run('voice.analysis.title'),'Monthly billing system');assert.equal(lastApiBody.area,'Accounting, Billing & Finance');assert.equal(lastApiBody.service,'unsure');
+ assert.equal(run('missingVoiceFields().length'),0);assert.equal(el('scopeReview').hidden,false);assert.equal(el('confirmScope').disabled,false);assert.equal(el('appNames').value,'Wave, Google Drive');assert.match(el('scopeSummary').innerHTML,/Prepare work summaries/);assert.match(el('scopeSummary').innerHTML,/details/);
+ el('confirmScope').onclick();assert.equal(run('voice.confirmed'),true);assert.equal(run('last.result.build'),2000);assert.equal(run('last.result.monthly'),null);
+ // Optional managed service and ROI still use the original deterministic calculator.
+ set('voiceManagement','yes');el('voiceManagement').onchange();assert(run('missingVoiceFields().includes("tier")'));set('tier','priority');run('refreshConditional(); renderVoiceReview()');el('confirmScope').onclick();assert.equal(run('last.result.monthly'),325);
+ // Unknown scope can still show an explicitly partial estimate.
+ run('applyVoiceScope({...voice.analysis.scope,people:null}); renderVoiceReview()');assert.equal(el('confirmScope').disabled,false);el('confirmScope').onclick();assert.equal(run('last.result.build'),null);assert.match(el('output').innerHTML,/Scope incomplete/);
+ // Manual edits invalidate the prior narrative and the voice affordance stays clearly unavailable.
+ ev('input','people');assert.equal(run('voice.analysis'),null);assert.equal(el('scopeReview').hidden,true);assert.equal(el('voiceCommercial').hidden,true);assert.equal(el('dictateProcess').disabled,true);assert.match(el('dictateProcess').textContent,/soon/);
+ // Ignore an outdated analysis response after the visitor changes the description.
+ const financeStale=query('.area-card').find(n=>n.dataset.area==='Accounting, Billing & Finance');assert(financeStale,'Finance & billing area option');el('areaChoices').listeners.click({target:financeStale});set('processText',text);let resolve;ctx.fetch=()=>new Promise(r=>resolve=r);const pending=run('analyzeProcess()');run('invalidateVoice()');resolve({ok:true,json:async()=>({status:'success',analysis})});await pending;assert.equal(run('voice.analysis'),null);
+ // A provider error preserves typed content; start over returns to the business area picker.
+ ctx.fetch=async()=>({ok:false,json:async()=>({error:'API credits need attention.'})});set('processText',text);await run('analyzeProcess()');assert.match(el('analysisStatus').textContent,/credits need attention/);assert.equal(el('processText').value,text);
+ el('clearExplanation').onclick();assert.equal(el('processText').value,'');assert.equal(run('voice.analysis'),null);assert.equal(el('areaPicker').hidden,false);assert.equal(el('explanationPanel').hidden,true);
+ console.log('Narrative UI fixture tests passed: area-first selection and AI recommendation, typed analysis → field prefill → scope review → deterministic build/monthly calculation, partial scope, explicit voice placeholder, stale-response handling and clear/reset. Browser rendering and live AI remain separate checks.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

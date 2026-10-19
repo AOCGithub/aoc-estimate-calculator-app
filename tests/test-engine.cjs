@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');const {calculate:c,defaults}=require('../dist/engine.js');const r=structuredClone(defaults);let checks=0;function check(s,fn,rules=r){fn(c(s,rules));checks++;}
+const base={service:'workflow',level:'moderate',readiness:'partial',systems:3,controls:'no',people:4,departments:2,handover:'group',connectionType:'supported',management:'no',vendor:0,hours:20,rate:40};
+check({},x=>assert.equal(x.build,null));check(base,x=>{assert.equal(x.build,5000);assert.equal(x.audit,500);assert.equal(x.capacity,640);assert.equal(x.payback,7.8125);assert.equal(x.yearNet,2680);});
+check({...base,service:'agent'},x=>assert.equal(x.build,7000));
+check({...base,systems:4},x=>assert.equal(x.build,5500));
+check({...base,volume:50000},x=>assert.equal(x.build,5000));
+check({...base,people:8,departments:3},x=>assert.equal(x.build,6000));
+check({...base,systems:null},x=>assert.equal(x.build,null));
+check({...base,readiness:'unknown'},x=>assert.equal(x.build,null));
+check({...base,hours:null},x=>{assert.equal(x.build,5000);assert.equal(x.capacity,null);});
+check({...base,management:'yes',tier:'priority'},x=>{assert.equal(x.monthly,null);assert.equal(x.yearNet,null);});
+let m=structuredClone(r);m.monthly.priority=400;check({...base,management:'yes',tier:'priority'},x=>{assert.equal(x.monthly,400);assert.equal(x.net,240);assert.equal(x.yearInvestment,9800);},m);
+check({...base,vendor:null},x=>assert.equal(x.recurring,null));
+check({...base,connectionType:'custom',customFee:3000,systems:5},x=>assert.equal(x.build,8000));
+check({...base,connectionType:'custom'},x=>assert.equal(x.build,null));
+const team={service:'team',people:10,departments:2,platform:'claude',assistants:2,expanded:'no',readiness:'clean',migration:'no'};
+check(team,x=>assert.equal(x.build,3500));check({...team,service:'google',domainCount:'one'},x=>assert.equal(x.build,2500));
+check({...team,people:11},x=>assert.equal(x.build,null));check({...team,people:11,scopeFee:750},x=>assert.equal(x.build,4250));
+check({...team,migration:'yes'},x=>assert.equal(x.build,null));check({...team,migration:'yes',migrationFee:1500},x=>assert.equal(x.build,5000));
+check({service:'knowledge'},x=>assert.equal(x.build,null));
+check({service:'knowledge',prepareFee:1000,developFee:2000,matrixFee:1000,retrievalFee:500,updateFee:1000,trainingFee:500},x=>{assert.equal(x.build,6000);assert.equal(x.audit,600);});
+check({service:'migration',from:'M365',to:'Google',workloads:'email',planningFee:500,transferFee:1000,validationFee:500},x=>assert.equal(x.build,2000));
+check({...base,people:1.5},x=>assert.equal(x.build,null));check({...base,hours:-1},x=>assert.equal(x.build,null));
+let edited=structuredClone(r);edited.core.moderate=4500;check(base,x=>assert.equal(x.build,6000),edited);
+check({...base,management:'yes',tier:'priority',vendor:1000},x=>assert.equal(x.payback,null),m);
+const fs=require('node:fs'),html=fs.readFileSync('dist/index.html','utf8'),app=fs.readFileSync('dist/app.js','utf8');assert(!/warehouse|invoice|billingLoader|demo/i.test(html+app));assert(app.includes("addEventListener('submit'"));assert(app.includes("$('calculator').reset()"));assert(html.includes('type="submit"'));console.log(`${checks} calculation scenarios passed; blank/reset/submit wiring and absence of presets checked.`);

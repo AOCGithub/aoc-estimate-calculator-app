@@ -1,0 +1,21 @@
+const fs=require('fs');
+const raw=JSON.parse(fs.readFileSync('data/sheet-snapshot-20261018.json','utf8'));
+const core=require('../public/engine.js').defaults,model=require('../legacy/model.js').defaults;
+// Previous $100 agent add-on was withdrawn. Keep it out of the active model.
+model.monthly.agent=null;
+for(const row of raw.webCalibration||[]){const [group,key]=row[0].split('.');if(model[group]&&typeof row[1]==='number')model[group][key]=row[1];}
+const workflow=raw.banks.find(b=>b.title==='Workflow Automation');const v=row=>workflow.rows.find(r=>r.row===row)?.values[1];
+core.core={simple:v(5),moderate:v(6),complex:v(7),advanced:v(8)};core.prep={clean:v(11),partial:v(12),limited:v(13),unknown:v(28)};Object.assign(core,{includedSystems:v(17),connection:v(18),controls:v(19),department:v(21),rolloutMedium:v(22),rolloutLarge:v(23),handover:{one:v(24),group:v(20),multiple:v(25)}});
+const titles=['Finance & Billing','Orders & Fulfillment','Customer Service & Returns','Sales & Customer Relationships','People & HR','Back-office Administration','Storefront & CRO','Content & Social Publishing','SEO & GEO','Email & Lifecycle Marketing','Paid Advertising','Other / Multi-area'];
+const labels=['Finance and billing','Orders, inventory, and fulfillment','Customer service and returns','Sales and customer relationships','People and HR','Back-office administration','Storefront and conversion','Content Machine and social publishing','SEO and GEO','Email and lifecycle marketing','Paid advertising','Another area / several areas / not sure'];
+const areas=titles.map((title,i)=>{const b=raw.banks.find(b=>b.title===title),seen=new Set();const fields=b.rows.filter(r=>r.values.length>=7&&/^[a-z][a-z0-9_]+$/.test(r.values[1])&&r.values[2]&&r.values[1]!=='generic'&&!/excluded|superseded/i.test(r.values[6])).flatMap(r=>{const x=r.values;if(seen.has(x[1]))return [];seen.add(x[1]);return [{route:x[0],id:x[1],question:x[2],options:x[3],when:x[4],purpose:x[5]}]});const routes=b.rows.filter(r=>r.row>=5&&r.row<40&&r.values.length>=3&&/^[a-z]+$/.test(r.values[1])&&!/excluded/i.test(r.values[3]||'')).map(r=>r.values[0]);const p=raw.prompts.find(r=>r.row===i+2)?.values||[];return {id:'area'+i,title,label:labels[i],prompt:p[2]||'Describe how the process works today, what you want to improve, and what should happen instead. Mention the apps, people, teams, volumes, rules and exceptions if known. Skip anything you do not know.',routes:[...new Set(routes)],fields};});
+const sh=title=>raw.shared.find(s=>s.title===title).rows;
+const appFields=sh('4 Apps & Software').filter(r=>r.row>=2&&r.row<=20).map(r=>{const x=r.values;return {id:x[0],question:x[1],options:x[2],when:x[3]}});
+const dataFields=sh('5 Documents & Data').filter(r=>(r.row>=2&&r.row<=5)||(r.row>=7&&r.row<=10)).map(r=>{const x=r.values;return {id:x[1],question:x[2],options:x[3],when:x[4],conditional:r.row>5}});
+const roiFields=sh('6 Time Costs & Value').filter(r=>(r.row>=2&&r.row<=5)||(r.row>=7&&r.row<=8)).map(r=>{const x=r.values;return {id:x[0],question:x[1],options:x[2],when:x[3]}});
+const serviceFields=[...raw.section7.core.map(x=>({id:x[0],question:x[1],options:x[2],when:x[3]})),...raw.section7.cond.map(x=>({id:x[0],question:x[1],options:x[2],when:x[3],conditional:true}))];
+const appNames=raw.banks.find(b=>b.title==='V8 App Catalog').rows.slice(1).map(r=>r.values[0]).filter(x=>typeof x==='string'&&x);
+const bank={version:raw.version,areas,appFields,dataFields,roiFields,serviceFields,appNames};
+fs.writeFileSync('public/approved-bank.js','(function(r){const data='+JSON.stringify(bank)+';if(typeof module===\'object\')module.exports=data;else r.AOCBank=data;})(globalThis);\n');
+fs.writeFileSync('public/approved-pricing.js','(function(r){const data='+JSON.stringify({version:raw.version,core,marketing:model,monthlyStatus:'Draft calibration from existing demo; not approved client rates',source:'Google Sheet + retained V8 model, captured 18 October 2026'})+';if(typeof module===\'object\')module.exports=data;else r.AOCPricing=data;})(globalThis);\n');
+console.log(JSON.stringify({areas:areas.length,fields:areas.map(a=>[a.title,a.fields.length]),sharedFields:appFields.length+dataFields.length+roiFields.length+serviceFields.length,appSuggestions:appNames.length}));

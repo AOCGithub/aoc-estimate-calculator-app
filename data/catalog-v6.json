@@ -1,0 +1,1454 @@
+{
+  "version": "Department intake v1 · 15 October 2026",
+  "catalog": [
+    {
+      "key": "Billing & Accounting|Create invoices",
+      "area": "Billing & Accounting",
+      "task": "Create invoices",
+      "profile": "invoice",
+      "volumeLabel": "How many invoices are handled?",
+      "riskContext": "Financial",
+      "question": "How are invoice amounts worked out?"
+    },
+    {
+      "key": "Billing & Accounting|Prepare work summaries / statements",
+      "area": "Billing & Accounting",
+      "task": "Prepare work summaries / statements",
+      "profile": "summaries",
+      "volumeLabel": "How many summaries or statements are handled?",
+      "riskContext": "None",
+      "question": "How much do the summaries vary?"
+    },
+    {
+      "key": "Billing & Accounting|Send payment reminders",
+      "area": "Billing & Accounting",
+      "task": "Send payment reminders",
+      "profile": "reminders",
+      "volumeLabel": "How many payment reminders are handled?",
+      "riskContext": "Financial",
+      "question": "How should reminders be selected?"
+    },
+    {
+      "key": "Billing & Accounting|Record and match payments",
+      "area": "Billing & Accounting",
+      "task": "Record and match payments",
+      "profile": "payments",
+      "volumeLabel": "How many payment records are handled?",
+      "riskContext": "Financial",
+      "question": "What should happen to payment information?"
+    },
+    {
+      "key": "Billing & Accounting|Process supplier bills",
+      "area": "Billing & Accounting",
+      "task": "Process supplier bills",
+      "profile": "supplierbills",
+      "volumeLabel": "How many supplier bills are handled?",
+      "riskContext": "Financial",
+      "question": "How should supplier bills be handled?"
+    },
+    {
+      "key": "Billing & Accounting|Prepare financial reports",
+      "area": "Billing & Accounting",
+      "task": "Prepare financial reports",
+      "profile": "reports",
+      "volumeLabel": "How many reports are handled?",
+      "riskContext": "Financial",
+      "question": "What goes into the report?"
+    },
+    {
+      "key": "Billing & Accounting|Something else / not sure",
+      "area": "Billing & Accounting",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Monitor stock",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Monitor stock",
+      "profile": "inventory",
+      "volumeLabel": "How many stock checks are handled?",
+      "riskContext": "Orders / stock",
+      "question": "What stock conditions need checking?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Recommend replenishment",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Recommend replenishment",
+      "profile": "inventory",
+      "volumeLabel": "How many replenishment decisions are handled?",
+      "riskContext": "Orders / stock",
+      "question": "What stock conditions need checking?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Coordinate stock transfers",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Coordinate stock transfers",
+      "profile": "transfer",
+      "volumeLabel": "How many transfer requests are handled?",
+      "riskContext": "Orders / stock",
+      "question": "What help do you want with stock transfers?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Route orders for fulfillment",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Route orders for fulfillment",
+      "profile": "fulfillment",
+      "volumeLabel": "How many orders are handled?",
+      "riskContext": "Orders / stock",
+      "question": "How are fulfillment decisions made?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Prepare shipping / delivery information",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Prepare shipping / delivery information",
+      "profile": "fulfillment",
+      "volumeLabel": "How many shipments or deliveries are handled?",
+      "riskContext": "Orders / stock",
+      "question": "How are fulfillment decisions made?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Handle fulfillment exceptions",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Handle fulfillment exceptions",
+      "profile": "fulfillment",
+      "volumeLabel": "How many order exceptions are handled?",
+      "riskContext": "Orders / stock",
+      "question": "How are fulfillment decisions made?"
+    },
+    {
+      "key": "Warehouse, Inventory & Fulfillment|Something else / not sure",
+      "area": "Warehouse, Inventory & Fulfillment",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Customer Service & Returns|Sort and route inquiries",
+      "area": "Customer Service & Returns",
+      "task": "Sort and route inquiries",
+      "profile": "customer",
+      "volumeLabel": "How many inquiries are handled?",
+      "riskContext": "None",
+      "question": "How should requests be sorted?"
+    },
+    {
+      "key": "Customer Service & Returns|Draft customer replies",
+      "area": "Customer Service & Returns",
+      "task": "Draft customer replies",
+      "profile": "replies",
+      "volumeLabel": "How many replies are handled?",
+      "riskContext": "None",
+      "question": "What kind of replies are needed?"
+    },
+    {
+      "key": "Customer Service & Returns|Answer from approved information",
+      "area": "Customer Service & Returns",
+      "task": "Answer from approved information",
+      "profile": "knowledge",
+      "volumeLabel": "How many questions are handled?",
+      "riskContext": "None",
+      "question": "Which information should answers use?"
+    },
+    {
+      "key": "Customer Service & Returns|Provide order updates",
+      "area": "Customer Service & Returns",
+      "task": "Provide order updates",
+      "profile": "replies",
+      "volumeLabel": "How many order updates are handled?",
+      "riskContext": "Orders / stock",
+      "question": "What kind of replies are needed?"
+    },
+    {
+      "key": "Customer Service & Returns|Process return requests",
+      "area": "Customer Service & Returns",
+      "task": "Process return requests",
+      "profile": "returns",
+      "volumeLabel": "How many return requests are handled?",
+      "riskContext": "Orders / stock",
+      "question": "How do return decisions vary?"
+    },
+    {
+      "key": "Customer Service & Returns|Escalate issues",
+      "area": "Customer Service & Returns",
+      "task": "Escalate issues",
+      "profile": "customer",
+      "volumeLabel": "How many issues are handled?",
+      "riskContext": "None",
+      "question": "How should requests be sorted?"
+    },
+    {
+      "key": "Customer Service & Returns|Something else / not sure",
+      "area": "Customer Service & Returns",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Capture and organize leads",
+      "area": "Sales & Customer Relationships",
+      "task": "Capture and organize leads",
+      "profile": "sales",
+      "volumeLabel": "How many leads are handled?",
+      "riskContext": "None",
+      "question": "How does this sales work vary?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Qualify inquiries",
+      "area": "Sales & Customer Relationships",
+      "task": "Qualify inquiries",
+      "profile": "qualification",
+      "volumeLabel": "How many inquiries are handled?",
+      "riskContext": "None",
+      "question": "How are good-fit inquiries identified?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Draft follow-ups",
+      "area": "Sales & Customer Relationships",
+      "task": "Draft follow-ups",
+      "profile": "sales",
+      "volumeLabel": "How many follow-ups are handled?",
+      "riskContext": "None",
+      "question": "How does this sales work vary?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Prepare quotes / proposals",
+      "area": "Sales & Customer Relationships",
+      "task": "Prepare quotes / proposals",
+      "profile": "quotes",
+      "volumeLabel": "How many quotes or proposals are handled?",
+      "riskContext": "Financial",
+      "question": "How are quotes prepared?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Update customer records",
+      "area": "Sales & Customer Relationships",
+      "task": "Update customer records",
+      "profile": "sales",
+      "volumeLabel": "How many customer updates are handled?",
+      "riskContext": "Sensitive",
+      "question": "How does this sales work vary?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Prepare sales reports",
+      "area": "Sales & Customer Relationships",
+      "task": "Prepare sales reports",
+      "profile": "reports",
+      "volumeLabel": "How many reports are handled?",
+      "riskContext": "None",
+      "question": "What goes into the report?"
+    },
+    {
+      "key": "Sales & Customer Relationships|Something else / not sure",
+      "area": "Sales & Customer Relationships",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Marketing & Content|Create content drafts",
+      "area": "Marketing & Content",
+      "task": "Create content drafts",
+      "profile": "content",
+      "volumeLabel": "How many content items are handled?",
+      "riskContext": "None",
+      "question": "What content do you want to work on?"
+    },
+    {
+      "key": "Marketing & Content|Repurpose existing content",
+      "area": "Marketing & Content",
+      "task": "Repurpose existing content",
+      "profile": "content",
+      "volumeLabel": "How many content items are handled?",
+      "riskContext": "None",
+      "question": "What content do you want to work on?"
+    },
+    {
+      "key": "Marketing & Content|Prepare email campaigns",
+      "area": "Marketing & Content",
+      "task": "Prepare email campaigns",
+      "profile": "campaign",
+      "volumeLabel": "How many campaigns are handled?",
+      "riskContext": "None",
+      "question": "How does the campaign process vary?"
+    },
+    {
+      "key": "Marketing & Content|Organize publishing approvals",
+      "area": "Marketing & Content",
+      "task": "Organize publishing approvals",
+      "profile": "campaign",
+      "volumeLabel": "How many approval requests are handled?",
+      "riskContext": "None",
+      "question": "How does the campaign process vary?"
+    },
+    {
+      "key": "Marketing & Content|Compile marketing reports",
+      "area": "Marketing & Content",
+      "task": "Compile marketing reports",
+      "profile": "reports",
+      "volumeLabel": "How many reports are handled?",
+      "riskContext": "None",
+      "question": "What goes into the report?"
+    },
+    {
+      "key": "Marketing & Content|Monitor campaign results",
+      "area": "Marketing & Content",
+      "task": "Monitor campaign results",
+      "profile": "campaign",
+      "volumeLabel": "How many campaign reviews are handled?",
+      "riskContext": "None",
+      "question": "How does the campaign process vary?"
+    },
+    {
+      "key": "Marketing & Content|Something else / not sure",
+      "area": "Marketing & Content",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Products & Store Operations|Create / update product listings",
+      "area": "Products & Store Operations",
+      "task": "Create / update product listings",
+      "profile": "catalog",
+      "volumeLabel": "How many product listings are handled?",
+      "riskContext": "Orders / stock",
+      "question": "How much do product updates vary?"
+    },
+    {
+      "key": "Products & Store Operations|Prepare product descriptions",
+      "area": "Products & Store Operations",
+      "task": "Prepare product descriptions",
+      "profile": "content",
+      "volumeLabel": "How many descriptions are handled?",
+      "riskContext": "None",
+      "question": "What content do you want to work on?"
+    },
+    {
+      "key": "Products & Store Operations|Organize supplier data",
+      "area": "Products & Store Operations",
+      "task": "Organize supplier data",
+      "profile": "catalog",
+      "volumeLabel": "How many supplier updates are handled?",
+      "riskContext": "None",
+      "question": "How much do product updates vary?"
+    },
+    {
+      "key": "Products & Store Operations|Check pricing / catalog consistency",
+      "area": "Products & Store Operations",
+      "task": "Check pricing / catalog consistency",
+      "profile": "catalog",
+      "volumeLabel": "How many product checks are handled?",
+      "riskContext": "Financial",
+      "question": "How much do product updates vary?"
+    },
+    {
+      "key": "Products & Store Operations|Coordinate promotions",
+      "area": "Products & Store Operations",
+      "task": "Coordinate promotions",
+      "profile": "campaign",
+      "volumeLabel": "How many promotions are handled?",
+      "riskContext": "Financial",
+      "question": "How does the campaign process vary?"
+    },
+    {
+      "key": "Products & Store Operations|Flag store exceptions",
+      "area": "Products & Store Operations",
+      "task": "Flag store exceptions",
+      "profile": "catalog",
+      "volumeLabel": "How many exceptions are handled?",
+      "riskContext": "None",
+      "question": "How much do product updates vary?"
+    },
+    {
+      "key": "Products & Store Operations|Something else / not sure",
+      "area": "Products & Store Operations",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "People, Payroll & HR|Collect payroll inputs",
+      "area": "People, Payroll & HR",
+      "task": "Collect payroll inputs",
+      "profile": "payroll",
+      "volumeLabel": "How many payroll records are handled?",
+      "riskContext": "Financial / sensitive",
+      "question": "What payroll or timesheet help is needed?"
+    },
+    {
+      "key": "People, Payroll & HR|Review timesheets",
+      "area": "People, Payroll & HR",
+      "task": "Review timesheets",
+      "profile": "payroll",
+      "volumeLabel": "How many timesheets are handled?",
+      "riskContext": "Financial / sensitive",
+      "question": "What payroll or timesheet help is needed?"
+    },
+    {
+      "key": "People, Payroll & HR|Coordinate employee onboarding / offboarding",
+      "area": "People, Payroll & HR",
+      "task": "Coordinate employee onboarding / offboarding",
+      "profile": "onboarding",
+      "volumeLabel": "How many employees are handled?",
+      "riskContext": "Sensitive",
+      "question": "How many onboarding or offboarding paths are there?"
+    },
+    {
+      "key": "People, Payroll & HR|Route leave requests",
+      "area": "People, Payroll & HR",
+      "task": "Route leave requests",
+      "profile": "admin",
+      "volumeLabel": "How many leave requests are handled?",
+      "riskContext": "Sensitive",
+      "question": "How do these administrative requests vary?"
+    },
+    {
+      "key": "People, Payroll & HR|Answer employee policy questions",
+      "area": "People, Payroll & HR",
+      "task": "Answer employee policy questions",
+      "profile": "knowledge",
+      "volumeLabel": "How many questions are handled?",
+      "riskContext": "Sensitive",
+      "question": "Which information should answers use?"
+    },
+    {
+      "key": "People, Payroll & HR|Something else / not sure",
+      "area": "People, Payroll & HR",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Back Office & Administration|Process forms / documents",
+      "area": "Back Office & Administration",
+      "task": "Process forms / documents",
+      "profile": "admin",
+      "volumeLabel": "How many forms or documents are handled?",
+      "riskContext": "None",
+      "question": "How do these administrative requests vary?"
+    },
+    {
+      "key": "Back Office & Administration|Route approvals",
+      "area": "Back Office & Administration",
+      "task": "Route approvals",
+      "profile": "admin",
+      "volumeLabel": "How many approval requests are handled?",
+      "riskContext": "None",
+      "question": "How do these administrative requests vary?"
+    },
+    {
+      "key": "Back Office & Administration|Organize files",
+      "area": "Back Office & Administration",
+      "task": "Organize files",
+      "profile": "admin",
+      "volumeLabel": "How many files are handled?",
+      "riskContext": "Sensitive",
+      "question": "How do these administrative requests vary?"
+    },
+    {
+      "key": "Back Office & Administration|Coordinate scheduling",
+      "area": "Back Office & Administration",
+      "task": "Coordinate scheduling",
+      "profile": "admin",
+      "volumeLabel": "How many appointments or events are handled?",
+      "riskContext": "None",
+      "question": "How do these administrative requests vary?"
+    },
+    {
+      "key": "Back Office & Administration|Prepare recurring reports",
+      "area": "Back Office & Administration",
+      "task": "Prepare recurring reports",
+      "profile": "reports",
+      "volumeLabel": "How many reports are handled?",
+      "riskContext": "None",
+      "question": "What goes into the report?"
+    },
+    {
+      "key": "Back Office & Administration|Send internal reminders",
+      "area": "Back Office & Administration",
+      "task": "Send internal reminders",
+      "profile": "reminders",
+      "volumeLabel": "How many reminders are handled?",
+      "riskContext": "None",
+      "question": "How should reminders be selected?"
+    },
+    {
+      "key": "Back Office & Administration|Something else / not sure",
+      "area": "Back Office & Administration",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Projects & Team Operations|Create and assign tasks",
+      "area": "Projects & Team Operations",
+      "task": "Create and assign tasks",
+      "profile": "projects",
+      "volumeLabel": "How many tasks are handled?",
+      "riskContext": "None",
+      "question": "How does work move between people or teams?"
+    },
+    {
+      "key": "Projects & Team Operations|Collect progress updates",
+      "area": "Projects & Team Operations",
+      "task": "Collect progress updates",
+      "profile": "projects",
+      "volumeLabel": "How many updates are handled?",
+      "riskContext": "None",
+      "question": "How does work move between people or teams?"
+    },
+    {
+      "key": "Projects & Team Operations|Prepare project summaries",
+      "area": "Projects & Team Operations",
+      "task": "Prepare project summaries",
+      "profile": "summaries",
+      "volumeLabel": "How many summaries are handled?",
+      "riskContext": "None",
+      "question": "How much do the summaries vary?"
+    },
+    {
+      "key": "Projects & Team Operations|Track deadlines",
+      "area": "Projects & Team Operations",
+      "task": "Track deadlines",
+      "profile": "projects",
+      "volumeLabel": "How many deadlines are handled?",
+      "riskContext": "None",
+      "question": "How does work move between people or teams?"
+    },
+    {
+      "key": "Projects & Team Operations|Coordinate handoffs",
+      "area": "Projects & Team Operations",
+      "task": "Coordinate handoffs",
+      "profile": "projects",
+      "volumeLabel": "How many handoffs are handled?",
+      "riskContext": "None",
+      "question": "How does work move between people or teams?"
+    },
+    {
+      "key": "Projects & Team Operations|Flag overdue work",
+      "area": "Projects & Team Operations",
+      "task": "Flag overdue work",
+      "profile": "projects",
+      "volumeLabel": "How many overdue items are handled?",
+      "riskContext": "None",
+      "question": "How does work move between people or teams?"
+    },
+    {
+      "key": "Projects & Team Operations|Something else / not sure",
+      "area": "Projects & Team Operations",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    },
+    {
+      "key": "Another Area / Not Sure|Something else / not sure",
+      "area": "Another Area / Not Sure",
+      "task": "Something else / not sure",
+      "profile": "generic",
+      "volumeLabel": "How many items or events are handled?",
+      "riskContext": "Review",
+      "question": "What best describes the work?"
+    }
+  ],
+  "questions": [
+    {
+      "key": "invoice|The same amount each time",
+      "profile": "invoice",
+      "prompt": "How are invoice amounts worked out?",
+      "answer": "The same amount each time",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "invoice|Based on time or usage",
+      "profile": "invoice",
+      "prompt": "How are invoice amounts worked out?",
+      "answer": "Based on time or usage",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "invoice|A combination of methods",
+      "profile": "invoice",
+      "prompt": "How are invoice amounts worked out?",
+      "answer": "A combination of methods",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "invoice|Not sure",
+      "profile": "invoice",
+      "prompt": "How are invoice amounts worked out?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "summaries|One standard format",
+      "profile": "summaries",
+      "prompt": "How much do the summaries vary?",
+      "answer": "One standard format",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "summaries|A few versions for different clients",
+      "profile": "summaries",
+      "prompt": "How much do the summaries vary?",
+      "answer": "A few versions for different clients",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "summaries|Different details and rules for many clients",
+      "profile": "summaries",
+      "prompt": "How much do the summaries vary?",
+      "answer": "Different details and rules for many clients",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "summaries|Not sure",
+      "profile": "summaries",
+      "prompt": "How much do the summaries vary?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "reminders|One schedule and message",
+      "profile": "reminders",
+      "prompt": "How should reminders be selected?",
+      "answer": "One schedule and message",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "reminders|Different reminders for a few situations",
+      "profile": "reminders",
+      "prompt": "How should reminders be selected?",
+      "answer": "Different reminders for a few situations",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "reminders|Based on replies, balances and several exceptions",
+      "profile": "reminders",
+      "prompt": "How should reminders be selected?",
+      "answer": "Based on replies, balances and several exceptions",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "reminders|Not sure",
+      "profile": "reminders",
+      "prompt": "How should reminders be selected?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "payments|Record payments only",
+      "profile": "payments",
+      "prompt": "What should happen to payment information?",
+      "answer": "Record payments only",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "payments|Match payments to invoices",
+      "profile": "payments",
+      "prompt": "What should happen to payment information?",
+      "answer": "Match payments to invoices",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "payments|Also handle differences or missing payments",
+      "profile": "payments",
+      "prompt": "What should happen to payment information?",
+      "answer": "Also handle differences or missing payments",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "payments|Not sure",
+      "profile": "payments",
+      "prompt": "What should happen to payment information?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "supplierbills|Collect and organize standard bills",
+      "profile": "supplierbills",
+      "prompt": "How should supplier bills be handled?",
+      "answer": "Collect and organize standard bills",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "supplierbills|Check fields and route for approval",
+      "profile": "supplierbills",
+      "prompt": "How should supplier bills be handled?",
+      "answer": "Check fields and route for approval",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "supplierbills|Match bills, orders and receipts with exceptions",
+      "profile": "supplierbills",
+      "prompt": "How should supplier bills be handled?",
+      "answer": "Match bills, orders and receipts with exceptions",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "supplierbills|Not sure",
+      "profile": "supplierbills",
+      "prompt": "How should supplier bills be handled?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "reports|One source and standard format",
+      "profile": "reports",
+      "prompt": "What goes into the report?",
+      "answer": "One source and standard format",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "reports|Several sources in a standard report",
+      "profile": "reports",
+      "prompt": "What goes into the report?",
+      "answer": "Several sources in a standard report",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "reports|Different calculations or reports for different teams",
+      "profile": "reports",
+      "prompt": "What goes into the report?",
+      "answer": "Different calculations or reports for different teams",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "reports|Not sure",
+      "profile": "reports",
+      "prompt": "What goes into the report?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "inventory|One agreed stock condition",
+      "profile": "inventory",
+      "prompt": "What stock conditions need checking?",
+      "answer": "One agreed stock condition",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "inventory|A few thresholds or location rules",
+      "profile": "inventory",
+      "prompt": "What stock conditions need checking?",
+      "answer": "A few thresholds or location rules",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "inventory|Several locations, exceptions and competing stock needs",
+      "profile": "inventory",
+      "prompt": "What stock conditions need checking?",
+      "answer": "Several locations, exceptions and competing stock needs",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "inventory|Not sure",
+      "profile": "inventory",
+      "prompt": "What stock conditions need checking?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "transfer|Recommend transfers",
+      "profile": "transfer",
+      "prompt": "What help do you want with stock transfers?",
+      "answer": "Recommend transfers",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "transfer|Prepare transfer requests for approval",
+      "profile": "transfer",
+      "prompt": "What help do you want with stock transfers?",
+      "answer": "Prepare transfer requests for approval",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "transfer|Create approved transfers in our systems",
+      "profile": "transfer",
+      "prompt": "What help do you want with stock transfers?",
+      "answer": "Create approved transfers in our systems",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "transfer|Not sure",
+      "profile": "transfer",
+      "prompt": "What help do you want with stock transfers?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "fulfillment|One standard route",
+      "profile": "fulfillment",
+      "prompt": "How are fulfillment decisions made?",
+      "answer": "One standard route",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "fulfillment|Different routes for a few order types",
+      "profile": "fulfillment",
+      "prompt": "How are fulfillment decisions made?",
+      "answer": "Different routes for a few order types",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "fulfillment|Several locations, split orders or exception rules",
+      "profile": "fulfillment",
+      "prompt": "How are fulfillment decisions made?",
+      "answer": "Several locations, split orders or exception rules",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "fulfillment|Not sure",
+      "profile": "fulfillment",
+      "prompt": "How are fulfillment decisions made?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "customer|One clear category or route",
+      "profile": "customer",
+      "prompt": "How should requests be sorted?",
+      "answer": "One clear category or route",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "customer|Several agreed categories and owners",
+      "profile": "customer",
+      "prompt": "How should requests be sorted?",
+      "answer": "Several agreed categories and owners",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "customer|Different priorities, context and exception routes",
+      "profile": "customer",
+      "prompt": "How should requests be sorted?",
+      "answer": "Different priorities, context and exception routes",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "customer|Not sure",
+      "profile": "customer",
+      "prompt": "How should requests be sorted?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "replies|Standard approved wording",
+      "profile": "replies",
+      "prompt": "What kind of replies are needed?",
+      "answer": "Standard approved wording",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "replies|Tailored replies using order or customer information",
+      "profile": "replies",
+      "prompt": "What kind of replies are needed?",
+      "answer": "Tailored replies using order or customer information",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "replies|Several sources and situations requiring judgment",
+      "profile": "replies",
+      "prompt": "What kind of replies are needed?",
+      "answer": "Several sources and situations requiring judgment",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "replies|Not sure",
+      "profile": "replies",
+      "prompt": "What kind of replies are needed?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "knowledge|One small approved information set",
+      "profile": "knowledge",
+      "prompt": "Which information should answers use?",
+      "answer": "One small approved information set",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "knowledge|Several approved topics or sources",
+      "profile": "knowledge",
+      "prompt": "Which information should answers use?",
+      "answer": "Several approved topics or sources",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "knowledge|Different permissions or conflicting / changing sources",
+      "profile": "knowledge",
+      "prompt": "Which information should answers use?",
+      "answer": "Different permissions or conflicting / changing sources",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "knowledge|Not sure",
+      "profile": "knowledge",
+      "prompt": "Which information should answers use?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "returns|One standard policy and route",
+      "profile": "returns",
+      "prompt": "How do return decisions vary?",
+      "answer": "One standard policy and route",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "returns|A few product or customer exceptions",
+      "profile": "returns",
+      "prompt": "How do return decisions vary?",
+      "answer": "A few product or customer exceptions",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "returns|Different policies, approvals and disposition decisions",
+      "profile": "returns",
+      "prompt": "How do return decisions vary?",
+      "answer": "Different policies, approvals and disposition decisions",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "returns|Not sure",
+      "profile": "returns",
+      "prompt": "How do return decisions vary?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "sales|One agreed process",
+      "profile": "sales",
+      "prompt": "How does this sales work vary?",
+      "answer": "One agreed process",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "sales|A few lead or customer types",
+      "profile": "sales",
+      "prompt": "How does this sales work vary?",
+      "answer": "A few lead or customer types",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "sales|Several stages, offers and handoffs",
+      "profile": "sales",
+      "prompt": "How does this sales work vary?",
+      "answer": "Several stages, offers and handoffs",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "sales|Not sure",
+      "profile": "sales",
+      "prompt": "How does this sales work vary?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "qualification|Established criteria",
+      "profile": "qualification",
+      "prompt": "How are good-fit inquiries identified?",
+      "answer": "Established criteria",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "qualification|Help us define the criteria",
+      "profile": "qualification",
+      "prompt": "How are good-fit inquiries identified?",
+      "answer": "Help us define the criteria",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "qualification|Criteria vary by situation",
+      "profile": "qualification",
+      "prompt": "How are good-fit inquiries identified?",
+      "answer": "Criteria vary by situation",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "qualification|Not sure",
+      "profile": "qualification",
+      "prompt": "How are good-fit inquiries identified?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "quotes|One fixed offer or template",
+      "profile": "quotes",
+      "prompt": "How are quotes prepared?",
+      "answer": "One fixed offer or template",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "quotes|A few products or pricing arrangements",
+      "profile": "quotes",
+      "prompt": "How are quotes prepared?",
+      "answer": "A few products or pricing arrangements",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "quotes|Variable pricing, approvals and several exceptions",
+      "profile": "quotes",
+      "prompt": "How are quotes prepared?",
+      "answer": "Variable pricing, approvals and several exceptions",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "quotes|Not sure",
+      "profile": "quotes",
+      "prompt": "How are quotes prepared?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "content|Product content",
+      "profile": "content",
+      "prompt": "What content do you want to work on?",
+      "answer": "Product content",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "content|Articles",
+      "profile": "content",
+      "prompt": "What content do you want to work on?",
+      "answer": "Articles",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "content|Social posts",
+      "profile": "content",
+      "prompt": "What content do you want to work on?",
+      "answer": "Social posts",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "content|Email content",
+      "profile": "content",
+      "prompt": "What content do you want to work on?",
+      "answer": "Email content",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "content|Several content types",
+      "profile": "content",
+      "prompt": "What content do you want to work on?",
+      "answer": "Several content types",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "content|Not sure",
+      "profile": "content",
+      "prompt": "What content do you want to work on?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "campaign|One audience and standard sequence",
+      "profile": "campaign",
+      "prompt": "How does the campaign process vary?",
+      "answer": "One audience and standard sequence",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "campaign|A few audiences or sequences",
+      "profile": "campaign",
+      "prompt": "How does the campaign process vary?",
+      "answer": "A few audiences or sequences",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "campaign|Several channels, rules and approval paths",
+      "profile": "campaign",
+      "prompt": "How does the campaign process vary?",
+      "answer": "Several channels, rules and approval paths",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "campaign|Not sure",
+      "profile": "campaign",
+      "prompt": "How does the campaign process vary?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "catalog|One standard format and update rule",
+      "profile": "catalog",
+      "prompt": "How much do product updates vary?",
+      "answer": "One standard format and update rule",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "catalog|Different formats or rules for a few product types",
+      "profile": "catalog",
+      "prompt": "How much do product updates vary?",
+      "answer": "Different formats or rules for a few product types",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "catalog|Several sources, variants and conflicting updates",
+      "profile": "catalog",
+      "prompt": "How much do product updates vary?",
+      "answer": "Several sources, variants and conflicting updates",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "catalog|Not sure",
+      "profile": "catalog",
+      "prompt": "How much do product updates vary?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "payroll|Collect standard inputs for staff review",
+      "profile": "payroll",
+      "prompt": "What payroll or timesheet help is needed?",
+      "answer": "Collect standard inputs for staff review",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "payroll|Apply agreed checks and route exceptions",
+      "profile": "payroll",
+      "prompt": "What payroll or timesheet help is needed?",
+      "answer": "Apply agreed checks and route exceptions",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "payroll|Different pay rules, approvals or adjustments",
+      "profile": "payroll",
+      "prompt": "What payroll or timesheet help is needed?",
+      "answer": "Different pay rules, approvals or adjustments",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "payroll|Not sure",
+      "profile": "payroll",
+      "prompt": "What payroll or timesheet help is needed?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "onboarding|One standard checklist",
+      "profile": "onboarding",
+      "prompt": "How many onboarding or offboarding paths are there?",
+      "answer": "One standard checklist",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "onboarding|A few role-specific checklists",
+      "profile": "onboarding",
+      "prompt": "How many onboarding or offboarding paths are there?",
+      "answer": "A few role-specific checklists",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "onboarding|Several systems, permissions and approval paths",
+      "profile": "onboarding",
+      "prompt": "How many onboarding or offboarding paths are there?",
+      "answer": "Several systems, permissions and approval paths",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "onboarding|Not sure",
+      "profile": "onboarding",
+      "prompt": "How many onboarding or offboarding paths are there?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "admin|One standard request and route",
+      "profile": "admin",
+      "prompt": "How do these administrative requests vary?",
+      "answer": "One standard request and route",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "admin|A few request types",
+      "profile": "admin",
+      "prompt": "How do these administrative requests vary?",
+      "answer": "A few request types",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "admin|Several rules, owners and exception routes",
+      "profile": "admin",
+      "prompt": "How do these administrative requests vary?",
+      "answer": "Several rules, owners and exception routes",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "admin|Not sure",
+      "profile": "admin",
+      "prompt": "How do these administrative requests vary?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "projects|One standard task or handoff",
+      "profile": "projects",
+      "prompt": "How does work move between people or teams?",
+      "answer": "One standard task or handoff",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "projects|A few roles, steps or project types",
+      "profile": "projects",
+      "prompt": "How does work move between people or teams?",
+      "answer": "A few roles, steps or project types",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "projects|Several dependent steps and exception routes",
+      "profile": "projects",
+      "prompt": "How does work move between people or teams?",
+      "answer": "Several dependent steps and exception routes",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "projects|Not sure",
+      "profile": "projects",
+      "prompt": "How does work move between people or teams?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "generic|One contained task with clear instructions",
+      "profile": "generic",
+      "prompt": "What best describes the work?",
+      "answer": "One contained task with clear instructions",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "generic|Several steps or handoffs",
+      "profile": "generic",
+      "prompt": "What best describes the work?",
+      "answer": "Several steps or handoffs",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "generic|Many interacting rules and exceptions",
+      "profile": "generic",
+      "prompt": "What best describes the work?",
+      "answer": "Many interacting rules and exceptions",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "generic|Not sure",
+      "profile": "generic",
+      "prompt": "What best describes the work?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "steps|The same steps",
+      "profile": "steps",
+      "prompt": "Does this usually follow the same steps?",
+      "answer": "The same steps",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "steps|A few variations",
+      "profile": "steps",
+      "prompt": "Does this usually follow the same steps?",
+      "answer": "A few variations",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "steps|Many exceptions",
+      "profile": "steps",
+      "prompt": "Does this usually follow the same steps?",
+      "answer": "Many exceptions",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "steps|Not sure",
+      "profile": "steps",
+      "prompt": "Does this usually follow the same steps?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "exceptions|Flag it for a person",
+      "profile": "exceptions",
+      "prompt": "What should happen when something does not fit the usual process?",
+      "answer": "Flag it for a person",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "exceptions|Use a few agreed exception routes",
+      "profile": "exceptions",
+      "prompt": "What should happen when something does not fit the usual process?",
+      "answer": "Use a few agreed exception routes",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "exceptions|Different decisions across several teams or situations",
+      "profile": "exceptions",
+      "prompt": "What should happen when something does not fit the usual process?",
+      "answer": "Different decisions across several teams or situations",
+      "band": 3,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "exceptions|Not sure",
+      "profile": "exceptions",
+      "prompt": "What should happen when something does not fit the usual process?",
+      "answer": "Not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    },
+    {
+      "key": "agent|Interpret, classify or draft within clear instructions",
+      "profile": "agent",
+      "prompt": "What should the AI help decide?",
+      "answer": "Interpret, classify or draft within clear instructions",
+      "band": 1,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "agent|Choose among agreed next steps or tools",
+      "profile": "agent",
+      "prompt": "What should the AI help decide?",
+      "answer": "Choose among agreed next steps or tools",
+      "band": 2,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "agent|Coordinate several connected processes and decisions",
+      "profile": "agent",
+      "prompt": "What should the AI help decide?",
+      "answer": "Coordinate several connected processes and decisions",
+      "band": 4,
+      "note": "Internal scope band; no task-specific flat price"
+    },
+    {
+      "key": "agent|Recommend an approach / not sure",
+      "profile": "agent",
+      "prompt": "What should the AI help decide?",
+      "answer": "Recommend an approach / not sure",
+      "band": 2,
+      "note": "Provisional Moderate assumption; review required"
+    }
+  ]
+}
