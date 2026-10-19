@@ -10,9 +10,10 @@
     "test:domain": "node tests/test-journey.cjs",
     "test:worker": "node tests/test-journey-worker.cjs",
     "test:intake": "node tests/test-voice-server.cjs",
+    "test:vercel": "node tests/test-vercel-api.mjs",
     "test:ui": "node tests/test-react-ui.cjs",
     "test:ui:capture": "node tests/test-react-ui.cjs --capture",
-    "test": "npm run test:domain && npm run build:worker && npm run test:worker && npm run test:intake && npm run test:ui && node scripts/validate-artifact.mjs"
+    "test": "npm run test:domain && npm run build:worker && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:ui && node scripts/validate-artifact.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

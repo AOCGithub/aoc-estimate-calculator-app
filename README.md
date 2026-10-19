@@ -12,7 +12,8 @@ The default page is the seven-section estimate journey. Previous interfaces are 
 - `scripts/` — rule compilation, Worker packaging, and artifact validation.
 - `tests/` — maintained React/Worker checks plus clearly documented historical tests.
 - `data/` — versioned workbook and regression snapshots; never served publicly.
-- `docs/` — implementation handoff and release constraints.
+- `docs/` — implementation handoff, release constraints, and deployment instructions.
+- `api/` — Vercel Function adapters for the existing calculator and organizer contracts.
 - `legacy/` — pre-React interfaces retained for reconciliation; excluded from builds.
 - `dist/` — generated output from `npm run build:worker`.
 
@@ -43,6 +44,8 @@ Run the deterministic model and packaged Worker checks:
 ```sh
 npm test
 ```
+
+For a Git-connected Vercel staging deployment, follow `docs/VERCEL-DEPLOYMENT.md`. The committed `vercel.json` uses the Vite build in `dist/client` and deploys the existing server calculation and organizer behavior as Vercel Functions.
 
 The pricing model and generated field banks remain framework-independent files under `public/` so the existing Node parity checks and Worker can use the same source of truth:
 
