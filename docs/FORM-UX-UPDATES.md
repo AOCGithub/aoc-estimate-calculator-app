@@ -190,6 +190,20 @@ This section records the completed correction pass against the current calculato
 - Kept navigation and selection behavior unchanged while making clickable actions feel more responsive.
 - Disabled motion when the visitor has requested reduced motion at the operating-system or browser level.
 
+### Update 9 - AI prefill configuration status
+
+- Confirmed that typed description entry, fact extraction, editable prefilled answers, blank unknowns, manual-correction preservation, structured server validation, and local fallback are implemented and covered by the maintained tests.
+- A live check of `https://aoc-estimate-calculator.vercel.app/api/journey/analyze` returned `{"localFallback":true,"mode":"local"}`. Production therefore uses the conservative local organizer until approved OpenAI credentials and the enable flag are configured in Vercel.
+- Created the Git-ignored local `.env.local` configuration with `AOC_AI_ORGANIZER_ENABLED=true`, the documented model setting, and an intentionally blank `OPENAI_API_KEY`. A developer must add an approved key locally and restart Vite before testing the external provider.
+- Secrets must never be recorded in this file, committed to Git, placed in `.env.example`, or exposed with a `VITE_` prefix. Vercel Production variables are separate from the local file and require a production redeploy.
+
+### Update 10 - Vercel and custom-domain status
+
+- Confirmed that the Git-connected production deployment is available at `https://aoc-estimate-calculator.vercel.app/`.
+- Added `estimate.alwaysopencommerce.com` to the Vercel Production environment. Vercel reported **Invalid Configuration** because the requested DNS record has not been added at the domain provider.
+- Live DNS checks showed that `alwaysopencommerce.com` uses GoDaddy nameservers while the main site remains pointed to WordPress. The required `estimate` CNAME must therefore be added in GoDaddy without changing the existing apex or `www` records.
+- Custom-domain work was deliberately paused at the user's request. The Vercel URL remains the active calculator address, and the AOC subdomain must not be reported as complete until DNS, HTTPS, and the production smoke test pass.
+
 ### Confirmed delivery order
 
 1. **Phase 1 — current priority, 18–29 estimated hours:** working typed calculator, description prefill, editable answers, deterministic pricing, subdomain setup, and testing.
@@ -200,7 +214,8 @@ These are planning estimates for Gino to review, not fixed deadlines. Later phas
 
 ### Remaining Phase 1 operational work
 
-- Connect the GitHub repository to Vercel and assign the intended AOC subdomain.
-- Run the documented synthetic smoke test against that deployed URL and confirm the server-verified result.
+- Complete the deferred GoDaddy CNAME for `estimate.alwaysopencommerce.com`, wait for Vercel to report **Valid Configuration**, and verify HTTPS before using the custom address.
+- Run the documented synthetic smoke test against the intended production URL and confirm the server-verified result.
 - Capture deployed desktop/mobile evidence and test the optional OpenAI organizer with approved server-side credentials if it is enabled for staging.
+- Add approved OpenAI credentials and the organizer enable flag to Vercel Production, redeploy, and verify known facts, blank unknowns, and preserved manual corrections before marking external AI prefill complete.
 - Keep draft coefficients, monthly service amounts, SLA terms, and incomplete field mappings marked provisional until their business review is complete.

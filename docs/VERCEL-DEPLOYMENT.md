@@ -4,6 +4,14 @@ This repository is configured for a Git-connected Vercel preview. The Vite clien
 
 The current release remains a testing preview. Do not present it as the qualified client production calculator until the access gate, commercial pricing approvals, and remaining launch checks in `DEVELOPER-HANDOFF.md` are complete.
 
+## Current deployment status - 20 October 2026
+
+- Git-connected production deployment: `https://aoc-estimate-calculator.vercel.app/`
+- Proposed custom hostname: `estimate.alwaysopencommerce.com`
+- The custom hostname has been added to the Vercel Production environment but is not connected. Vercel currently requests a CNAME named `estimate` pointing to `f47cea59923446c4.vercel-dns-017.com`.
+- The domain uses GoDaddy nameservers (`ns19.domaincontrol.com` and `ns20.domaincontrol.com`), while the apex and `www` records continue to serve the WordPress site. Do not modify those existing records when adding the calculator subdomain.
+- DNS work is intentionally deferred. Do not report the custom domain as complete until Vercel shows **Valid Configuration**, HTTPS loads correctly, and the production smoke test passes.
+
 ## Import from GitHub
 
 1. Sign in to Vercel with an account that can access `AOCGithub/aoc-estimate-calculator-app`.
@@ -25,6 +33,10 @@ AOC_INTAKE_MODEL=gpt-5.4
 ```
 
 To test the optional OpenAI organizer later, add `OPENAI_API_KEY` as a Vercel secret and change `AOC_AI_ORGANIZER_ENABLED=true`. Configure these as server-side variables for the intended Preview or Production environment. Never use a `VITE_` prefix for the key; that would expose it to browser code. Redeploy after changing environment variables.
+
+For local development, `.env.example` is only a committed template. Copy it to the Git-ignored `.env.local`, add the approved key there, and restart Vite. The current workspace has `.env.local` prepared with the organizer enabled and its key intentionally blank; this ignored file is not distributed through Git.
+
+A live production check on 20 October 2026 returned `{"localFallback":true,"mode":"local"}` from `/api/journey/analyze`. This confirms that typing and conservative local prefill work, but it does not prove that the external OpenAI provider is connected. To complete that task, configure the three Production variables, redeploy, and test with synthetic text that known facts are filled, unknowns remain blank, and manual corrections survive reorganization.
 
 ## Required smoke test
 
