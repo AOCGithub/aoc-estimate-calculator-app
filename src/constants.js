@@ -36,5 +36,4 @@ export const numericFields = new Set([
 
 export const marketingAreas = new Set(['area6', 'area7', 'area8', 'area9', 'area10']);
 
-export const areaIcons = ['＄', '◦', '↩', '◎', '♧', '▤', '↗', '✎', '⌕', '✉', '◈', '＋'];
-
+export const areaIcons = ['＄', '▦', '↩', '◎', '♧', '▤', '↗', '✎', '⌕', '✉', '◈', '＋'];

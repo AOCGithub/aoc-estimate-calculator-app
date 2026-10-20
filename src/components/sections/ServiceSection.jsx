@@ -14,6 +14,19 @@ function recommendedTier(answers) {
 
 export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }) {
   const findField = (id) => estimatorBank.serviceFields.find((field) => field.id === id);
+  const hasAnswer = (id) => answers[id] !== null && answers[id] !== undefined && answers[id] !== '';
+  const showConditional = (id) => {
+    if (hasAnswer(id)) return true;
+    if (id === 'manual_fallback') return Boolean(answers.business_impact);
+    if (id === 'client_approval_checkpoints') return answers.consequential === 'yes';
+    if (id === 'expert_review_frequency') return answers.management === 'yes';
+    if (id === 'operating_deadlines') {
+      return ['Extended hours', 'Around the clock', 'Specific dates or deadlines'].includes(answers.operating_window)
+        || answers.response_need === 'urgent';
+    }
+    if (id === 'pending_approval_behavior') return answers.action_mode === 'approved';
+    return false;
+  };
   return (
     <>
       <h2>Responsibilities and ongoing service.</h2>
@@ -73,7 +86,8 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
           <span>Responsibility and coverage details</span>
           <span className="disclosure-meta">Optional</span>
         </summary>
-        {fields.bankField(findField('client_retained_work'))}
+        {['client', 'shared', 'help'].includes(answers.responsibility_split)
+          && fields.bankField(findField('client_retained_work'))}
         {['aoc', 'shared', 'help'].includes(answers.responsibility_split)
           && fields.bankField(findField('aoc_owned_work'))}
         {fields.select('human_review_boundary', 'Who should review the work?', [
@@ -99,7 +113,9 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
         {fields.select('operating_window', 'When does this process need to run?', [
           'Business hours', 'Extended hours', 'Around the clock', 'Specific dates or deadlines', 'Not sure',
         ])}
-        {estimatorBank.serviceFields.filter((field) => field.conditional).map(fields.bankField)}
+        {estimatorBank.serviceFields
+          .filter((field) => field.conditional && showConditional(field.id))
+          .map(fields.bankField)}
         <h3>What monthly service covers</h3>
         <p className="small">
           Agreed monitoring, investigation, maintenance repairs, agent-quality checks and reporting.

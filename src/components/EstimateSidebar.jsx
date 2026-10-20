@@ -80,6 +80,15 @@ function Result({ state, area }) {
             ? 'Self-managed; ad hoc help $150/hour, $150 minimum per ticket.'
             : 'Optional for technical support; managed production must have a defined recurring scope.'}
       />
+      {result.monthlyParts?.length > 0 && (
+        <details>
+          <summary>AOC monthly service scope</summary>
+          {result.monthlyParts.map((line) => (
+            <div className="line" key={line.label}><span>{line.label}</span><strong>{money(line.amount)}</strong></div>
+          ))}
+          <p>One combined monthly fee; subscriptions and usage remain separate.</p>
+        </details>
+      )}
       <Metric title="Added software / usage" value={result.vendor === null ? 'To be validated' : `${money(result.vendor)} / month`} note="Separate from AOC’s service fee. Unknown costs prevent complete net ROI." />
 
       <details>
@@ -158,8 +167,8 @@ export function EstimateSidebar({ state, area }) {
       : state.calculationSource === 'local-preview'
         ? 'LOCAL PREVIEW · VERIFY'
       : state.result.build === null || managedServiceIncomplete
-        ? 'PARTIAL · REVIEW NEEDED'
-        : 'DRAFT ESTIMATE';
+        ? 'SERVER VERIFIED · PARTIAL'
+        : 'SERVER VERIFIED';
 
   return (
     <aside>

@@ -10,7 +10,9 @@ const createInitialState = (request = 0) => ({
   answers: {},
   facts: {},
   routes: [],
+  routeOverrides: {},
   visible: [],
+  manualVisible: [],
   analysis: null,
   confirmed: false,
   result: null,
@@ -414,8 +416,9 @@ export function useEstimator() {
         return markDirty({
           ...current,
           routes: current.routes.filter((item) => item !== route),
+          routeOverrides: { ...current.routeOverrides, [route]: false },
           visible: current.visible.filter(
-            (id) => !routeFieldIds.includes(id) || current.answers[id],
+            (id) => !routeFieldIds.includes(id) || current.answers[id] || current.manualVisible.includes(id),
           ),
         });
       }
@@ -430,6 +433,7 @@ export function useEstimator() {
       return markDirty({
         ...current,
         routes: [...current.routes, route],
+        routeOverrides: { ...current.routeOverrides, [route]: true },
         visible: [...new Set([...current.visible, ...suggestions.map((field) => field.id)])],
       });
     });
@@ -440,6 +444,7 @@ export function useEstimator() {
     setState((current) => markDirty({
       ...current,
       visible: [...new Set([...current.visible, fieldId])],
+      manualVisible: [...new Set([...current.manualVisible, fieldId])],
     }));
   }, []);
 
@@ -456,19 +461,40 @@ export function useEstimator() {
     setState((current) => ({ ...current, calculating: true }));
     let result;
     let source = 'server';
+    let response;
     try {
-      const response = await fetch('/api/journey/calculate', {
+      response = await fetch('/api/journey/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ area: areaId, answers, confirmed: true }),
       });
-      const text = await response.text();
-      const payload = text.trim() ? JSON.parse(text) : null;
-      if (!response.ok || !payload?.result) throw new Error(payload?.error || 'Server calculation unavailable.');
-      result = payload.result;
     } catch {
       source = 'local-preview';
       result = calculateEstimate({ ...answers, area: areaId, process_confirmed: true });
+    }
+
+    if (response) {
+      let payload = null;
+      try {
+        const text = await response.text();
+        payload = text.trim() ? JSON.parse(text) : null;
+      } catch {
+        // An unreadable response means the calculation service is unavailable.
+      }
+
+      if (response.ok && payload?.result) {
+        result = payload.result;
+      } else if (response.status >= 400 && response.status < 500) {
+        if (request !== requestRef.current) return { ok: false, stale: true };
+        setState((current) => ({ ...current, calculating: false }));
+        return {
+          ok: false,
+          message: payload?.error || 'Please review the calculation details and try again.',
+        };
+      } else {
+        source = 'local-preview';
+        result = calculateEstimate({ ...answers, area: areaId, process_confirmed: true });
+      }
     }
     if (request !== requestRef.current) return { ok: false, stale: true };
     setState((current) => ({
@@ -535,7 +561,11 @@ export function useEstimator() {
 
         if (facts.responsibility_split) {
           const responsibility = answers.responsibility_split;
-          answers.management = ['aoc', 'shared'].includes(responsibility) ? 'yes' : 'no';
+          answers.management = ['aoc', 'shared'].includes(responsibility)
+            ? 'yes'
+            : responsibility === 'client'
+              ? 'no'
+              : null;
           facts.management = facts.responsibility_split;
           if (answers.management !== 'yes') answers.tier = null;
         }
@@ -556,14 +586,30 @@ export function useEstimator() {
           facts.solution = 'Recommended from your description; editable.';
         }
 
+        const routes = [
+          ...analysis.routes.filter((route) => current.routeOverrides[route] !== false),
+          ...Object.entries(current.routeOverrides)
+            .filter(([, selected]) => selected)
+            .map(([route]) => route),
+        ];
+        const currentArea = estimatorBank.areas.find((area) => area.id === current.area);
+        const manualRouteFields = current.visible.filter((id) => {
+          const field = currentArea?.fields.find((candidate) => candidate.id === id);
+          return field && current.routeOverrides[field.route] === true;
+        });
+
         return markDirty({
           ...current,
           step: 3,
           answers,
           facts,
           analysis,
-          routes: analysis.routes,
-          visible: analysis.relevantFields,
+          routes: [...new Set(routes)],
+          visible: [...new Set([
+            ...analysis.relevantFields,
+            ...current.manualVisible,
+            ...manualRouteFields,
+          ])],
           working: false,
           analysisError: '',
         });

@@ -1,7 +1,7 @@
 # Form UX Updates
 
-Last updated: 19 October 2026  
-Status: Implemented and verified
+Last updated: 20 October 2026
+Status: Implemented and verified locally; deployment tasks remain
 
 ## Purpose
 
@@ -96,7 +96,7 @@ The simplified form was re-audited against `public/journey-engine.js`. Fields th
 - Documentation readiness and preparation level remain visible because they affect preparation pricing or can require a bounded review.
 - App connection condition remains visible; unanswered, unknown, customized, or older connections now prevent a complete build estimate instead of silently assuming standard integration pricing.
 - Preparation level requires an explicit answer, including **Not sure** when appropriate. Substantial preparation keeps the result partial until separately bounded.
-- A selected managed-service path with incomplete monthly pricing receives **Partial · Review needed** status even when the one-time build itself is complete.
+- A server-calculated managed-service path with incomplete monthly pricing receives **SERVER VERIFIED · PARTIAL** status even when the one-time build itself is complete; an unavailable server remains clearly labeled **LOCAL PREVIEW · VERIFY**.
 - ROI stays optional. Missing ROI inputs result in an explicitly incomplete value calculation and do not change the build price.
 - Evidence-only and audit-detail questions remain available in collapsed sections and are not deleted.
 
@@ -134,3 +134,61 @@ Before shipping another form reduction or reorganization:
 - The current React interface uses the journey analysis and calculation routes. Historical intake and transcription routes remain packaged for reconciliation, while voice stays disabled in the interface until its documented later phase.
 - Release checks cover the documented $11,500 synthetic fixture; representative Finance, Content, SEO, and Other scenarios; approved complexity drivers; volume-only behavior; and availability of the retained intake routes without enabling voice in the React interface.
 - Relevant implementation files: `src/components/sections/DescriptionSection.jsx`, `src/components/EstimateSidebar.jsx`, `worker/index.js`, `worker/intake-api.js`, `scripts/build-worker.cjs`, `tests/test-journey.cjs`, `tests/test-journey-worker.cjs`, and `scripts/validate-artifact.mjs`.
+
+## Four-hour task update - 20 October 2026
+
+This section records the completed correction pass against the current calculator specification. It is deliberately limited to Phase 1 behavior and does not pull gated entry, saved profiles, WordPress release, or voice into the working-calculator scope.
+
+### Update 1 - Calculation verification and fallback
+
+- A successful server calculation now displays **SERVER VERIFIED**. A server-verified incomplete result displays **SERVER VERIFIED · PARTIAL**.
+- Local calculation remains available only as **LOCAL PREVIEW · VERIFY** when the calculation service is unavailable or unreadable.
+- A server `4xx` validation rejection is now shown to the visitor and does not silently replace the last verified result with a local calculation.
+- The result now exposes the itemized scope of a calculated AOC monthly service while retaining one combined monthly fee and keeping vendor subscriptions and usage separate.
+
+### Update 2 - Scope and manual-edit preservation
+
+- Changing business area after entering estimate information now requires confirmation because it clears the current estimate.
+- Manual route selections and manually added detailed questions survive description reorganization.
+- A manual route deselection remains deselected after reorganization, while obsolete organizer-only suggestions can still be replaced.
+- Route selection now uses the full approved route list, including approved routes whose detailed follow-up bank is still awaiting completion.
+- The route selector keeps the first approved choices available alongside already selected routes so a connected outcome can include more than one responsibility without becoming another full build.
+
+### Update 3 - Unknown management state
+
+- **Help me decide** no longer derives self-management when it comes from an organized description. Management and monthly service remain unknown until the visitor chooses AOC, client, or shared responsibility.
+- Existing behavior remains unchanged for explicit AOC/shared management and explicit client self-management.
+
+### Update 4 - Conditional form reduction
+
+- Data-volume, material-format, and access-restriction follow-ups now appear only when preparation/readiness answers trigger them or when they already contain an answer.
+- Service follow-ups for fallback, approval checkpoints, expert review, deadlines, and pending approvals now appear only when the reviewed answers make them relevant or when they already contain an answer.
+- Client-retained responsibility details are no longer shown for an AOC-only responsibility choice.
+- Detailed fields remain in the approved banks; this change affects presentation only and does not delete data or pricing inputs.
+
+### Update 5 - Repeatable test order and regression coverage
+
+- `npm test` now builds the client and packaged Worker before domain tests inspect generated artifacts, so the documented command works from a clean checkout after dependency installation.
+- Browser coverage now verifies manual route preservation, triggered data/service questions, unknown management, local-preview labeling, monthly-service scope, successful server verification, server validation rejection, protected business-area changes, stale recalculation, the synthetic pricing fixture, and mobile overflow.
+- The full local suite passes, including the deterministic model, Worker, retained intake contracts, Vercel adapters, browser journey, and packaged artifact validation.
+
+### Update 6 - Orders and fulfillment icon
+
+- Set **Orders, inventory, and fulfillment** to the requested `▦` icon glyph.
+- Kept the change scoped to that business-area card; no other icons, labels, layout, or calculator behavior changed.
+- Added browser coverage confirming that the card renders the requested glyph.
+
+### Confirmed delivery order
+
+1. **Phase 1 — current priority, 18–29 estimated hours:** working typed calculator, description prefill, editable answers, deterministic pricing, subdomain setup, and testing.
+2. **Phase 2 — 11–18 estimated hours:** gated entry, optional saved profiles with an unchecked consent checkbox, and WordPress release.
+3. **Phase 3 — 4–8 estimated hours:** voice input after the typed calculator is stable.
+
+These are planning estimates for Gino to review, not fixed deadlines. Later phases must not delay the working calculator. Numbered Hubstaff checklist evidence must be attached to the relevant future update before checklist completion is claimed.
+
+### Remaining Phase 1 operational work
+
+- Connect the GitHub repository to Vercel and assign the intended AOC subdomain.
+- Run the documented synthetic smoke test against that deployed URL and confirm the server-verified result.
+- Capture deployed desktop/mobile evidence and test the optional OpenAI organizer with approved server-side credentials if it is enabled for staging.
+- Keep draft coefficients, monthly service amounts, SLA terms, and incomplete field mappings marked provisional until their business review is complete.

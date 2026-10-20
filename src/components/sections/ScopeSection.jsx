@@ -12,10 +12,10 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField })
   ].map((field) => field.id));
   const candidates = area.fields.filter((field) => field.id !== 'generic' && !sharedIds.has(field.id));
   const chosen = candidates.filter((field) => state.visible.includes(field.id));
-  const allRoutes = [...new Set(area.fields.map((field) => field.route))]
+  const allRoutes = [...new Set(area.routes)]
     .filter((route) => route && !/Shared oversight/i.test(route));
   const displayedRoutes = allRoutes.filter((route, index) =>
-    state.routes.length ? state.routes.includes(route) : index < 6,
+    state.routes.includes(route) || index < 6,
   );
   const hasAnswer = (id) =>
     state.answers[id] !== null && state.answers[id] !== undefined && state.answers[id] !== '';

@@ -14,9 +14,9 @@ import { ValueSection } from './components/sections/ValueSection.jsx';
 import { ServiceSection } from './components/sections/ServiceSection.jsx';
 import { LiveContext } from './components/LiveContext.jsx';
 
-function CurrentSection({ state, area, actions, fields, notify }) {
+function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
-    return <BusinessAreaSection selectedArea={state.area} onChoose={actions.chooseArea} />;
+    return <BusinessAreaSection selectedArea={state.area} onChoose={onChooseArea} />;
   }
   if (state.step === 2) {
     return (
@@ -44,7 +44,7 @@ function CurrentSection({ state, area, actions, fields, notify }) {
     );
   }
   if (state.step === 4) return <AppsSection answers={state.answers} fields={fields} />;
-  if (state.step === 5) return <DataSection fields={fields} />;
+  if (state.step === 5) return <DataSection answers={state.answers} fields={fields} />;
   if (state.step === 6) return <ValueSection areaId={state.area} answers={state.answers} fields={fields} />;
   return (
     <ServiceSection
@@ -80,6 +80,16 @@ export default function App() {
       && !window.confirm('Clear this estimate and start again?')
     ) return;
     actions.restart();
+  }
+
+  function chooseArea(area) {
+    if (area === state.area) return;
+    if (
+      state.area
+      && (state.description || Object.keys(state.answers).length)
+      && !window.confirm('Changing the business area clears this estimate. Continue?')
+    ) return;
+    actions.chooseArea(area);
   }
 
   async function calculate() {
@@ -142,6 +152,7 @@ export default function App() {
                 actions={actions}
                 fields={fields}
                 notify={notify}
+                onChooseArea={chooseArea}
               />
               {state.step !== 2 && (
                 <StepActions

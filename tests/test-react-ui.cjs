@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
+const JourneyCalculation = require('../public/journey-calculation.js');
 
 const clientRoot = path.resolve(__dirname, '../dist/client');
 const browserCandidates = process.platform === 'win32'
@@ -16,6 +17,7 @@ const browserCandidates = process.platform === 'win32'
 const executablePath = browserCandidates.find((candidate) => candidate && fs.existsSync(candidate));
 const capture = process.argv.includes('--capture');
 const artifactsDirectory = path.resolve(__dirname, '../artifacts');
+let calculationMode = 'unavailable';
 
 if (!executablePath) {
   console.log('SKIP: React browser journey (set CHROME_PATH to an installed Chromium browser).');
@@ -37,9 +39,32 @@ const server = http.createServer((request, response) => {
     return;
   }
   if (pathname === '/api/journey/calculate') {
-    response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({
-      error: 'Synthetic calculation service failure',
-    }));
+    if (calculationMode === 'unavailable') {
+      response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({
+        error: 'Synthetic calculation service failure',
+      }));
+      return;
+    }
+    if (calculationMode === 'validation') {
+      response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({
+        error: 'Synthetic validation rejection',
+      }));
+      return;
+    }
+    let raw = '';
+    request.on('data', (chunk) => { raw += chunk; });
+    request.on('end', () => {
+      try {
+        response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
+          ...JourneyCalculation.calculate(JSON.parse(raw)),
+          source: 'server',
+        }));
+      } catch (error) {
+        response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({
+          error: error.message,
+        }));
+      }
+    });
     return;
   }
   if (pathname === '/favicon.ico') {
@@ -88,6 +113,11 @@ const server = http.createServer((request, response) => {
       await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-home.png'), fullPage: true });
     }
     assert.equal(await page.locator('.area').count(), 12, 'all business areas render');
+    assert.equal(
+      await page.getByRole('button', { name: 'Orders, inventory, and fulfillment' }).locator('.icon').textContent(),
+      '▦',
+      'orders and fulfillment uses the requested icon glyph',
+    );
     await page.getByRole('button', { name: 'Finance and billing' }).click();
     await page.getByRole('button', { name: 'Describe the work →', exact: true }).click();
     await page.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
@@ -115,6 +145,15 @@ const server = http.createServer((request, response) => {
     const organizedScope = await page.evaluate(() => globalThis.AOCJourney.getState());
     assert.ok(organizedScope.routes.includes('Create and send invoices'), 'local organizer selects the matching category route');
     assert.ok(organizedScope.visible.includes('invoice_cadence') || organizedScope.visible.includes('invoice_volume'), 'local organizer surfaces relevant category questions');
+    await page.getByText(/Review detailed scope/).click();
+    await page.getByRole('button', { name: 'Send payment reminders', exact: true }).click();
+    await page.getByRole('navigation').getByText('Describe the work', { exact: true }).click();
+    await page.getByRole('button', { name: /Organize my description/ }).click();
+    await page.getByText(/Basic local organization was used/).waitFor();
+    assert.ok(
+      (await page.evaluate(() => globalThis.AOCJourney.getState().routes)).includes('Send payment reminders'),
+      'manual route selection survives reorganization',
+    );
 
     await page.locator('#f_solution').selectOption('workflow');
     assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 1, 'scope starts with one primary choice and compact required groups');
@@ -141,6 +180,10 @@ const server = http.createServer((request, response) => {
     assert.equal(await page.locator('#mainPanel select:visible').count(), 2, 'data step keeps both estimate-sensitive fields visible');
     await page.locator('#f_documentation_readiness').selectOption('Notes or examples');
     await page.locator('#f_data_preparation_level').selectOption('Some preparation');
+    await page.getByText('Preparation details', { exact: true }).click();
+    assert.ok(await page.locator('#f_data_material_volume').isVisible(), 'material volume appears when preparation is needed');
+    assert.equal(await page.locator('#f_data_material_format').count(), 0, 'format detail remains hidden without substantial preparation');
+    assert.equal(await page.locator('#f_data_material_restriction').count(), 0, 'restriction detail remains hidden without an uncertainty trigger');
     await page.getByRole('button', { name: /Continue/ }).click();
 
     assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 0, 'ROI inputs are optional and initially collapsed');
@@ -151,10 +194,18 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_incremental_software_cost').fill('0');
     await page.getByRole('button', { name: /Continue/ }).click();
 
+    await page.locator('#f_responsibility_split').selectOption('help');
+    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().answers.management), null, 'help deciding does not choose management');
     await page.locator('#f_responsibility_split').selectOption('aoc');
     await page.locator('#f_action_mode').selectOption('approved');
     await page.locator('#f_consequential').selectOption('yes');
     await page.getByRole('button', { name: /Priority/ }).click();
+    await page.getByText('Responsibility and coverage details', { exact: true }).click();
+    assert.ok(await page.locator('#f_client_approval_checkpoints').isVisible(), 'approval details appear when consequential actions are selected');
+    assert.ok(await page.locator('#f_expert_review_frequency').isVisible(), 'expert review cadence appears for AOC management');
+    assert.ok(await page.locator('#f_pending_approval_behavior').isVisible(), 'pending approval behavior appears for approval-gated work');
+    assert.equal(await page.locator('#f_manual_fallback').count(), 0, 'untriggered resilience detail remains hidden');
+    assert.equal(await page.locator('#f_operating_deadlines').count(), 0, 'untriggered deadline detail remains hidden');
     await page.locator('.check input').check();
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
 
@@ -162,6 +213,7 @@ const server = http.createServer((request, response) => {
     await page.getByText('$550 / month', { exact: true }).waitFor();
     assert.equal(await page.locator('#estimateStatus').textContent(), 'LOCAL PREVIEW · VERIFY');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'local-preview');
+    assert.ok(await page.getByText('AOC monthly service scope', { exact: true }).isVisible());
     assert.ok(await page.getByText('Recommended solution and connected scope', { exact: true }).isVisible());
     assert.ok(await page.getByText('Create and send invoices', { exact: true }).last().isVisible());
     if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-result.png'), fullPage: true });
@@ -169,10 +221,26 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_responsibility_split').selectOption('client');
     assert.match(await page.locator('#estimateStatus').textContent(), /RECALCULATE/);
     await page.locator('.check input').check();
+    calculationMode = 'server';
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
     const monthlyService = page.getByText('AOC monthly service', { exact: true }).locator('..').locator(':scope > .value');
     await page.waitForFunction(() => globalThis.AOCJourney.getState().result?.monthly === 0);
     assert.equal(await monthlyService.textContent(), '$0');
+    assert.equal(await page.locator('#estimateStatus').textContent(), 'SERVER VERIFIED');
+    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server');
+
+    calculationMode = 'validation';
+    await page.locator('#f_responsibility_split').selectOption('aoc');
+    await page.getByRole('button', { name: /Priority/ }).click();
+    await page.locator('.check input').check();
+    await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
+    await page.getByText('Synthetic validation rejection', { exact: true }).waitFor();
+    assert.equal(
+      await page.evaluate(() => globalThis.AOCJourney.getState().result?.monthly),
+      0,
+      'a server validation error does not replace the last verified result with a local calculation',
+    );
+    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().dirty), true);
 
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(
@@ -181,8 +249,16 @@ const server = http.createServer((request, response) => {
       'mobile layout has no page-level horizontal overflow',
     );
     if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile.png'), fullPage: true });
+
+    await page.getByRole('navigation').getByText('Business area', { exact: true }).click();
+    page.once('dialog', async (dialog) => {
+      assert.match(dialog.message(), /clears this estimate/i);
+      await dialog.dismiss();
+    });
+    await page.getByRole('button', { name: 'Orders, inventory, and fulfillment', exact: true }).click();
+    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().area), 'area0', 'canceling an area change preserves the estimate');
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
-    console.log('PASS: React browser journey, fixture totals, stale recalculation, self-management, and mobile overflow.');
+    console.log('PASS: React browser journey, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
