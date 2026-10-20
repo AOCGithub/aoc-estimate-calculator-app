@@ -178,6 +178,18 @@ This section records the completed correction pass against the current calculato
 - Kept the change scoped to that business-area card; no other icons, labels, layout, or calculator behavior changed.
 - Added browser coverage confirming that the card renders the requested glyph.
 
+### Update 7 - Readable editorial typography
+
+- Replaced the Manrope and DM Sans pairing with a single restrained **IBM Plex Sans** family across headings and interface text.
+- Kept hierarchy through weight and size rather than a contrasting serif, improving cohesion across forms and estimate results.
+- Added system-font fallbacks and preserved the existing layout, colors, calculator behavior, and responsive structure.
+
+### Update 8 - Action feedback
+
+- Added restrained hover and pressed transitions to **Start over**, step actions, primary actions, and the estimate-summary download.
+- Kept navigation and selection behavior unchanged while making clickable actions feel more responsive.
+- Disabled motion when the visitor has requested reduced motion at the operating-system or browser level.
+
 ### Confirmed delivery order
 
 1. **Phase 1 — current priority, 18–29 estimated hours:** working typed calculator, description prefill, editable answers, deterministic pricing, subdomain setup, and testing.
