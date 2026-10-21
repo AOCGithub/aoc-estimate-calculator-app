@@ -53,9 +53,15 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
       )}
       {answers.management === 'yes' && (
         <>
-          <h3>Select support coverage</h3>
+          <h3>
+            Select support coverage
+            {!answers.tier && <span id="tier_requirement" className="required-indicator">Required</span>}
+          </h3>
           <p className="helper">{recommendedTier(answers)}</p>
-          <div className="tiers">
+          <div
+            className={`tiers ${!answers.tier ? 'tiers--missing-required' : ''}`}
+            aria-describedby={!answers.tier ? 'tier_requirement' : undefined}
+          >
             {[
               ['standard', 'Standard', 'Routine support in defined business hours.'],
               ['priority', 'Priority', 'Faster investigation and broader coverage.'],
@@ -123,9 +129,16 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
           separately estimated. Software subscriptions and usage are separate.
         </p>
       </details>
-      <label className="check">
-        <input type="checkbox" checked={confirmed} onChange={(event) => onConfirm(event.target.checked)} />
+      <label className={`check ${!confirmed ? 'check--missing-required' : ''}`}>
+        <input
+          type="checkbox"
+          checked={confirmed}
+          required
+          aria-invalid={!confirmed ? 'true' : undefined}
+          onChange={(event) => onConfirm(event.target.checked)}
+        />
         I’ve reviewed the description and answers. Unknown items and assumptions remain subject to validation.
+        {!confirmed && <span className="required-indicator">Required</span>}
       </label>
     </>
   );

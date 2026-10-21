@@ -156,10 +156,14 @@ const server = http.createServer((request, response) => {
     );
 
     await page.locator('#f_solution').selectOption('workflow');
+    assert.equal(await page.locator('#f_solution').getAttribute('required'), '', 'solution is marked required');
     assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 1, 'scope starts with one primary choice and compact required groups');
     if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-scope-simple.png'), fullPage: true });
     await page.getByText(/Process complexity/).click();
+    assert.equal(await page.locator('#f_steps_band').getAttribute('aria-invalid'), 'true', 'missing required field is identified');
+    assert.equal(await page.locator('#f_steps_band_requirement').textContent(), 'Required', 'missing required field has a visible indicator');
     await page.locator('#f_steps_band').selectOption('3');
+    assert.equal(await page.locator('#f_steps_band').getAttribute('aria-invalid'), null, 'required indicator clears after answering');
     await page.locator('#f_variation_band').selectOption('3');
     await page.getByText(/Team and rollout/).click();
     await page.locator('#f_people_count').fill('3');
@@ -174,6 +178,7 @@ const server = http.createServer((request, response) => {
     assert.ok(await page.locator('#f_app_known_restrictions').isVisible(), 'restricted choice exposes restriction details');
     assert.ok(await page.locator('#f_app_alternative_approach').isVisible(), 'restricted choice exposes alternative approaches');
     await page.locator('#f_legacy_system_check').selectOption('Standard');
+    assert.equal(await page.locator('#f_legacy_system_check').getAttribute('aria-invalid'), null, 'required app condition is complete after selection');
     assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 2, 'apps step keeps two core fields visible');
     await page.getByRole('button', { name: /Continue/ }).click();
 
@@ -197,6 +202,7 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_responsibility_split').selectOption('help');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().answers.management), null, 'help deciding does not choose management');
     await page.locator('#f_responsibility_split').selectOption('aoc');
+    assert.equal(await page.locator('#tier_requirement').textContent(), 'Required', 'missing managed-service tier has an indicator');
     await page.locator('#f_action_mode').selectOption('approved');
     await page.locator('#f_consequential').selectOption('yes');
     await page.getByRole('button', { name: /Priority/ }).click();
@@ -206,7 +212,9 @@ const server = http.createServer((request, response) => {
     assert.ok(await page.locator('#f_pending_approval_behavior').isVisible(), 'pending approval behavior appears for approval-gated work');
     assert.equal(await page.locator('#f_manual_fallback').count(), 0, 'untriggered resilience detail remains hidden');
     assert.equal(await page.locator('#f_operating_deadlines').count(), 0, 'untriggered deadline detail remains hidden');
+    assert.equal(await page.locator('.check--missing-required .required-indicator').textContent(), 'Required', 'missing final confirmation has an indicator');
     await page.locator('.check input').check();
+    assert.equal(await page.locator('.check--missing-required').count(), 0, 'confirmation indicator clears after checking');
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
 
     await page.getByText('$11,500', { exact: true }).waitFor();
@@ -257,8 +265,67 @@ const server = http.createServer((request, response) => {
     });
     await page.getByRole('button', { name: 'Orders, inventory, and fulfillment', exact: true }).click();
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().area), 'area0', 'canceling an area change preserves the estimate');
+
+    const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    mobilePage.on('console', (message) => {
+      const expectedLocalApiError = /\/api\/journey\/(analyze|calculate)$/.test(message.location().url)
+        && message.text().includes('Failed to load resource');
+      if (
+        message.type() === 'error'
+        && !message.text().includes('fonts.googleapis.com')
+        && !expectedLocalApiError
+      ) errors.push(message.text());
+    });
+    mobilePage.on('pageerror', (error) => errors.push(error.message));
+
+    await mobilePage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+    await mobilePage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
+    await mobilePage.getByRole('button', { name: /^Describe the work/ }).click();
+    await mobilePage.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
+    await mobilePage.getByRole('button', { name: /Organize my description/ }).click();
+    await mobilePage.getByText(/Basic local organization was used/).waitFor();
+
+    await mobilePage.locator('#f_solution').selectOption('workflow');
+    await mobilePage.getByText(/Process complexity/).click();
+    await mobilePage.locator('#f_steps_band').selectOption('2');
+    await mobilePage.locator('#f_variation_band').selectOption('1');
+    await mobilePage.getByText(/Team and rollout/).click();
+    await mobilePage.locator('#f_people_count').fill('3');
+    await mobilePage.locator('#f_department_count').fill('2');
+    await mobilePage.locator('#f_cadence').selectOption('monthly');
+    await mobilePage.locator('#f_handover').selectOption('group');
+    await mobilePage.getByRole('button', { name: /Continue/ }).click();
+
+    await mobilePage.locator('#f_systems').fill('Wave');
+    await mobilePage.locator('#f_legacy_system_check').selectOption('Standard');
+    await mobilePage.getByRole('button', { name: /Continue/ }).click();
+
+    await mobilePage.locator('#f_documentation_readiness').selectOption('Notes or examples');
+    await mobilePage.locator('#f_data_preparation_level').selectOption('Some preparation');
+    await mobilePage.getByRole('button', { name: /Continue/ }).click();
+
+    await mobilePage.getByRole('button', { name: /Continue/ }).click();
+    await mobilePage.locator('#f_responsibility_split').selectOption('aoc');
+    await mobilePage.locator('#f_action_mode').selectOption('draft');
+    await mobilePage.getByRole('button', { name: /^Standard/ }).click();
+    await mobilePage.locator('.check input').check();
+    calculationMode = 'server';
+    await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
+
+    await mobilePage.waitForFunction(() => globalThis.AOCJourney.getState().result?.build != null);
+    assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().step), 7, 'mobile journey reaches the final step');
+    assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server', 'mobile journey uses the server calculator');
+    assert.equal(await mobilePage.locator('#estimateStatus').textContent(), 'SERVER VERIFIED', 'mobile journey displays a verified estimate');
+    assert.equal(
+      await mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      true,
+      'completed mobile journey has no page-level horizontal overflow',
+    );
+    if (capture) await mobilePage.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile-journey.png'), fullPage: true });
+    await mobilePage.close();
+
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
-    console.log('PASS: React browser journey, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
+    console.log('PASS: React desktop and complete mobile browser journeys, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

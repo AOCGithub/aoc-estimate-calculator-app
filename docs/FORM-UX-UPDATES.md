@@ -1,6 +1,6 @@
 # Form UX Updates
 
-Last updated: 20 October 2026
+Last updated: 21 October 2026
 Status: Implemented and verified locally; deployment tasks remain
 
 ## Purpose
@@ -28,6 +28,7 @@ The seven-section estimator flow is retained, but each step now presents only th
 - The scope step uses a compact accordion for **Process complexity**, **Team and rollout**, and, when relevant, **Marketing scope**. Each group reports required-answer progress and exposes only one question group at a time.
 - After the first step, the full introduction and testing notice become a compact **About this draft estimate** disclosure. The information remains available without competing with the active form.
 - Optional disclosures now pair their purpose with a small status such as **Optional** or **3 answered**, making filled but collapsed information easier to recognize.
+- Unanswered required fields now show a visible **Required** badge and highlighted control. The indicator clears when the answer is supplied, is exposed through native required and invalid states for assistive technology, and does not mark optional ROI or audit-detail questions.
 
 ### Description-based form prefill
 
@@ -84,7 +85,7 @@ The seven-section estimator flow is retained, but each step now presents only th
 - Full automated test suite passed with `npm test`.
 - Production Vite build completed successfully.
 - Real-browser estimator journey passed using the synthetic pricing fixture.
-- Desktop and mobile layouts were captured and checked for overflow.
+- A complete 390 x 844 mobile browser journey passed from business-area selection through description, editable required fields, confirmation, server calculation, and overflow checks.
 - UI guardrails verify that Scope exposes only its first required group, Apps starts with two controls, Data keeps its two estimate-sensitive controls visible, and the optional ROI step starts with no visible inputs.
 
 ## Accuracy review after simplification

@@ -4,7 +4,10 @@ import { estimatorBank } from '../../lib/domain.js';
 export function BusinessAreaSection({ selectedArea, onChoose }) {
   return (
     <>
-      <h2>Where should we start?</h2>
+      <h2>
+        Where should we start?
+        {!selectedArea && <span className="required-indicator">Required</span>}
+      </h2>
       <p>
         Choose the business area closest to the work. You don’t need to choose between an
         automation and an AI agent.
