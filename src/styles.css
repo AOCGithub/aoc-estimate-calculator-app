@@ -77,6 +77,22 @@ button.primary:not(:disabled):active {
   min-width: 0;
 }
 
+.section-transition {
+  animation: section-transition-enter 180ms ease-out;
+}
+
+@keyframes section-transition-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .field-help {
   margin-top: -8px;
   font-size: 12px;
@@ -322,6 +338,7 @@ button.primary:not(:disabled):active {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .section-transition,
   .organizing-status,
   .organizing-status__spinner,
   .organizing-status__message {

@@ -108,6 +108,12 @@ const server = http.createServer((request, response) => {
 
   try {
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('.section-transition').count(), 1, 'active form section has a transition wrapper');
+    assert.equal(
+      await page.locator('.section-transition').evaluate((element) => getComputedStyle(element).animationName),
+      'section-transition-enter',
+      'section changes use the configured smooth transition',
+    );
     assert.ok(await page.locator('.live-context__location').textContent(), 'timezone-derived location renders');
     assert.ok(await page.locator('.live-context__date').textContent(), 'live local date renders');
     assert.ok(Date.parse(await page.locator('.live-context time').getAttribute('datetime')), 'machine-readable live time renders');

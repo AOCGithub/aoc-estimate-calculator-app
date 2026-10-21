@@ -143,27 +143,29 @@ export default function App() {
           <StepNavigation currentStep={state.step} hasArea={Boolean(state.area)} onNavigate={actions.goTo} />
           <div id="mainPanel">
             <section className="panel">
-              <div className="section-kicker">
-                SECTION {state.step} OF 7 · {selectedArea?.label || 'AI COMMERCE'}
-              </div>
-              <CurrentSection
-                state={state}
-                area={selectedArea}
-                actions={actions}
-                fields={fields}
-                notify={notify}
-                onChooseArea={chooseArea}
-              />
-              {state.step !== 2 && (
-                <StepActions
-                  step={state.step}
-                  hasArea={Boolean(state.area)}
-                  onBack={() => actions.goTo(state.step - 1)}
-                  onNext={() => actions.goTo(state.step + 1)}
-                  onCalculate={calculate}
-                  calculating={state.calculating}
+              <div key={state.step} className="section-transition">
+                <div className="section-kicker">
+                  SECTION {state.step} OF 7 · {selectedArea?.label || 'AI COMMERCE'}
+                </div>
+                <CurrentSection
+                  state={state}
+                  area={selectedArea}
+                  actions={actions}
+                  fields={fields}
+                  notify={notify}
+                  onChooseArea={chooseArea}
                 />
-              )}
+                {state.step !== 2 && (
+                  <StepActions
+                    step={state.step}
+                    hasArea={Boolean(state.area)}
+                    onBack={() => actions.goTo(state.step - 1)}
+                    onNext={() => actions.goTo(state.step + 1)}
+                    onCalculate={calculate}
+                    calculating={state.calculating}
+                  />
+                )}
+              </div>
             </section>
           </div>
           <EstimateSidebar state={state} area={selectedArea || { label: 'AI Commerce' }} />

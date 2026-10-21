@@ -29,6 +29,7 @@ The seven-section estimator flow is retained, but each step now presents only th
 - After the first step, the full introduction and testing notice become a compact **About this draft estimate** disclosure. The information remains available without competing with the active form.
 - Optional disclosures now pair their purpose with a small status such as **Optional** or **3 answered**, making filled but collapsed information easier to recognize.
 - Unanswered required fields now show a visible **Required** badge and highlighted control. The indicator clears when the answer is supplied, is exposed through native required and invalid states for assistive technology, and does not mark optional ROI or audit-detail questions.
+- Moving between the seven form sections now uses a short fade-and-rise transition. The panel remains stable, and the transition is disabled when the visitor prefers reduced motion.
 
 ### Description-based form prefill
 
