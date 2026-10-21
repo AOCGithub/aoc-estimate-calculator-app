@@ -18,6 +18,7 @@ const executablePath = browserCandidates.find((candidate) => candidate && fs.exi
 const capture = process.argv.includes('--capture');
 const artifactsDirectory = path.resolve(__dirname, '../artifacts');
 let calculationMode = 'unavailable';
+let analysisDelay = 0;
 
 if (!executablePath) {
   console.log('SKIP: React browser journey (set CHROME_PATH to an installed Chromium browser).');
@@ -33,9 +34,11 @@ const mime = {
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   if (pathname === '/api/journey/analyze') {
-    response.writeHead(429, { 'content-type': 'application/json' }).end(JSON.stringify({
+    const sendAnalysisFailure = () => response.writeHead(429, { 'content-type': 'application/json' }).end(JSON.stringify({
       error: 'Synthetic provider failure',
     }));
+    if (analysisDelay) setTimeout(sendAnalysisFailure, analysisDelay);
+    else sendAnalysisFailure();
     return;
   }
   if (pathname === '/api/journey/calculate') {
@@ -121,8 +124,20 @@ const server = http.createServer((request, response) => {
     await page.getByRole('button', { name: 'Finance and billing' }).click();
     await page.getByRole('button', { name: 'Describe the work →', exact: true }).click();
     await page.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
+    analysisDelay = capture ? 800 : 250;
     await page.getByRole('button', { name: /Organize my description/ }).click();
+    assert.ok(await page.locator('#organizing-status').isVisible(), 'organizer shows an immediate processing status');
+    assert.match(await page.locator('#organizing-status').textContent(), /Reading the work and outcome/);
+    assert.equal(await page.locator('#description').getAttribute('readonly'), '', 'description is protected while organization is running');
+    assert.equal(await page.getByRole('button', { name: /Organizing/ }).getAttribute('aria-busy'), 'true', 'organizer exposes its busy state');
+    assert.equal(await page.getByRole('button', { name: /Continue with editable fields/ }).isDisabled(), true, 'alternate continuation is paused during organization');
+    if (capture) {
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-organizing.png'), fullPage: true });
+    }
     await page.getByText(/Basic local organization was used/).waitFor();
+    analysisDelay = 0;
+    assert.equal(await page.locator('#organizing-status').count(), 0, 'processing status clears after organization');
     assert.match(
       await page.evaluate(() => globalThis.AOCJourney.getState().description),
       /monthly invoices/,

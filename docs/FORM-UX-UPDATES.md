@@ -32,6 +32,8 @@ The seven-section estimator flow is retained, but each step now presents only th
 
 ### Description-based form prefill
 
+- While AI prefill is running, an accessible inline status card explains the current preparation stage, protects the submitted description from mid-request edits, and pauses duplicate continuation actions. Motion is disabled when the visitor prefers reduced motion.
+
 - Organizing the prospect's description now prefills matching fields throughout Sections 3–7, not only the immediate scope step.
 - Supported facts include named apps, team size, department count, cadence, documentation and preparation readiness, responsibility ownership, approval mode, handover, delivery mode, ROI quantities, and applicable marketing counts.
 - Select values from the model are normalized to the form's stored values before being applied, so human-readable model wording cannot leave a choice visually blank.
