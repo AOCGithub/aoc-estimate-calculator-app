@@ -20,9 +20,13 @@ function requiredFields(state) {
     'data_preparation_level',
     'responsibility_split',
     'action_mode',
+    'implementation_route',
+    'delivery_intent',
+    'existing_client',
   ]);
 
   if (state.answers.solution === 'agent') required.add('decision_band');
+  if (state.answers.implementation_route === 'monthly') required.add('monthly_plan');
   if (state.answers.action_mode && state.answers.action_mode !== 'draft') required.add('consequential');
 
   if (marketingAreas.has(state.area)) {

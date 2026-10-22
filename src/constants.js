@@ -9,6 +9,7 @@ export const sectionTitles = [
 ];
 
 export const numericFields = new Set([
+  ...globalThis.AOCCommercial.numericIds,
   'people_count',
   'department_count',
   'team_time',

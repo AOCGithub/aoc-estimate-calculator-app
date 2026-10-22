@@ -1,5 +1,3 @@
-import { marketingAreas } from '../../constants.js';
-
 export function ValueSection({ areaId, answers, fields }) {
   const hasValueInputs = [
     'team_time',
@@ -29,8 +27,7 @@ export function ValueSection({ areaId, answers, fields }) {
           <strong>The 80/20 planning illustration</strong>
           <p>80% of current time is freed for other work; 20% remains for checking, approvals and exceptions. The audit validates this assumption.</p>
         </div>
-        {marketingAreas.has(areaId) && (
-          <>
+        <>
             <h3>Current provider costs</h3>
             {fields.input('replacement_provider_cost', 'What do you pay a provider for this same work each month?', 'This could be AOC or another provider. Enter only comparable work.', 'number')}
             {fields.select('provider_replaced_portion', 'How much of that fee would go away?', [
@@ -40,8 +37,7 @@ export function ValueSection({ areaId, answers, fields }) {
               ['unknown', 'Not sure'],
             ])}
             {answers.provider_replaced_portion === 'part' && fields.input('provider_removed_amount', 'Monthly portion actually replaced (USD)', '', 'number')}
-          </>
-        )}
+        </>
         <h3>Paid apps that would be replaced</h3>
         {fields.input('software_replaced_cost', 'Current monthly cost of apps this process could replace', 'Connecting an app does not mean its subscription goes away.', 'number')}
         {fields.select('software_replaced_portion', 'How much of that app cost would go away?', [

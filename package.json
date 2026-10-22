@@ -7,7 +7,7 @@
     "build": "vite build",
     "build:worker": "npm run build && node scripts/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",
-    "test:domain": "node tests/test-journey.cjs",
+    "test:domain": "node tests/test-journey.cjs && node tests/test-commercial.cjs",
     "test:worker": "node tests/test-journey-worker.cjs",
     "test:intake": "node tests/test-voice-server.cjs",
     "test:vercel": "node tests/test-vercel-api.mjs",

@@ -2,21 +2,23 @@
 const Bank=typeof module==='object'?require('./approved-bank.js'):root.AOCBank;
 const Contract=typeof module==='object'?require('./journey-contract.js'):root.AOCJourneyContract;
 const Engine=typeof module==='object'?require('./journey-engine.js'):root.AOCJourneyEngine;
-const numericIds=new Set(['steps_band','variation_band','decision_band','people_count','department_count','incremental_software_cost','provider_removed_amount','software_removed_amount','capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles','team_time','blended_hourly_cost','replacement_provider_cost','software_replaced_cost']);
+const Commercial=typeof module==='object'?require('./commercial.js'):root.AOCCommercial;
+const numericIds=new Set([...Commercial.numericIds,'steps_band','variation_band','decision_band','people_count','department_count','incremental_software_cost','provider_removed_amount','software_removed_amount','capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles','team_time','blended_hourly_cost','replacement_provider_cost','software_replaced_cost']);
 const integerIds=new Set(['steps_band','variation_band','decision_band','people_count','department_count','capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles']);
 const strictChoices={
  solution:['workflow','agent'],action_mode:['draft','approved','automatic'],consequential:['yes','no'],handover:['one','group','multiple'],cadence:['monthly','weekly','daily','realtime'],
  legacy_system_check:['Standard','Customized','Older','Restricted','Not sure'],documentation_readiness:['Clear and current','Partial documentation','Notes or examples','Mostly staff knowledge','Not sure'],
- data_preparation_level:['Mostly ready','Some preparation','Substantial preparation','Not sure'],responsibility_split:['aoc','client','shared','help'],tier:['standard','priority','critical'],
- provider_replaced_portion:['none','all','part','unknown'],software_replaced_portion:['none','all','part','unknown'],delivery_mode:['maintenance','managed'],response_need:['next','hours','urgent','recommend']
+ data_preparation_level:['Mostly ready','Some preparation','Substantial preparation','Not sure'],responsibility_split:['aoc','client','shared','help'],tier:['standard','priority','premier'],
+ provider_replaced_portion:['none','all','part','unknown'],software_replaced_portion:['none','all','part','unknown'],delivery_mode:['maintenance','managed'],response_need:['next','hours','urgent','recommend'],
+ ...Commercial.choices
 };
 function cleanValue(id,value){
- if(value===null||value===undefined||value==='')return null;
- if(numericIds.has(id)){const number=Number(value);if(!Number.isFinite(number)||number<0)throw Error('Use a nonnegative number for '+id+'.');if(integerIds.has(id)&&!Number.isInteger(number))throw Error('Use a whole number for '+id+'.');if(['steps_band','variation_band','decision_band'].includes(id)&&(number<1||number>4))throw Error(id+' must be between 1 and 4.');return number;}
+ if(value===null||value===undefined||value===''||(typeof value==='string'&&!value.trim()))return null;
+ if(numericIds.has(id)){if(!['number','string'].includes(typeof value))throw Error('Invalid number for '+id+'.');const number=Number(value);if(!Number.isFinite(number)||number<0||number>Number.MAX_SAFE_INTEGER)throw Error('Use a representable nonnegative number for '+id+'.');if((integerIds.has(id)||['comparison_months','benefit_months'].includes(id))&&!Number.isSafeInteger(number))throw Error('Use a safe whole number for '+id+'.');if(['steps_band','variation_band','decision_band'].includes(id)&&(number<1||number>4))throw Error(id+' must be between 1 and 4.');if(['audit_fee','implementation_fee','agreed_monthly_hours','agreed_agency_blend','comparison_months'].includes(id)&&number===0)throw Error('Use a positive number for '+id+'.');return number;}
  if(Array.isArray(value)){if(id!=='systems'||value.some(item=>typeof item!=='string'))throw Error('Invalid value for '+id+'.');return value.slice(0,100).map(item=>item.trim().slice(0,300)).filter(Boolean);}
  if(typeof value==='boolean')throw Error('Invalid value for '+id+'.');
  if(typeof value!=='string')throw Error('One or more answers could not be read.');
- const cleaned=value.trim().slice(0,5000);if(strictChoices[id]&&!strictChoices[id].includes(cleaned))throw Error('Invalid choice for '+id+'.');return cleaned;
+ const cleaned=value.trim().slice(0,5000);if(strictChoices[id]&&!strictChoices[id].includes(cleaned))throw Error('Invalid choice for '+id+'.');if(Commercial.dateIds.includes(id)&&!Commercial.date(cleaned))throw Error('Use a valid YYYY-MM-DD date for '+id+'.');return cleaned;
 }
 function calculate(body){
  if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Could not read the calculation request.');

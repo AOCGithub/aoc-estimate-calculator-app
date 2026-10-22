@@ -1,5 +1,6 @@
 const fs=require('fs');
 const raw=JSON.parse(fs.readFileSync('data/sheet-snapshot-20261018.json','utf8'));
+const commercial=JSON.parse(fs.readFileSync('data/commercial-rules-20261021.json','utf8'));
 const core=require('../public/engine.js').defaults,model=require('../legacy/model.js').defaults;
 // Previous $100 agent add-on was withdrawn. Keep it out of the active model.
 model.monthly.agent=null;
@@ -15,7 +16,7 @@ const dataFields=sh('5 Documents & Data').filter(r=>(r.row>=2&&r.row<=5)||(r.row
 const roiFields=sh('6 Time Costs & Value').filter(r=>(r.row>=2&&r.row<=5)||(r.row>=7&&r.row<=8)).map(r=>{const x=r.values;return {id:x[0],question:x[1],options:x[2],when:x[3]}});
 const serviceFields=[...raw.section7.core.map(x=>({id:x[0],question:x[1],options:x[2],when:x[3]})),...raw.section7.cond.map(x=>({id:x[0],question:x[1],options:x[2],when:x[3],conditional:true}))];
 const appNames=raw.banks.find(b=>b.title==='V8 App Catalog').rows.slice(1).map(r=>r.values[0]).filter(x=>typeof x==='string'&&x);
-const bank={version:raw.version,areas,appFields,dataFields,roiFields,serviceFields,appNames};
+const bank={version:commercial.version,areas,appFields,dataFields,roiFields,serviceFields,appNames};
 fs.writeFileSync('public/approved-bank.js','(function(r){const data='+JSON.stringify(bank)+';if(typeof module===\'object\')module.exports=data;else r.AOCBank=data;})(globalThis);\n');
-fs.writeFileSync('public/approved-pricing.js','(function(r){const data='+JSON.stringify({version:raw.version,core,marketing:model,monthlyStatus:'Draft calibration from existing demo; not approved client rates',source:'Google Sheet + retained V8 model, captured 18 October 2026'})+';if(typeof module===\'object\')module.exports=data;else r.AOCPricing=data;})(globalThis);\n');
+fs.writeFileSync('public/approved-pricing.js','(function(r){const data='+JSON.stringify({version:commercial.version,core,marketing:model,commercial,monthlyStatus:'Historical demo upkeep coefficients are not active client prices; current project support requires an AOC quote.',source:'18 October provisional build model + 21 October approved commercial rules'})+';if(typeof module===\'object\')module.exports=data;else r.AOCPricing=data;})(globalThis);\n');
 console.log(JSON.stringify({areas:areas.length,fields:areas.map(a=>[a.title,a.fields.length]),sharedFields:appFields.length+dataFields.length+roiFields.length+serviceFields.length,appSuggestions:appNames.length}));

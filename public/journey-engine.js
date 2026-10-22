@@ -1,8 +1,9 @@
 (function(root){
 const Core=typeof module==='object'?require('./engine.js'):root.AOC;
 const Price=typeof module==='object'?require('./approved-pricing.js'):root.AOCPricing;
+const Commercial=typeof module==='object'?require('./commercial.js'):root.AOCCommercial;
 const n=Core.number,levels=['simple','moderate','complex','advanced'];
-function calculate(input,pricing=Price){
+function calculate(input,pricing=Price,options={}){
  const s={...input},errors=[],pending=[],warnings=[],assumptions=[],r=structuredClone(pricing.core);
  for(const [k,v] of Object.entries(s))if(typeof v==='number'&&(!Number.isFinite(v)||v<0))errors.push('Use a nonnegative finite value for '+k+'.');
  for(const k of ['capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles'])if(n(s[k])!==null&&!Number.isInteger(n(s[k])))errors.push(k+' must be a whole number.');
@@ -68,7 +69,8 @@ function calculate(input,pricing=Price){
  const net=errors.length||gross===null||recurring===null?null:gross-recurring;
  const validBuild=errors.length?null:build;
  const coverage=s.response_need==='urgent'&&s.tier!=='critical'&&s.management==='yes'?'Requested urgent coverage is not included in this selected tier; AOC must reconcile this before sale.':null;if(coverage)warnings.push(coverage);
- return {lines,known,build:validBuild,audit:validBuild===null?null:Math.round(validBuild*r.audit*100)/100,low:validBuild===null?null:Math.round(validBuild*(1-r.low)/100)*100,high:validBuild===null?null:Math.round(validBuild*(1+r.high)/100)*100,level:band===null?null:levels[band-1],pending:uniquePending,errors,warnings:[...new Set(warnings)],assumptions,monthly,monthlyParts,monthlyDraft:monthly>0,freed,retained,capacity,provider,software,cash,recurring,gross,net,yearInvestment:validBuild===null||recurring===null?null:validBuild+12*recurring,yearGross:gross===null?null:gross*12,yearNet:validBuild===null||net===null?null:12*net-validBuild,payback:validBuild!==null&&net>0?validBuild/net:null,vendor,coverage,feasibility:blocked?'Potential blocker':appRestriction?'Needs connection review':s.legacy_system_check==='Standard'?'Action-level verification still required':'Needs verification',auditPurchasable:false};
+ const draft={lines,known,build:validBuild,audit:validBuild===null?null:Math.round(validBuild*r.audit*100)/100,low:validBuild===null?null:Math.round(validBuild*(1-r.low)/100)*100,high:validBuild===null?null:Math.round(validBuild*(1+r.high)/100)*100,level:band===null?null:levels[band-1],pending:uniquePending,errors,warnings:[...new Set(warnings)],assumptions,monthly,monthlyParts,monthlyDraft:monthly>0,freed,retained,capacity,provider,software,cash,recurring,gross,net,yearInvestment:validBuild===null||recurring===null?null:validBuild+12*recurring,yearGross:gross===null?null:gross*12,yearNet:validBuild===null||net===null?null:12*net-validBuild,payback:validBuild!==null&&net>0?validBuild/net:null,vendor,coverage,feasibility:blocked?'Potential blocker':appRestriction?'Needs connection review':s.legacy_system_check==='Standard'?'Action-level verification still required':'Needs verification',auditPurchasable:false};
+ return pricing.commercial?Commercial.apply(s,draft,pricing.commercial,options):draft;
 }
 const api={calculate};if(typeof module==='object')module.exports=api;else root.AOCJourneyEngine=api;
 })(globalThis);

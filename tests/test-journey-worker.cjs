@@ -75,6 +75,7 @@ vm.runInContext(code, context);
     area: 'area0',
     confirmed: true,
     answers: {
+      ...Object.fromEntries(Object.entries(require('./fixtures/commercial.cjs')).filter(([key])=>!['area','process_confirmed','management'].includes(key))),
       solution: 'workflow',
       steps_band: 3,
       variation_band: 3,
@@ -105,7 +106,7 @@ vm.runInContext(code, context);
   const calculated = await response.json();
   assert.equal(calculated.source, 'server');
   assert.equal(calculated.result.build, 11500);
-  assert.equal(calculated.result.audit, 1150);
+  assert.equal(calculated.result.audit, 1250);
   assert.equal(calculated.result.monthly, 0);
 
   const invalidCalculation = structuredClone(calculation);

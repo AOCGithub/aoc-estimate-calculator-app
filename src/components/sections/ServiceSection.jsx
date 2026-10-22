@@ -1,10 +1,11 @@
 import { estimatorBank } from '../../lib/domain.js';
+import { CommercialFields } from './CommercialFields.jsx';
 
 function recommendedTier(answers) {
   if (
     answers.business_impact === 'Essential operations stop or serious financial harm'
     || answers.response_need === 'urgent'
-  ) return 'Critical may be appropriate; eligibility and coverage need confirmation.';
+  ) return 'Premier may be appropriate; eligibility and staffed coverage need confirmation.';
   if (
     answers.business_impact === 'Customers or important deadlines affected'
     || answers.response_need === 'hours'
@@ -34,6 +35,8 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
         Choose how the agreed process should be managed. Support coverage and routine expert review
         are different parts of the scope.
       </p>
+      <CommercialFields answers={answers} fields={fields} />
+      {answers.implementation_route === 'monthly' && <p className="subtle">The selected program includes agreed implementation support. The management choice below describes the eventual operating/handover preference; it does not add another service charge to the program.</p>}
       {fields.select('responsibility_split', 'After launch, how would you like this managed?', [
         ['aoc', 'AOC manages it'],
         ['client', 'Our team manages it'],
@@ -55,17 +58,17 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
         <>
           <h3>
             Select support coverage
-            {!answers.tier && <span id="tier_requirement" className="required-indicator">Required</span>}
+            {!answers.tier && <span id="tier_requirement" className="helper">To discuss with AOC</span>}
           </h3>
           <p className="helper">{recommendedTier(answers)}</p>
           <div
-            className={`tiers ${!answers.tier ? 'tiers--missing-required' : ''}`}
+            className="tiers"
             aria-describedby={!answers.tier ? 'tier_requirement' : undefined}
           >
             {[
-              ['standard', 'Standard', 'Routine support in defined business hours.'],
-              ['priority', 'Priority', 'Faster investigation and broader coverage.'],
-              ['critical', 'Critical', 'Qualifying urgent incidents; availability must be confirmed.'],
+              ['standard', 'Standard', 'Scope, staffed hours, response and price require agreement.'],
+              ['priority', 'Priority', 'Scope, staffed hours, response and price require agreement.'],
+              ['premier', 'Premier', 'Coverage, qualified response and staffing require agreement.'],
             ].map(([value, title, description]) => (
               <button
                 key={value}
@@ -78,13 +81,13 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
               </button>
             ))}
           </div>
-          <p className="proposed">Draft pricing only. Exact hours, response targets and change allowances require agreement.</p>
+          <p className="proposed">Working support names only, not program levels or priced coverage. Fees, staffed hours, response targets and allowances require agreement.</p>
         </>
       )}
       {answers.management === 'no' && (
         <div className="subtle">
           <strong>Self-managed</strong>
-          <p>No AOC monthly management fee. Ad hoc support: $150/hour, with a $150 minimum per ticket, subject to availability.</p>
+          <p>No optional post-project management fee. A selected monthly build program remains payable for its agreed implementation scope. Ad hoc support: $150/hour, with a $150 minimum per ticket, subject to availability.</p>
         </div>
       )}
       <details className="field-bank compact-details">

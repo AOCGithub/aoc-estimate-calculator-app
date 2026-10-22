@@ -1,6 +1,6 @@
 # Always Open Commerce AI Commerce Estimator
 
-Current working version: React migration, 19 October 2026. Start with `docs/DEVELOPER-HANDOFF.md` for the business rules and release constraints.
+Current local working version: React calculator with the reviewed 21 October commercial rules. Start with [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md) for active rules and release steps. The 18 October handoff remains historical context.
 
 For a plain-language guide to requesting, testing, and publishing changes, see [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md).
 
@@ -66,5 +66,5 @@ shows an explicitly labeled local preview; it is not presented as server-verifie
 
 The Sheet snapshot is internal configuration input, not an automatic live Sheet connection. Refresh it from the workbook, reconcile the mapping, version it, run parity tests and deploy. Do not manually edit compiled JavaScript and the Sheet independently. The new test scripts cover the current journey; older tests target historical DOM structures and may require migration.
 
-The deployed preview is public and has no client qualification gate. Do not enter private client records. Production still needs authenticated qualification, configuration release control, persistence/purchase authorization, and deployment browser/mobile testing. Build and workflow monthly prices are draft calibration; monthly agent upkeep remains unpriced. The prior flat agent upkeep surcharge is withdrawn.
+The deployed test preview is public and has no client qualification gate. Use synthetic data. Gated entry, saved profiles, payments and voice are not added by this Phase 1 pricing update. Keep keys server-side and verify the agreed-domain deployment before handoff. Current commercial rules are in `data/commercial-rules-20261021.json`; provisional build coefficients and earlier arithmetic remain preserved. Unknown project-support prices and agreed proposal details stay pending rather than defaulting to historical demo amounts. Publication is a separate step from local tests.
 "# aoc-estimator-app" 

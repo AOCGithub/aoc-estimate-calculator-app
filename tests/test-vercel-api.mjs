@@ -4,6 +4,7 @@ import calculationRoute from '../api/journey/calculate.mjs';
 import analysisRoute from '../api/journey/analyze.mjs';
 import intakeStatusRoute from '../api/intake/status.mjs';
 import intakeTranscriptionRoute from '../api/intake/transcribe.mjs';
+import commercialFixture from './fixtures/commercial.cjs';
 
 const originalFetch = globalThis.fetch;
 const originalKey = process.env.OPENAI_API_KEY;
@@ -11,10 +12,12 @@ const originalEnabled = process.env.AOC_AI_ORGANIZER_ENABLED;
 const origin = 'https://aoc-estimate-calculator-app.vercel.app';
 
 try {
+  const {area:fixtureArea,process_confirmed:fixtureConfirmed,management:fixtureManagement,...quoteAnswers}=commercialFixture;
   const calculation = {
     area: 'area0',
     confirmed: true,
     answers: {
+      ...quoteAnswers,
       solution: 'workflow',
       steps_band: 3,
       variation_band: 3,
@@ -45,8 +48,23 @@ try {
   const result = await response.json();
   assert.equal(result.source, 'server');
   assert.equal(result.result.build, 11500);
-  assert.equal(result.result.audit, 1150);
-  assert.equal(result.result.monthly, 550);
+  assert.equal(result.result.audit, 1250);
+  assert.equal(result.result.monthly, null,'unapproved project-support price stays pending');
+  assert.match(result.version, /^2026-10-21-commercial/);
+  const monthlyRequest = { ...calculation, answers: { ...calculation.answers, implementation_route:'monthly', audit_accepted_route:'monthly', delivery_intent:'ongoing', monthly_plan:'level2', comparison_months:12, benefit_months:6 } };
+  response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(monthlyRequest)}));
+  assert.equal(response.status,200);
+  const monthlyResult = (await response.json()).result;
+  assert.equal(monthlyResult.monthly,7000);
+  assert.equal(monthlyResult.build,null);
+  assert.equal(monthlyResult.firstProjectPayment,null);
+  assert.equal(monthlyResult.credit.amount,1250);
+  assert.equal(monthlyResult.comparisonInvestment,84000);
+  assert.equal(monthlyResult.comparisonGross,9600);
+  for(const [key,value] of [['tier','critical'],['audit_sent_date','2026-02-30'],['audit_fee',false]]) {
+    response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({...calculation,answers:{...calculation.answers,[key]:value}})}));
+    assert.equal(response.status,400,'invalid commercial input is rejected');
+  }
 
   response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {
     method: 'POST',

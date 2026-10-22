@@ -1,0 +1,17 @@
+{
+  "version": "2026-10-21-commercial-v1",
+  "sourceDocument": "https://docs.google.com/document/d/1ZR-7dAayjtmejgo6GQrtJeI3FSj3kGjNeq_7zIuEPMA/edit",
+  "sourceWorkbook": "https://docs.google.com/spreadsheets/d/1vUDbKYWQPTaVIvJEYGzY5pVDCt0n369Ywel0tPk9M7s/edit",
+  "sourceSections": ["Current commercial baseline", "Pricing and ROI implementation", "Audit & Project Quote", "Partnership Pricing", "7 Responsibilities & Service"],
+  "monthlyPlans": { "level1": 4000, "level2": 7000, "level3": 10000 },
+  "auditCreditDays": 30,
+  "projectFirstPaymentFraction": 0.5,
+  "supportTiers": ["standard", "priority", "premier"],
+  "supportPrices": { "standard": null, "priority": null, "premier": null },
+  "auditFee": null,
+  "monthlyHourAllowances": { "level1": null, "level2": null, "level3": null },
+  "agencyBlend": null,
+  "postBuildMaintenance": "deferred",
+  "buildCoefficientsStatus": "provisional",
+  "notice": "Working estimate only. Entered quote details require AOC confirmation; this calculator does not approve a quote, apply an invoice credit, or accept payment."
+}

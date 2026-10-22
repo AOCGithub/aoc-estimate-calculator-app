@@ -124,7 +124,7 @@ function normalizePrefillValue(id, rawValue) {
     if (includes('maintenance') || includes('maintain')) return 'maintenance';
   }
   if (id === 'tier') {
-    if (includes('critical')) return 'critical';
+    if (includes('premier')) return 'premier';
     if (includes('priority')) return 'priority';
     if (includes('standard')) return 'standard';
   }

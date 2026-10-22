@@ -1,4 +1,7 @@
 # Always Open Commerce — AI Commerce Calculator
+
+Historical 18 October handoff. For current pricing, follow Steve's updated task document and the [pricing maintenance guide](PRICING-AND-FORM-MAINTENANCE.md). The 21 October rules supersede conflicting audit percentages, monthly program rules and support-tier wording below. Retain this earlier specification and its arithmetic fixture for reconciliation, not current commercial sign-off.
+
 ## Gino implementation task · 18 October 2026
 
 ### Task summary

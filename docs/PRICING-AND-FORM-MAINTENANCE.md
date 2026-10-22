@@ -16,7 +16,7 @@ Use Steve's implementation notes and the pricing workbook as the business refere
 
 **Form changes:** update the relevant [form components](../src/components/sections/) or the question bank in the [reviewed workbook snapshot](../data/sheet-snapshot-20261018.json). Preserve existing field identifiers and check conditional questions, required fields, editable answers, and AI prefill.
 
-**Pricing changes:** transfer approved workbook changes into the reviewed snapshot and affected calculation rules. Regenerate the pricing and question-bank files with `node scripts/compile-approved.cjs`, update the configuration version and expected test results, and compare the calculations with the workbook.
+**Pricing changes:** update the reviewed [commercial rules](../data/commercial-rules-20261021.json) for approved program fees and terms, and [commercial calculations](../public/commercial.js) for rule changes. The older snapshot retains the provisional build model and question bank. Regenerate the pricing and question-bank files with `node scripts/compile-approved.cjs`, update the version and expected test results, and compare the calculations with the workbook. Do not edit generated pricing alone.
 
 ## 3. Test and publish
 
@@ -29,6 +29,10 @@ Keep AI keys in Vercel's server settings.
 
 ## Current pricing status
 
-The deployed calculator uses the 18 October pricing snapshot, including a 10% audit calculation. The newer fixed-project and monthly-program options, agreed fixed audit fee, single eligible audit credit, and route-specific ROI still require implementation and testing against the business references. Existing production test results cover the earlier rules.
+The local implementation follows the 21 October commercial rules: separately quoted fixed audit; one eligible audit credit; fixed projects versus $4,000/$7,000/$10,000 monthly build programs; and route-specific costs/value. Program prices come from reviewed data, never a client-entered monthly fee. Standard/Priority/Premier project-support prices remain unpriced until approved data is supplied. Quoted project amounts, agreed hours/blend and audit records are references requiring AOC confirmation, not approval or billing performed by the calculator.
+
+Unknown fees, allowances, credit eligibility, existing-agreement changes and benefit timing stay pending. No automatic package hours, universal agency rate, founder surcharge or deferred maintenance price is added. Provider/app savings count only confirmed eliminated costs once. The 18 October arithmetic remains historical regression coverage.
+
+Publishing and deployed-version verification are separate steps. Existing production results still describe the earlier deployment until the tested update is released.
 
 For developer setup and further technical details, see the [README](../README.md).

@@ -4,6 +4,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 const JourneyCalculation = require('../public/journey-calculation.js');
+const JourneyContract = require('../public/journey-contract.js');
 
 const clientRoot = path.resolve(__dirname, '../dist/client');
 const browserCandidates = process.platform === 'win32'
@@ -232,7 +233,22 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_responsibility_split').selectOption('help');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().answers.management), null, 'help deciding does not choose management');
     await page.locator('#f_responsibility_split').selectOption('aoc');
-    assert.equal(await page.locator('#tier_requirement').textContent(), 'Required', 'missing managed-service tier has an indicator');
+    assert.equal(await page.locator('#tier_requirement').textContent(), 'To discuss with AOC', 'unpriced support coverage is not silently selected');
+    await page.locator('#f_delivery_intent').selectOption('limited');
+    await page.locator('#f_implementation_route').selectOption('project');
+    await page.locator('#f_existing_client').selectOption('no');
+    await page.locator('#quote-details > summary').click();
+    await page.locator('#f_audit_fee').fill('1250');
+    await page.getByText('Check an existing audit credit', {exact:true}).click();
+    await page.locator('#f_audit_paid').fill('1250');
+    await page.locator('#f_audit_sent_date').fill('2020-01-01');
+    await page.locator('#f_implementation_acceptance_date').fill('2020-01-10');
+    await page.locator('#f_first_implementation_payment_date').fill('2020-01-15');
+    await page.locator('#f_audit_accepted_route').selectOption('project');
+    await page.locator('#f_audit_credit_used').selectOption('no');
+    await page.locator('#f_preparation_fee').fill('0');
+    await page.locator('#f_implementation_fee').fill('11500');
+    await page.locator('#f_live_training').selectOption('no');
     await page.locator('#f_action_mode').selectOption('approved');
     await page.locator('#f_consequential').selectOption('yes');
     await page.getByRole('button', { name: /Priority/ }).click();
@@ -247,8 +263,8 @@ const server = http.createServer((request, response) => {
     assert.equal(await page.locator('.check--missing-required').count(), 0, 'confirmation indicator clears after checking');
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
 
-    await page.getByText('$11,500', { exact: true }).waitFor();
-    await page.getByText('$550 / month', { exact: true }).waitFor();
+    await page.locator('.money').filter({hasText:'$11,500'}).waitFor();
+    await page.getByText('Needs scope / quoted fee', {exact:true}).waitFor();
     assert.equal(await page.locator('#estimateStatus').textContent(), 'LOCAL PREVIEW · VERIFY');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'local-preview');
     assert.ok(await page.getByText('AOC monthly service scope', { exact: true }).isVisible());
@@ -279,6 +295,69 @@ const server = http.createServer((request, response) => {
       'a server validation error does not replace the last verified result with a local calculation',
     );
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().dirty), true);
+
+    // Current commercial routes: inactive project prices must not become monthly startup fees.
+    calculationMode = 'server';
+    await page.locator('#f_delivery_intent').selectOption('ongoing');
+    await page.locator('#f_implementation_route').selectOption('monthly');
+    assert.equal(await page.locator('#f_implementation_fee').count(),0,'project-only quote fields are hidden for monthly programs');
+    await page.locator('#f_monthly_plan').selectOption('level1');
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.route==='monthly');
+    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).credit.status,'review','switching route cannot silently transfer old audit-credit records');
+    if(!await page.getByText('Check an existing audit credit',{exact:true}).isVisible()) await page.locator('#quote-details > summary').click();
+    if(!await page.locator('#f_audit_accepted_route').isVisible()) await page.getByText('Check an existing audit credit',{exact:true}).click();
+    await page.locator('#f_audit_accepted_route').selectOption('monthly');
+    await page.getByText('Optional program value comparison',{exact:true}).click();
+    await page.locator('#f_comparison_months').fill('12');
+    await page.locator('#f_benefit_months').fill('6');
+    await page.getByRole('navigation').getByText('Time, costs and value',{exact:true}).click();
+    if(!await page.locator('#f_provider_replaced_portion').isVisible()) await page.getByText('Calculate potential value',{exact:true}).click();
+    await page.locator('#f_provider_replaced_portion').selectOption('none');
+    await page.getByRole('navigation').getByText('Responsibilities and service',{exact:true}).click();
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.monthly===4000;});
+    let program = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
+    assert.equal(program.build,null);
+    assert.equal(program.projectBalance,null);
+    assert.equal(program.comparisonInvestment,48000);
+    assert.equal(program.comparisonGross,9600);
+    assert.equal(program.monthlyInvoiceAfterCredit,2750);
+    assert.equal(await page.getByText('Fixed-project quote and payment illustration',{exact:true}).count(),0);
+    assert.equal(await page.locator('#estimateStatus').textContent(),'SERVER VERIFIED · PARTIAL','unknown program hours/blend remain review-needed');
+    await page.locator('#f_monthly_plan').selectOption('level2');
+    assert.match(await page.locator('#estimateStatus').textContent(),/RECALCULATE/);
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===7000);
+    await page.locator('#f_monthly_plan').selectOption('');
+    assert.equal(await page.locator('#f_monthly_plan').getAttribute('aria-invalid'),'true');
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===null);
+    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).comparisonInvestment,null);
+    await page.locator('#f_monthly_plan').selectOption('level1');
+    await page.locator('#f_existing_client').selectOption('yes');
+    assert.equal(await page.locator('#f_existing_plan_name').isVisible(),true);
+    await page.locator('#f_existing_plan_name').fill('Synthetic retained agreement');
+    await page.locator('#f_existing_plan_fee').fill('3500');
+    await page.locator('#f_retained_existing_fee').fill('2000');
+    await page.locator('#f_existing_retained_scope').fill('Retained hosting and other work');
+    await page.locator('#f_existing_replaced_scope').fill('Reporting');
+    await page.locator('#f_existing_plan_reconciled').selectOption('yes');
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.combinedMonthlyCommitment===6000);
+    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).cash,0,'agreement fee reduction is not counted again as cash savings');
+    await page.locator('#f_retained_existing_fee').fill('');
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.combinedMonthlyCommitment===null);
+    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).net,null);
+    await page.locator('#f_existing_client').selectOption('no');
+    assert.equal(await page.locator('#f_existing_plan_name').count(),0,'existing-client questions disappear for a new client');
 
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(
@@ -336,6 +415,8 @@ const server = http.createServer((request, response) => {
 
     await mobilePage.getByRole('button', { name: /Continue/ }).click();
     await mobilePage.locator('#f_responsibility_split').selectOption('aoc');
+    await mobilePage.locator('#f_implementation_route').selectOption('project');
+    await mobilePage.locator('#f_existing_client').selectOption('no');
     await mobilePage.locator('#f_action_mode').selectOption('draft');
     await mobilePage.getByRole('button', { name: /^Standard/ }).click();
     await mobilePage.locator('.check input').check();
@@ -345,14 +426,52 @@ const server = http.createServer((request, response) => {
     await mobilePage.waitForFunction(() => globalThis.AOCJourney.getState().result?.build != null);
     assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().step), 7, 'mobile journey reaches the final step');
     assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server', 'mobile journey uses the server calculator');
-    assert.equal(await mobilePage.locator('#estimateStatus').textContent(), 'SERVER VERIFIED', 'mobile journey displays a verified estimate');
+    assert.equal(await mobilePage.locator('#estimateStatus').textContent(), 'SERVER VERIFIED · PARTIAL', 'mobile journey calculates a review-needed estimate without inventing quote amounts');
     assert.equal(
       await mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       true,
       'completed mobile journey has no page-level horizontal overflow',
     );
     if (capture) await mobilePage.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile-journey.png'), fullPage: true });
+    await mobilePage.locator('#f_delivery_intent').selectOption('ongoing');
+    await mobilePage.locator('#f_implementation_route').selectOption('monthly');
+    await mobilePage.locator('#f_monthly_plan').selectOption('level3');
+    await mobilePage.locator('.check input').check();
+    await mobilePage.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await mobilePage.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===10000);
+    assert.equal((await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result)).audit,null,'mobile program does not invent an audit fee');
+    assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'monthly program has no mobile overflow');
     await mobilePage.close();
+
+    // The new commercial facts use the same manual-correction protection as all other answers.
+    const prefillPage=await browser.newPage({viewport:{width:390,height:844}});
+    prefillPage.on('pageerror',error=>errors.push(error.message));
+    const commercialDescription="We have selected AOC's Level 1 monthly build program for ongoing development. AOC quoted a fixed audit fee of $900.";
+    const commercialAnalysis=JourneyContract.validate({title:'Synthetic monthly program',summary:commercialDescription,solution:'workflow',recommendationReason:'Synthetic fixture',classification:{steps:null,variations:null,decisions:null,reason:'Review'},routes:[],facts:[
+      {id:'monthly_plan',value:'level1',quote:"We have selected AOC's Level 1 monthly build program for ongoing development."},
+      {id:'audit_fee',value:'900',quote:'AOC quoted a fixed audit fee of $900.'},
+    ],relevantFields:[],uncertainties:[]},commercialDescription,'area0');
+    await prefillPage.route('**/api/journey/analyze',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({analysis:commercialAnalysis})}));
+    await prefillPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
+    await prefillPage.getByRole('button',{name:'Finance and billing',exact:true}).click();
+    await prefillPage.getByRole('button',{name:/^Describe the work/}).click();
+    await prefillPage.locator('#description').fill(commercialDescription);
+    await prefillPage.getByRole('button',{name:/Organize my description/}).click();
+    await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
+    await prefillPage.getByRole('navigation').getByText('Responsibilities and service',{exact:true}).click();
+    assert.equal(await prefillPage.locator('#f_implementation_route').inputValue(),'monthly');
+    assert.equal(await prefillPage.locator('#f_monthly_plan').inputValue(),'level1');
+    await prefillPage.locator('#f_implementation_route').selectOption('project');
+    await prefillPage.locator('#quote-details > summary').click();
+    await prefillPage.locator('#f_audit_fee').fill('1250');
+    await prefillPage.getByRole('navigation').getByText('Describe the work',{exact:true}).click();
+    await prefillPage.getByRole('button',{name:/Organize my description/}).click();
+    await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
+    const correctedCommercial=await prefillPage.evaluate(()=>globalThis.AOCJourney.getState().answers);
+    assert.equal(correctedCommercial.implementation_route,'project','AI reorganization keeps a manual implementation-route correction');
+    assert.equal(correctedCommercial.audit_fee,1250,'AI reorganization keeps a manually corrected quote reference');
+    assert.equal(correctedCommercial.agreed_monthly_hours,undefined,'unknown agreement hours stay blank');
+    await prefillPage.close();
 
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
     console.log('PASS: React desktop and complete mobile browser journeys, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
