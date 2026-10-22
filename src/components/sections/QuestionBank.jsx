@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-export function QuestionBank({ candidates, visible, onAdd }) {
-  const [query, setQuery] = useState('');
+export function QuestionBank({ candidates, visible, onAdd, query, onQueryChange }) {
   const results = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return candidates.filter((field) =>
@@ -11,7 +10,7 @@ export function QuestionBank({ candidates, visible, onAdd }) {
   }, [candidates, query, visible]);
 
   return (
-    <details className="field-bank">
+    <details className="field-bank" id="scope-question-bank">
       <summary>Find another relevant scope question ({candidates.length} in this bank)</summary>
       <p>
         This is a reference bank, not a required questionnaire. Add a detail only if it changes
@@ -21,11 +20,11 @@ export function QuestionBank({ candidates, visible, onAdd }) {
         value={query}
         placeholder="Search questions, e.g. invoices, design, keywords"
         aria-label="Search scope question bank"
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => onQueryChange(event.target.value)}
       />
       <div>
         {results.slice(0, 15).map((field) => (
-          <div className="bank-item" key={field.id}>
+          <div className="bank-item" key={field.id} data-field-id={field.id}>
             <span>{field.question}<small>{field.route}</small></span>
             <button type="button" onClick={() => onAdd(field.id)}>Add</button>
           </div>

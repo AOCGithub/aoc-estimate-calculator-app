@@ -130,6 +130,7 @@ const server = http.createServer((request, response) => {
     );
     await page.getByRole('button', { name: 'Finance and billing' }).click();
     await page.getByRole('button', { name: 'Describe the work →', exact: true }).click();
+    assert.equal(await page.locator('.description-actions').evaluate(element => getComputedStyle(element).flexDirection), 'row', 'desktop description buttons retain their existing layout');
     await page.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
     analysisDelay = capture ? 800 : 250;
     await page.getByRole('button', { name: /Organize my description/ }).click();
@@ -412,6 +413,25 @@ const server = http.createServer((request, response) => {
     assert.equal(await mobilePage.locator('#section-picker option:disabled').count(), 0, 'choosing an area unlocks the same seven sections');
     await mobilePage.getByRole('button', { name: /^Describe the work/ }).click();
     assert.equal(await mobilePage.locator('#section-picker').inputValue(), '2', 'next action keeps mobile navigation in sync');
+    for (const width of [320, 360, 390, 430, 700]) {
+      await mobilePage.setViewportSize({width,height:844});
+      const bounds = await mobilePage.locator('.description-actions').evaluate(element => ({
+        container: {left:element.getBoundingClientRect().left,width:element.getBoundingClientRect().width},
+        buttons: [...element.querySelectorAll('button')].map(button => {
+          const rect = button.getBoundingClientRect();
+          return {left:rect.left,top:rect.top,width:rect.width,height:rect.height,layoutHeight:button.offsetHeight};
+        }),
+      }));
+      assert.equal(bounds.buttons.length,2);
+      for (const button of bounds.buttons) {
+        assert.ok(Math.abs(button.width-bounds.container.width)<1, `description action fills the available width at ${width}px`);
+        assert.ok(Math.abs(button.left-bounds.container.left)<1, 'full-width actions are left-aligned');
+        assert.ok(button.layoutHeight>=48 && button.height>=47.99, 'mobile actions retain a 48px touch target (allowing fractional-pixel rectangle rounding)');
+      }
+      assert.ok(bounds.buttons[1].top>=bounds.buttons[0].top+bounds.buttons[0].height, 'mobile description actions stack vertically');
+      assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`full-width buttons do not cause overflow at ${width}px`);
+    }
+    await mobilePage.setViewportSize({width:390,height:844});
     await mobilePage.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
     await mobilePage.getByRole('button', { name: /Organize my description/ }).click();
     await mobilePage.getByText(/Basic local organization was used/).waitFor();
@@ -494,6 +514,198 @@ const server = http.createServer((request, response) => {
     assert.equal(correctedCommercial.audit_fee,1250,'AI reorganization keeps a manually corrected quote reference');
     assert.equal(correctedCommercial.agreed_monthly_hours,undefined,'unknown agreement hours stay blank');
     await prefillPage.close();
+
+    // Optional scope questions can be added, removed and explicitly added again.
+    const questionPage = await browser.newPage({viewport:{width:390,height:844}});
+    questionPage.on('pageerror',error=>errors.push(error.message));
+    const questionDialogs = [];
+    let questionDialogAction = 'dismiss';
+    questionPage.on('dialog',async dialog=>{
+      questionDialogs.push(dialog.message());
+      await dialog[questionDialogAction]();
+    });
+    const questionState = () => questionPage.evaluate(()=>globalThis.AOCJourney.getState());
+    const goToQuestionStep = step => questionPage.locator('#section-picker').selectOption(String(step));
+    const addQuestion = async id => {
+      const current = await questionState();
+      const definition = require('../public/approved-bank.js').areas.find(area=>area.id===current.area).fields.find(candidate=>candidate.id===id);
+      if(!await questionPage.getByLabel('Search scope question bank').isVisible()) await questionPage.locator('#scope-question-bank > summary').click();
+      await questionPage.getByLabel('Search scope question bank').fill(definition.question);
+      await questionPage.locator(`#scope-question-bank [data-field-id="${id}"]`).getByRole('button',{name:'Add',exact:true}).click();
+      if(!await questionPage.locator(`#f_${id}`).isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
+      await questionPage.locator(`#f_${id}`).waitFor();
+    };
+    const removeQuestion = id => questionPage.locator(`#f_${id}`).locator('..').getByRole('button',{name:/^Remove question:/}).click();
+    try {
+      await questionPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
+      await questionPage.getByRole('button',{name:'Paid advertising',exact:true}).click();
+      await questionPage.getByRole('button',{name:/^Describe the work/}).click();
+      const questionDescription='We use Meta for paid advertising and need Reporting for our staff to review. This synthetic test must preserve manually edited answers.';
+      await questionPage.locator('#description').fill(questionDescription);
+      await questionPage.getByRole('button',{name:/Continue with editable fields/}).click();
+      await addQuestion('ads_003');
+      assert.equal(await questionPage.locator('#scope-question-bank [data-field-id="ads_003"]').count(),0,'added question leaves the available bank');
+      await removeQuestion('ads_003');
+      assert.equal(questionDialogs.length,0,'blank optional question can be removed without a destructive-answer prompt');
+      assert.equal(await questionPage.locator('#f_ads_003').count(),0);
+      assert.ok(await questionPage.locator('#scope-question-bank [data-field-id="ads_003"]').isVisible(),'removed question returns to the bank');
+      assert.equal(await questionPage.getByLabel('Search scope question bank').evaluate(element=>element===document.activeElement),true,'focus returns to the question bank');
+      await addQuestion('ads_003');
+      assert.equal(await questionPage.locator('#f_ads_003').inputValue(),'','re-adding starts with a blank answer');
+      await questionPage.locator('#f_ads_003').fill('Meta');
+      const beforeCancel = await questionState();
+      await removeQuestion('ads_003');
+      assert.match(questionDialogs.at(-1),/clear its answer/);
+      assert.deepEqual(await questionState(),beforeCancel,'canceling removal leaves all state untouched');
+      await addQuestion('ads_002');
+      await questionPage.locator('#f_ads_002').fill('Reporting');
+
+      await questionPage.locator('#f_solution').selectOption('workflow');
+      if(!await questionPage.locator('#f_steps_band').isVisible()) await questionPage.getByText(/Process complexity/).click();
+      await questionPage.locator('#f_steps_band').selectOption('2'); await questionPage.locator('#f_variation_band').selectOption('2');
+      if(!await questionPage.locator('#f_people_count').isVisible()) await questionPage.getByText(/Team and rollout/).click();
+      await questionPage.locator('#f_people_count').fill('2'); await questionPage.locator('#f_department_count').fill('1');
+      await questionPage.locator('#f_handover').selectOption('group'); await questionPage.locator('#f_cadence').selectOption('weekly');
+      if(!await questionPage.locator('#f_capability_count').isVisible()) await questionPage.getByText('3. Marketing scope',{exact:true}).click();
+      for(const id of ['capability_count','brand_count','language_count']) await questionPage.locator(`#f_${id}`).fill('1');
+      await questionPage.locator('#f_delivery_mode').selectOption('maintenance');
+      assert.equal(await questionPage.locator('.required-section .remove-question').count(),0,'required core questions never get removal controls');
+      await goToQuestionStep(4);
+      await questionPage.locator('#f_systems').fill('Meta Ads'); await questionPage.locator('#f_legacy_system_check').selectOption('Standard');
+      assert.equal(await questionPage.locator('#mainPanel .remove-question').count(),0,'shared app questions cannot be removed through category controls');
+      await goToQuestionStep(5);
+      await questionPage.locator('#f_documentation_readiness').selectOption('Notes or examples'); await questionPage.locator('#f_data_preparation_level').selectOption('Some preparation');
+      assert.equal(await questionPage.locator('#mainPanel .remove-question').count(),0,'shared data questions retain their normal controls');
+      await goToQuestionStep(7);
+      for(const [id,value] of Object.entries({responsibility_split:'client',action_mode:'draft',delivery_intent:'limited',implementation_route:'project',existing_client:'no'})) await questionPage.locator(`#f_${id}`).selectOption(value);
+      await questionPage.locator('.check input').check();
+      await questionPage.getByRole('button',{name:/Confirm details & calculate/}).click();
+      await questionPage.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.calculationSource==='server';});
+      const beforeRemoval = await questionState();
+      await goToQuestionStep(3);
+      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
+      questionDialogAction='accept';
+      await removeQuestion('ads_003');
+      const removed = await questionState();
+      assert.ok(await questionPage.locator('#scope-question-bank [data-field-id="ads_003"]').isVisible(),'removed question is shown even when a different search was active');
+      assert.equal(removed.answers.ads_003,undefined);
+      assert.equal(removed.facts.ads_003,undefined);
+      assert.equal(removed.answers.ads_002,'Reporting','other added answers are preserved');
+      assert.equal(removed.manualVisible.includes('ads_003'),false);
+      assert.equal(removed.visible.includes('ads_003'),false);
+      assert.equal(removed.removedScopeFields.includes('ads_003'),true);
+      assert.equal(removed.dirty,true); assert.equal(removed.confirmed,false);
+      assert.deepEqual(removed.result,beforeRemoval.result,'last result is retained only as explicitly stale');
+      assert.match(await questionPage.locator('#estimateStatus').textContent(),/RECALCULATE/);
+      await goToQuestionStep(7); await questionPage.locator('.check input').check();
+      const afterRemovalRequest=questionPage.waitForRequest(request=>request.url().endsWith('/api/journey/calculate'));
+      await questionPage.getByRole('button',{name:/Confirm details & calculate/}).click();
+      const sent=(await afterRemovalRequest).postDataJSON();
+      assert.equal(sent.answers.ads_003,undefined,'removed answer is not submitted to the calculator');
+      assert.equal(sent.answers.ads_002,'Reporting');
+      await questionPage.waitForFunction(()=>!globalThis.AOCJourney.getState().dirty&&!globalThis.AOCJourney.getState().calculating);
+      assert.deepEqual((await questionState()).result,beforeRemoval.result,'removing scope evidence does not invent or remove pricing coefficients');
+
+      const questionAnalysis=JourneyContract.validate({title:'Synthetic advertising',summary:questionDescription,solution:'workflow',recommendationReason:'Test fixture',classification:{steps:null,variations:null,decisions:null,reason:'Test'},routes:[],facts:[{id:'ads_003',value:'Meta',quote:'Meta'},{id:'ads_002',value:'Reporting',quote:'Reporting'}],relevantFields:['ads_003','ads_002'],uncertainties:[]},questionDescription,'area10');
+      await questionPage.route('**/api/journey/analyze',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({analysis:questionAnalysis})}));
+      const reorganizeQuestions=async()=>{
+        await goToQuestionStep(2); await questionPage.getByRole('button',{name:/Organize my description/}).click();
+        await questionPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3&&!globalThis.AOCJourney.getState().working);
+      };
+      await reorganizeQuestions();
+      const afterAI=await questionState();
+      assert.equal(afterAI.answers.ads_003,undefined,'AI cannot restore a manually removed answer');
+      assert.equal(afterAI.visible.includes('ads_003'),false,'AI cannot restore the removed question');
+      assert.equal(afterAI.analysis.facts.some(fact=>fact.id==='ads_003'),false);
+      assert.equal(afterAI.answers.ads_002,'Reporting');
+      await addQuestion('ads_003');
+      assert.equal(await questionPage.locator('#f_ads_003').inputValue(),'','explicit Add does not resurrect the deleted answer');
+      assert.equal((await questionState()).removedScopeFields.includes('ads_003'),false);
+      await reorganizeQuestions();
+      assert.equal((await questionState()).answers.ads_003,'Meta','AI can populate the question after it is explicitly added again');
+      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
+      await questionPage.locator('#f_ads_003').fill('0');
+      const dialogCount=questionDialogs.length;
+      await removeQuestion('ads_003');
+      assert.equal(questionDialogs.length,dialogCount+1,'explicit zero is still a filled answer requiring confirmation');
+      assert.equal((await questionState()).answers.ads_003,undefined);
+      assert.equal((await questionState()).facts.ads_003,undefined);
+      assert.equal(await questionPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'remove controls fit on mobile');
+
+      // Late asynchronous responses must not undo a removal made in another section.
+      await addQuestion('ads_003');
+      let releaseCalculation;
+      const calculationGate=new Promise(resolve=>{releaseCalculation=resolve;});
+      await questionPage.route('**/api/journey/calculate',async route=>{
+        const body=route.request().postDataJSON();
+        await calculationGate;
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...JourneyCalculation.calculate(body),source:'server'})});
+      });
+      await goToQuestionStep(7); await questionPage.locator('.check input').check();
+      const delayedCalculationRequest=questionPage.waitForRequest(request=>request.url().endsWith('/api/journey/calculate'));
+      await questionPage.getByRole('button',{name:/Confirm details & calculate/}).click();
+      await delayedCalculationRequest;
+      await goToQuestionStep(3);
+      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
+      await removeQuestion('ads_003');
+      const delayedCalculationResponse=questionPage.waitForResponse(response=>response.url().endsWith('/api/journey/calculate'));
+      releaseCalculation();
+      await (await delayedCalculationResponse).finished();
+      await questionPage.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.equal((await questionState()).dirty,true,'late calculation response cannot mark the changed estimate current');
+      assert.equal((await questionState()).confirmed,false);
+      await questionPage.unroute('**/api/journey/calculate');
+
+      await addQuestion('ads_003');
+      await questionPage.locator('#f_ads_003').fill('Meta');
+      await questionPage.unroute('**/api/journey/analyze');
+      let releaseAnalysis;
+      const analysisGate=new Promise(resolve=>{releaseAnalysis=resolve;});
+      await questionPage.route('**/api/journey/analyze',async route=>{
+        await analysisGate;
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({analysis:questionAnalysis})});
+      });
+      await goToQuestionStep(2);
+      const delayedAnalysisRequest=questionPage.waitForRequest(request=>request.url().endsWith('/api/journey/analyze'));
+      await questionPage.getByRole('button',{name:/Organize my description/}).click();
+      await delayedAnalysisRequest;
+      await goToQuestionStep(3);
+      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
+      await removeQuestion('ads_003');
+      assert.equal((await questionState()).working,false,'removing during organization cancels the outdated busy state');
+      const delayedAnalysisResponse=questionPage.waitForResponse(response=>response.url().endsWith('/api/journey/analyze'));
+      releaseAnalysis();
+      await (await delayedAnalysisResponse).finished();
+      await questionPage.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.equal((await questionState()).answers.ads_003,undefined,'late AI response cannot restore the removed answer');
+      assert.equal((await questionState()).visible.includes('ads_003'),false);
+
+      // Every business-area bank keeps removed questions available for re-adding.
+      for(const area of require('../public/approved-bank.js').areas) {
+        await goToQuestionStep(1);
+        await questionPage.getByRole('button',{name:area.label,exact:true}).click();
+        await goToQuestionStep(3);
+        if(!await questionPage.getByLabel('Search scope question bank').isVisible()) await questionPage.locator('#scope-question-bank > summary').click();
+        await questionPage.getByLabel('Search scope question bank').fill('');
+        const first=questionPage.locator('#scope-question-bank .bank-item').first();
+        const id=await first.getAttribute('data-field-id');
+        await first.getByRole('button',{name:'Add',exact:true}).click();
+        if(!await questionPage.locator(`#f_${id}`).isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
+        await removeQuestion(id);
+        assert.ok(await questionPage.locator(`#scope-question-bank [data-field-id="${id}"]`).isVisible(),`removed question returns in ${area.label}`);
+      }
+      await goToQuestionStep(1);
+      await questionPage.getByRole('button',{name:'Finance and billing',exact:true}).click();
+      assert.deepEqual((await questionState()).removedScopeFields,[],'changing business area resets removal overrides');
+      await goToQuestionStep(3);
+      await questionPage.getByText(/^Review detailed scope/).click();
+      await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
+      assert.ok((await questionState()).visible.includes('invoice_volume'));
+      await removeQuestion('invoice_volume');
+      await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
+      await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
+      assert.equal((await questionState()).visible.includes('invoice_volume'),false,'route suggestions do not silently undo explicit removal');
+    } finally { await questionPage.close(); }
 
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
     console.log('PASS: React desktop and complete mobile browser journeys, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');

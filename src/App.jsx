@@ -40,6 +40,21 @@ function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) 
         fields={fields}
         onToggleRoute={actions.toggleRoute}
         onAddField={actions.addVisibleField}
+        onRemoveField={(field) => {
+          const value = state.answers[field.id];
+          const answered = Array.isArray(value) ? value.length > 0
+            : value !== null && value !== undefined && value !== '';
+          if (answered && !window.confirm(`Remove "${field.question}" and clear its answer? The question will return to the bank and you will need to recalculate.`)) return false;
+          actions.removeVisibleField(field.id);
+          notify('Question removed. You can add it again from the question bank.');
+          requestAnimationFrame(() => {
+            const bank = document.getElementById('scope-question-bank');
+            if (!bank) return;
+            bank.open = true;
+            bank.querySelector('input')?.focus();
+          });
+          return true;
+        }}
       />
     );
   }

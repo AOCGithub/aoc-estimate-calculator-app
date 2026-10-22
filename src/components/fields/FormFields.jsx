@@ -126,19 +126,26 @@ export function InputField({
   );
 }
 
-export function BankField({ field, value, filled, required, onChange }) {
+export function BankField({ field, value, filled, required, onChange, onRemove }) {
   if (!field) return null;
   const options = String(field.options || '').split(/\s*(?:Â·|·|\/)\s*/).filter(Boolean);
   const missing = required && !hasAnswer(value);
   return (
     <div className={`field ${missing ? 'field--missing-required' : ''}`}>
-      <FieldLabel
-        id={field.id}
-        label={field.question}
-        filled={filled}
-        required={required}
-        missing={missing}
-      />
+      <div className="scope-question-heading">
+        <FieldLabel
+          id={field.id}
+          label={field.question}
+          filled={filled}
+          required={required}
+          missing={missing}
+        />
+        {onRemove && !required && (
+          <button type="button" className="remove-question" aria-label={`Remove question: ${field.question}`} onClick={onRemove}>
+            Remove
+          </button>
+        )}
+      </div>
       <input
         id={`f_${field.id}`}
         value={value ?? ''}
@@ -189,7 +196,7 @@ export function createFieldProps(state, mark) {
         onChange={mark}
       />
     ),
-    bankField: (field) => (
+    bankField: (field, onRemove) => (
       <BankField
         key={field?.id}
         field={field}
@@ -197,6 +204,7 @@ export function createFieldProps(state, mark) {
         filled={Boolean(state.facts[field?.id])}
         required={required.has(field?.id)}
         onChange={mark}
+        onRemove={typeof onRemove === 'function' ? onRemove : undefined}
       />
     ),
   };

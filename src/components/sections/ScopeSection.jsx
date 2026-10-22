@@ -1,16 +1,12 @@
-import { estimatorBank } from '../../lib/domain.js';
+import { useState } from 'react';
+import { scopeQuestions } from '../../lib/scopeQuestions.js';
 import { marketingAreas } from '../../constants.js';
 import { MarketingFields } from './MarketingFields.jsx';
 import { QuestionBank } from './QuestionBank.jsx';
 
-export function ScopeSection({ state, area, fields, onToggleRoute, onAddField }) {
-  const sharedIds = new Set([
-    ...estimatorBank.appFields,
-    ...estimatorBank.dataFields,
-    ...estimatorBank.roiFields,
-    ...estimatorBank.serviceFields,
-  ].map((field) => field.id));
-  const candidates = area.fields.filter((field) => field.id !== 'generic' && !sharedIds.has(field.id));
+export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, onRemoveField }) {
+  const [query, setQuery] = useState('');
+  const candidates = scopeQuestions(area);
   const chosen = candidates.filter((field) => state.visible.includes(field.id));
   const allRoutes = [...new Set(area.routes)]
     .filter((route) => route && !/Shared oversight/i.test(route));
@@ -167,9 +163,11 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField })
             </button>
           ))}
         </div>
-        <div className="scope-fields">{chosen.map(fields.bankField)}</div>
+        <div className="scope-fields">{chosen.map((field) => fields.bankField(field, () => {
+          if (onRemoveField(field) !== false) setQuery(field.question);
+        }))}</div>
       </details>
-      <QuestionBank candidates={candidates} visible={state.visible} onAdd={onAddField} />
+      <QuestionBank candidates={candidates} visible={state.visible} onAdd={onAddField} query={query} onQueryChange={setQuery} />
       {state.analysis?.uncertainties?.length > 0 && (
         <div className="warning">
           {state.analysis.uncertainties.map((uncertainty) => <div key={uncertainty}>{uncertainty}</div>)}

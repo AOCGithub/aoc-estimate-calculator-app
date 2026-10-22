@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { calculateEstimate, estimatorBank } from '../lib/domain.js';
 import { normalizeAnswers } from '../lib/format.js';
 import { numericFields } from '../constants.js';
+import { scopeQuestions } from '../lib/scopeQuestions.js';
 
 const createInitialState = (request = 0) => ({
   step: 1,
@@ -13,6 +14,7 @@ const createInitialState = (request = 0) => ({
   routeOverrides: {},
   visible: [],
   manualVisible: [],
+  removedScopeFields: [],
   analysis: null,
   confirmed: false,
   result: null,
@@ -435,18 +437,51 @@ export function useEstimator() {
         ...current,
         routes: [...current.routes, route],
         routeOverrides: { ...current.routeOverrides, [route]: true },
-        visible: [...new Set([...current.visible, ...suggestions.map((field) => field.id)])],
+        visible: [...new Set([...current.visible, ...suggestions.map((field) => field.id)])]
+          .filter((id) => !current.removedScopeFields.includes(id)),
       });
     });
   }, []);
 
   const addVisibleField = useCallback((fieldId) => {
     requestRef.current += 1;
-    setState((current) => markDirty({
-      ...current,
-      visible: [...new Set([...current.visible, fieldId])],
-      manualVisible: [...new Set([...current.manualVisible, fieldId])],
-    }));
+    setState((current) => {
+      const area = estimatorBank.areas.find((candidate) => candidate.id === current.area);
+      if (!scopeQuestions(area).some((field) => field.id === fieldId)) return current;
+      return markDirty({
+        ...current,
+        visible: [...new Set([...current.visible, fieldId])],
+        manualVisible: [...new Set([...current.manualVisible, fieldId])],
+        removedScopeFields: current.removedScopeFields.filter((id) => id !== fieldId),
+        working: false,
+      });
+    });
+  }, []);
+
+  const removeVisibleField = useCallback((fieldId) => {
+    requestRef.current += 1;
+    setState((current) => {
+      const area = estimatorBank.areas.find((candidate) => candidate.id === current.area);
+      if (!current.visible.includes(fieldId) || !scopeQuestions(area).some((field) => field.id === fieldId)) return current;
+      const answers = { ...current.answers };
+      const facts = { ...current.facts };
+      delete answers[fieldId];
+      delete facts[fieldId];
+      return markDirty({
+        ...current,
+        answers,
+        facts,
+        visible: current.visible.filter((id) => id !== fieldId),
+        manualVisible: current.manualVisible.filter((id) => id !== fieldId),
+        removedScopeFields: [...new Set([...current.removedScopeFields, fieldId])],
+        analysis: current.analysis ? {
+          ...current.analysis,
+          facts: current.analysis.facts.filter((fact) => fact.id !== fieldId),
+          relevantFields: current.analysis.relevantFields.filter((id) => id !== fieldId),
+        } : null,
+        working: false,
+      });
+    });
   }, []);
 
   const setConfirmed = useCallback((confirmed) => {
@@ -547,6 +582,7 @@ export function useEstimator() {
         const facts = {};
 
         for (const fact of analysis.facts) {
+          if (current.removedScopeFields.includes(fact.id)) continue;
           if (answers[fact.id] !== undefined && !current.facts[fact.id]) continue;
           let value = normalizePrefillValue(fact.id, fact.value);
           if (numericFields.has(fact.id)) {
@@ -605,13 +641,17 @@ export function useEstimator() {
           step: 3,
           answers,
           facts,
-          analysis,
+          analysis: {
+            ...analysis,
+            facts: analysis.facts.filter((fact) => !current.removedScopeFields.includes(fact.id)),
+            relevantFields: analysis.relevantFields.filter((id) => !current.removedScopeFields.includes(id)),
+          },
           routes: [...new Set(routes)],
           visible: [...new Set([
             ...analysis.relevantFields,
             ...current.manualVisible,
             ...manualRouteFields,
-          ])],
+          ])].filter((id) => !current.removedScopeFields.includes(id)),
           working: false,
           analysisError: '',
         });
@@ -656,6 +696,7 @@ export function useEstimator() {
       goTo,
       mark,
       organize,
+      removeVisibleField,
       restart,
       setConfirmed,
       setDescription,

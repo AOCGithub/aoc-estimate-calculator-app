@@ -65,7 +65,7 @@ export function DescriptionSection({ state, area, onDescriptionChange, onOrganiz
           </div>
         </div>
       )}
-      <div className="actions">
+      <div className="actions description-actions">
         <button
           type="button"
           className="primary"
