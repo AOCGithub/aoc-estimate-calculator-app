@@ -359,7 +359,26 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_existing_client').selectOption('no');
     assert.equal(await page.locator('#f_existing_plan_name').count(),0,'existing-client questions disappear for a new client');
 
+    assert.equal(await page.locator('#section-picker').isVisible(), false, 'desktop keeps the existing section navigation');
+    assert.equal(await page.locator('#sections > button:visible').count(), 7, 'all desktop section buttons remain available');
+    const beforeMobileNavigation = await page.evaluate(() => globalThis.AOCJourney.getState());
+    for (const width of [320, 360, 390, 430, 768, 950]) {
+      await page.setViewportSize({ width, height: 844 });
+      assert.ok(await page.getByLabel('Section 7 of 7', {exact:true}).isVisible(), 'small screens show an accessible section selector');
+      assert.equal(await page.locator('#sections > button:visible').count(), 0, 'the horizontal strip is replaced rather than clipped');
+      assert.equal(await page.locator('#section-picker option').count(), 7, 'all seven sections remain available');
+      assert.equal(await page.locator('#sections').evaluate(element => element.scrollWidth <= element.clientWidth), true, `navigation does not scroll sideways at ${width}px`);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `page does not overflow at ${width}px`);
+    }
     await page.setViewportSize({ width: 390, height: 844 });
+    for (let step = 1; step <= 7; step += 1) {
+      await page.locator('#section-picker').selectOption(String(step));
+      assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().step), step, 'selector navigates to the requested section');
+      assert.ok(await page.getByLabel(`Section ${step} of 7`, {exact:true}).isVisible(), 'progress label follows navigation');
+    }
+    const afterMobileNavigation = await page.evaluate(() => globalThis.AOCJourney.getState());
+    assert.deepEqual(afterMobileNavigation.answers, beforeMobileNavigation.answers, 'changing navigation preserves all answers');
+    assert.deepEqual(afterMobileNavigation.result, beforeMobileNavigation.result, 'changing navigation preserves the calculated result');
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       true,
@@ -367,7 +386,7 @@ const server = http.createServer((request, response) => {
     );
     if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile.png'), fullPage: true });
 
-    await page.getByRole('navigation').getByText('Business area', { exact: true }).click();
+    await page.locator('#section-picker').selectOption('1');
     page.once('dialog', async (dialog) => {
       assert.match(dialog.message(), /clears this estimate/i);
       await dialog.dismiss();
@@ -388,8 +407,11 @@ const server = http.createServer((request, response) => {
     mobilePage.on('pageerror', (error) => errors.push(error.message));
 
     await mobilePage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+    assert.equal(await mobilePage.locator('#section-picker option:disabled').count(), 6, 'later sections are still locked until a business area is chosen');
     await mobilePage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
+    assert.equal(await mobilePage.locator('#section-picker option:disabled').count(), 0, 'choosing an area unlocks the same seven sections');
     await mobilePage.getByRole('button', { name: /^Describe the work/ }).click();
+    assert.equal(await mobilePage.locator('#section-picker').inputValue(), '2', 'next action keeps mobile navigation in sync');
     await mobilePage.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
     await mobilePage.getByRole('button', { name: /Organize my description/ }).click();
     await mobilePage.getByText(/Basic local organization was used/).waitFor();
@@ -458,13 +480,13 @@ const server = http.createServer((request, response) => {
     await prefillPage.locator('#description').fill(commercialDescription);
     await prefillPage.getByRole('button',{name:/Organize my description/}).click();
     await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
-    await prefillPage.getByRole('navigation').getByText('Responsibilities and service',{exact:true}).click();
+    await prefillPage.locator('#section-picker').selectOption('7');
     assert.equal(await prefillPage.locator('#f_implementation_route').inputValue(),'monthly');
     assert.equal(await prefillPage.locator('#f_monthly_plan').inputValue(),'level1');
     await prefillPage.locator('#f_implementation_route').selectOption('project');
     await prefillPage.locator('#quote-details > summary').click();
     await prefillPage.locator('#f_audit_fee').fill('1250');
-    await prefillPage.getByRole('navigation').getByText('Describe the work',{exact:true}).click();
+    await prefillPage.locator('#section-picker').selectOption('2');
     await prefillPage.getByRole('button',{name:/Organize my description/}).click();
     await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
     const correctedCommercial=await prefillPage.evaluate(()=>globalThis.AOCJourney.getState().answers);

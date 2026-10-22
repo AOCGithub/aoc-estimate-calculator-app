@@ -77,6 +77,42 @@ button.primary:not(:disabled):active {
   min-width: 0;
 }
 
+.section-picker {
+  display: none;
+}
+
+@media screen and (max-width: 950px) {
+  #sections {
+    display: block;
+    min-width: 0;
+    overflow: visible;
+    padding-bottom: 4px;
+  }
+
+  #sections > button {
+    display: none;
+  }
+
+  .section-picker {
+    display: grid;
+    gap: 6px;
+  }
+
+  .section-picker label {
+    margin: 0;
+    color: var(--teal);
+    font-size: 12px;
+  }
+
+  .section-picker select {
+    min-height: 48px;
+    max-width: 100%;
+    font-size: 16px;
+    background-color: white;
+    border-color: #b4c8c6;
+  }
+}
+
 .section-transition {
   animation: section-transition-enter 180ms ease-out;
 }
