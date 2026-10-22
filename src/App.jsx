@@ -13,6 +13,7 @@ import { DataSection } from './components/sections/DataSection.jsx';
 import { ValueSection } from './components/sections/ValueSection.jsx';
 import { ServiceSection } from './components/sections/ServiceSection.jsx';
 import { LiveContext } from './components/LiveContext.jsx';
+import { RestartDialog } from './components/RestartDialog.jsx';
 
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
@@ -75,6 +76,7 @@ function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) 
 export default function App() {
   const { state, selectedArea, actions } = useEstimator();
   const [toast, setToast] = useState('');
+  const [restartOpen, setRestartOpen] = useState(false);
   const fields = useMemo(
     () => createFieldProps(state, (key, value) => {
       const valid = actions.mark(key, value);
@@ -90,10 +92,8 @@ export default function App() {
   }
 
   function restart() {
-    if (
-      (state.description || Object.keys(state.answers).length)
-      && !window.confirm('Clear this estimate and start again?')
-    ) return;
+    setRestartOpen(false);
+    setToast('');
     actions.restart();
   }
 
@@ -121,7 +121,7 @@ export default function App() {
       <header>
         <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
         <LiveContext />
-        <button id="restart" type="button" className="quiet" onClick={restart}>Start over</button>
+        <button id="restart" type="button" className="quiet" onClick={() => setRestartOpen(true)}>Start over</button>
       </header>
       <main>
         {state.step === 1 ? (
@@ -190,6 +190,7 @@ export default function App() {
           <span>{estimatorBank.version}</span>
         </footer>
       </main>
+      <RestartDialog open={restartOpen} onCancel={() => setRestartOpen(false)} onConfirm={restart} />
       {toast && <div id="toast" role="status" className="visible">{toast}</div>}
     </>
   );

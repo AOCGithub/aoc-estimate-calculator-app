@@ -30,6 +30,7 @@ const mime = {
   '.html': 'text/html;charset=utf-8',
   '.css': 'text/css;charset=utf-8',
   '.js': 'text/javascript;charset=utf-8',
+  '.png': 'image/png',
 };
 
 const server = http.createServer((request, response) => {
@@ -109,6 +110,13 @@ const server = http.createServer((request, response) => {
 
   try {
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+    const faviconLink = page.locator('link[rel="icon"]');
+    assert.equal(await faviconLink.getAttribute('href'), '/favicon.png', 'favicon is hosted locally to respect the existing security policy');
+    assert.equal(await faviconLink.getAttribute('type'), 'image/png');
+    const faviconResponse = await page.request.get(`http://127.0.0.1:${port}/favicon.png`);
+    assert.equal(faviconResponse.status(), 200);
+    assert.equal(faviconResponse.headers()['content-type'], 'image/png');
+    assert.deepEqual(await faviconResponse.body(), fs.readFileSync(path.resolve(__dirname, '../public/favicon.png')), 'built app serves the original AOC favicon');
     assert.equal(await page.locator('.section-transition').count(), 1, 'active form section has a transition wrapper');
     assert.equal(
       await page.locator('.section-transition').evaluate((element) => getComputedStyle(element).animationName),
@@ -395,6 +403,110 @@ const server = http.createServer((request, response) => {
     await page.getByRole('button', { name: 'Orders, inventory, and fulfillment', exact: true }).click();
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().area), 'area0', 'canceling an area change preserves the estimate');
 
+    // Canceling Start over preserves even a calculated estimate; accepting resets it.
+    const assertRestart = async (targetPage, accept) => {
+      const before = await targetPage.evaluate(() => globalThis.AOCJourney.getState());
+      await targetPage.locator('#restart').click();
+      const dialog = targetPage.getByRole('dialog', { name: 'Start over?', exact: true });
+      await dialog.waitFor({ state: 'visible' });
+      assert.equal(await dialog.evaluate(element => element.matches(':modal')), true, 'confirmation blocks interaction with the form');
+      assert.equal(await dialog.getByRole('button', { name: 'Keep editing', exact: true }).evaluate(element => element === document.activeElement), true, 'safe action is focused by default');
+      assert.equal(await targetPage.evaluate(() => document.body.style.overflow), 'hidden', 'background scrolling is paused');
+      assert.deepEqual(await targetPage.evaluate(() => globalThis.AOCJourney.getState()), before, 'opening the prompt does not reset anything');
+      await dialog.getByRole('button', { name: accept ? 'Start over' : 'Keep editing', exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+      assert.equal(await targetPage.locator('#restart').evaluate(element => element === document.activeElement), true, 'focus returns to the triggering button');
+      assert.equal(await targetPage.evaluate(() => document.body.style.overflow), '', 'background scrolling is restored');
+      if (!accept) {
+        assert.deepEqual(await targetPage.evaluate(() => globalThis.AOCJourney.getState()), before, 'Cancel leaves all estimate state unchanged');
+        return;
+      }
+      await targetPage.waitForFunction(() => !globalThis.AOCJourney.getState().area);
+      const after = await targetPage.evaluate(() => globalThis.AOCJourney.getState());
+      assert.equal(after.step, 1);
+      assert.equal(after.area, '');
+      assert.equal(after.description, '');
+      assert.deepEqual(after.answers, {});
+      assert.deepEqual(after.facts, {});
+      assert.deepEqual(after.routes, []);
+      assert.deepEqual(after.routeOverrides, {});
+      assert.deepEqual(after.visible, []);
+      assert.deepEqual(after.manualVisible, []);
+      assert.deepEqual(after.removedScopeFields, []);
+      assert.equal(after.analysis, null);
+      assert.equal(after.result, null);
+      assert.equal(after.confirmed, false);
+      assert.equal(after.working, false);
+      assert.equal(after.calculating, false);
+      assert.equal(after.analysisError, '');
+      assert.equal(after.calculationSource, '');
+      assert.equal(await targetPage.locator('#toast').count(), 0, 'reset also clears any stale notification');
+    };
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    assert.ok((await page.evaluate(() => globalThis.AOCJourney.getState())).result, 'reset regression covers a calculated estimate');
+    await assertRestart(page, false);
+    await assertRestart(page, true);
+
+    for (const width of [1440, 390]) {
+      const restartPage = await browser.newPage({ viewport: { width, height: 844 } });
+      try {
+        await restartPage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+        await assertRestart(restartPage, false);
+        await assertRestart(restartPage, true);
+        await restartPage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
+        assert.equal((await restartPage.evaluate(() => globalThis.AOCJourney.getState())).description, '');
+        await assertRestart(restartPage, false);
+        await assertRestart(restartPage, true);
+        await restartPage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
+        await restartPage.getByRole('button', { name: /^Describe the work/ }).click();
+        await restartPage.locator('#description').fill('Prepare invoices in Wave for our team to review.');
+        await assertRestart(restartPage, false);
+        const beforeDismissal = await restartPage.evaluate(() => globalThis.AOCJourney.getState());
+        for (const method of ['escape', 'backdrop', 'enter']) {
+          await restartPage.locator('#restart').click();
+          const prompt = restartPage.getByRole('dialog', { name: 'Start over?', exact: true });
+          await prompt.waitFor({ state: 'visible' });
+          if (method === 'backdrop') await restartPage.mouse.click(4, 4);
+          else await restartPage.keyboard.press(method === 'escape' ? 'Escape' : 'Enter');
+          await prompt.waitFor({ state: 'hidden' });
+          assert.deepEqual(await restartPage.evaluate(() => globalThis.AOCJourney.getState()), beforeDismissal, `${method} dismisses without clearing answers`);
+        }
+        for (const key of ['Tab', 'Shift+Tab', 'Tab', 'Tab']) {
+          if (!await restartPage.locator('.restart-dialog').isVisible()) await restartPage.locator('#restart').click();
+          await restartPage.keyboard.press(key);
+          assert.equal(await restartPage.locator('.restart-dialog').evaluate(element => element.contains(document.activeElement) || element === document.activeElement), true, 'keyboard focus stays inside the modal');
+        }
+        const bounds = await restartPage.locator('.restart-dialog').boundingBox();
+        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'prompt fits the viewport');
+        if (capture) await restartPage.screenshot({ path: path.join(artifactsDirectory, `restart-dialog-${width}.png`) });
+        await restartPage.keyboard.press('Escape');
+        await assertRestart(restartPage, true);
+
+        // A response arriving after a confirmed reset must not repopulate the form.
+        await restartPage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
+        await restartPage.getByRole('button', { name: /^Describe the work/ }).click();
+        await restartPage.locator('#description').fill('Prepare invoices in Wave for our team to review.');
+        let releaseRestartAnalysis;
+        const restartAnalysisGate = new Promise(resolve => { releaseRestartAnalysis = resolve; });
+        await restartPage.route('**/api/journey/analyze', async route => {
+          await restartAnalysisGate;
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ localFallback: true }) });
+        });
+        const restartAnalysisRequest = restartPage.waitForRequest(request => request.url().endsWith('/api/journey/analyze'));
+        await restartPage.getByRole('button', { name: /Organize my description/ }).click();
+        await restartAnalysisRequest;
+        assert.equal((await restartPage.evaluate(() => globalThis.AOCJourney.getState())).working, true);
+        await assertRestart(restartPage, false);
+        await assertRestart(restartPage, true);
+        const resetState = await restartPage.evaluate(() => globalThis.AOCJourney.getState());
+        const restartAnalysisResponse = restartPage.waitForResponse(response => response.url().endsWith('/api/journey/analyze'));
+        releaseRestartAnalysis();
+        await (await restartAnalysisResponse).finished();
+        await restartPage.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        assert.deepEqual(await restartPage.evaluate(() => globalThis.AOCJourney.getState()), resetState, 'late AI response cannot undo a confirmed reset');
+      } finally { await restartPage.close(); }
+    }
+
     const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     mobilePage.on('console', (message) => {
       const expectedLocalApiError = /\/api\/journey\/(analyze|calculate)$/.test(message.location().url)
@@ -483,6 +595,8 @@ const server = http.createServer((request, response) => {
     await mobilePage.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===10000);
     assert.equal((await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result)).audit,null,'mobile program does not invent an audit fee');
     assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'monthly program has no mobile overflow');
+    await assertRestart(mobilePage, false);
+    await assertRestart(mobilePage, true);
     await mobilePage.close();
 
     // The new commercial facts use the same manual-correction protection as all other answers.
@@ -535,7 +649,12 @@ const server = http.createServer((request, response) => {
       if(!await questionPage.locator(`#f_${id}`).isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
       await questionPage.locator(`#f_${id}`).waitFor();
     };
-    const removeQuestion = id => questionPage.locator(`#f_${id}`).locator('..').getByRole('button',{name:/^Remove question:/}).click();
+    const removeQuestion = async id => {
+      await questionPage.locator(`#f_${id}`).locator('..').getByRole('button',{name:/^Remove question:/}).click();
+      if (!await questionPage.locator(`#f_${id}`).count()) {
+        await questionPage.locator(`#scope-question-bank [data-field-id="${id}"]`).waitFor({ state: 'visible' });
+      }
+    };
     try {
       await questionPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
       await questionPage.getByRole('button',{name:'Paid advertising',exact:true}).click();
@@ -708,7 +827,7 @@ const server = http.createServer((request, response) => {
     } finally { await questionPage.close(); }
 
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
-    console.log('PASS: React desktop and complete mobile browser journeys, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
+    console.log('PASS: React desktop and complete mobile browser journeys, local AOC favicon, reset confirmation/cancellation/late AI protection, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

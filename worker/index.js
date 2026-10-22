@@ -63,6 +63,9 @@ export default {
 
     const asset = ASSETS[url.pathname === "/" ? "/index.html" : url.pathname];
     if (!asset) return new Response("Not found", { status: 404 });
-    return new Response(asset.body, { headers: { "content-type": asset.type } });
+    const body = asset.binary
+      ? Uint8Array.from(atob(asset.body), (character) => character.charCodeAt(0))
+      : asset.body;
+    return new Response(body, { headers: { "content-type": asset.type } });
   },
 };

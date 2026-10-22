@@ -77,6 +77,49 @@ button.primary:not(:disabled):active {
   min-width: 0;
 }
 
+.restart-dialog {
+  width: min(380px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 16px 48px rgb(20 45 50 / 12%);
+}
+
+.restart-dialog[open] {
+  animation: section-transition-enter 160ms ease-out;
+}
+
+.restart-dialog::backdrop {
+  background: rgb(20 45 50 / 28%);
+}
+
+.restart-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+
+.restart-dialog p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.restart-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.restart-dialog__actions button {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
 .section-picker {
   display: none;
 }
@@ -409,6 +452,7 @@ button.primary:not(:disabled):active {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .restart-dialog[open],
   .section-transition,
   .organizing-status,
   .organizing-status__spinner,

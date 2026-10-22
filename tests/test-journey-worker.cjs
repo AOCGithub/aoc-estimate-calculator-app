@@ -7,6 +7,7 @@ assert.ok(source.includes('/api/intake/'));
 assert.ok(source.includes('gpt-4o-mini-transcribe'));
 const code = source.replace(/export default\s*\{\s*async fetch/, 'globalThis.worker={async fetch');
 const context = {
+  atob,
   Response,
   Request,
   URL,
@@ -28,6 +29,11 @@ vm.runInContext(code, context);
   const html = await response.text();
   assert.ok(html.includes('id="root"'));
   assert.ok(html.includes('/assets/'));
+  assert.ok(html.includes('href="/favicon.png"'));
+  const favicon = await context.worker.fetch(new Request('https://demo.test/favicon.png'), {});
+  assert.equal(favicon.status, 200);
+  assert.equal(favicon.headers.get('content-type'), 'image/png');
+  assert.deepEqual(Buffer.from(await favicon.arrayBuffer()), fs.readFileSync('public/favicon.png'), 'packaged favicon preserves the original AOC image bytes');
 
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) {
     const asset = await context.worker.fetch(new Request('https://demo.test' + match[1]), {});
