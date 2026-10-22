@@ -2,25 +2,25 @@
 
 Updated: 22 October 2026
 
-Steve approves pricing and business rules. Gino applies the changes, tests the calculator, and publishes the update.
+The calculator's forms and pricing are maintained in the AOC GitHub repository. Vercel publishes the tested app and its server API to [estimate.alwaysopencommerce.com](https://estimate.alwaysopencommerce.com). The steps below describe the current setup.
 
 ## Updating the form
 
-Send Gino the business area and question to change, the replacement wording or answer choices, and when the question should appear. A screenshot or example is helpful. For a new question, explain whether the answer should affect the price, identify a possible issue, or provide background information.
+The seven form screens are maintained in the [form components](../src/components/sections/). Shared required-field indicators are maintained in [form fields](../src/components/fields/FormFields.jsx). The detailed questions, answer choices, and business-area prompts come from the [reviewed sheet copy](../data/sheet-snapshot-20261018.json), which is used to generate the app's question bank.
 
-Gino updates the form and checks that the relevant questions appear, answers remain editable, and missing or invalid answers are handled correctly. If the change affects AI prefill, he also checks that the description fills the intended answers and preserves client corrections.
+To change a question, update its source and any affected screen or visibility rule. Keep its existing field identifier so entered answers, AI prefill, and calculations continue to match. Check that the question appears in the right scenario, remains editable, and flags missing answers correctly.
 
 ## Updating prices
 
-Update the approved pricing sheet and identify the changed cells or rules for Gino. Include the old and new amounts, when they should take effect, and an example of the expected result where possible.
+The approved pricing sheet is the business reference. The website uses a versioned copy of those rules; sheet edits do not update the website automatically. AI fills answers, while the server calculates prices using the existing rules.
 
-The website uses a reviewed copy of the pricing rules. Editing the sheet does not automatically update the live calculator. Gino transfers the approved changes into the calculator and compares its results with the sheet. Missing or unclear prices are referred to Steve; they remain marked for review until a price is supplied.
+For an approved price change, update the reviewed sheet copy and affected rule mappings, then regenerate the app's pricing and question-bank files with `node scripts/compile-approved.cjs`. Compare the changed result with the sheet before publishing. Record the pricing version and update the expected test amounts where appropriate. Missing prices remain flagged for Steve rather than being guessed.
 
 ## Testing and publishing
 
-Before publishing, Gino runs the automated checks and tests the affected journey. Pricing checks cover the affected build price, 10% audit fee and credit, optional monthly service, and ROI. Changing or clearing an answer must update the result correctly or show that information is missing.
+Run `npm test` and check the affected form journey. For pricing changes, check the build, 10% audit fee and credit, optional monthly service, and ROI as applicable. Changing or clearing answers must mark the result for recalculation; recalculating must give the correct updated price or identify missing information. For prefill changes, also check that client corrections are preserved and unknown facts stay blank.
 
-After the checks pass, Gino pushes the update to GitHub. Vercel automatically builds and deploys it. He then confirms the deployment succeeded, checks the affected calculator journey on the live website, and records what changed and what was tested.
+After testing, commit and push the reviewed changes to GitHub's `main` branch. Vercel automatically builds and deploys the update. Confirm the deployment is **Ready**, test the affected journey on the live website, and record the change and test result. AI keys remain in Vercel's server settings.
 
 ## Review links
 
