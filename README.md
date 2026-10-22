@@ -2,6 +2,8 @@
 
 Current working version: React migration, 19 October 2026. Start with `docs/DEVELOPER-HANDOFF.md` for the business rules and release constraints.
 
+For a plain-language guide to requesting, testing, and publishing changes, see [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md).
+
 The default page is the seven-section estimate journey. Previous interfaces are retained under `legacy/` for reconciliation and are excluded from production builds.
 
 ## Project layout
