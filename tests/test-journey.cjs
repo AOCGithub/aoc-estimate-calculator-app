@@ -61,6 +61,7 @@ for(const quote of [
  'Use approved policy documents to draft replies.',
  'Prepare drafts for a person to approve.',
 ]) assert.deepEqual(actionFacts(quote,'approved'),[], 'approval without an action cannot select approved execution: '+quote);
+assert.deepEqual(actionFacts('A person must approve every reply.','Approved'),[], 'alternate capitalization cannot bypass the execution evidence check');
 for(const quote of [
  'Draft replies in Help Scout. A person must approve every reply.',
  'Prepare invoice drafts for our team to approve before sending.',
@@ -74,6 +75,9 @@ for(const quote of [
  'Create invoices only after our approval.',
 ]) assert.equal(actionFacts(quote,'approved')[0]?.value,'approved','explicit approved execution stays supported: '+quote);
 assert.equal(actionFacts('Send routine replies automatically within agreed limits.','automatic')[0]?.value,'automatic');
+const advertisingDescription='We want reporting and approved campaign updates as 2 capabilities in one connected workflow. Make changes only after our approval.';
+assert.deepEqual(C.validate({...analysis,facts:[{id:'action_mode',value:'approved',quote:'approved campaign updates. Make changes only after our approval.'}]},advertisingDescription,'area10').facts,[], 'stitched evidence is still rejected');
+assert.equal(C.validate({...analysis,facts:[{id:'action_mode',value:'approved',quote:'Make changes only after our approval.'}]},advertisingDescription,'area10').facts[0]?.value,'approved', 'one continuous sufficient quote preserves approved changes');
 
 // Documented acceptance scenarios: representative areas and approved pricing drivers.
 const financeArea=B.areas.find(a=>a.id==='area0'),contentArea=B.areas.find(a=>a.id==='area7'),seoArea=B.areas.find(a=>a.id==='area8'),otherArea=B.areas.find(a=>a.id==='area11');

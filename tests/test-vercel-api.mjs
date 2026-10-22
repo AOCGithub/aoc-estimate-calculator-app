@@ -129,6 +129,7 @@ try {
   for (const [text, value, expected] of [
     ['We need draft replies in Help Scout. A person must approve every reply.', 'approved', []],
     ['We need draft replies in Help Scout. A person must approve every reply.', 'draft', ['draft']],
+    ['Make changes only after our approval.', 'approved', ['approved']],
     ['The agent drafts replies, then sends them once approved.', 'approved', ['approved']],
     ['Send routine replies automatically within agreed limits.', 'automatic', ['automatic']],
   ]) {
