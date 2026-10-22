@@ -145,6 +145,37 @@ async function runCase(name, callback) {
       } finally { await page.close(); }
     });
 
+    for (const scenario of [
+      {
+        name: 'automatic drafting with human review',
+        description: 'We want an AI agent to automatically draft customer replies in Help Scout using our policy documents. Our staff will review each draft and send the replies themselves. The agent must not send messages or change customer records.',
+        expected: 'draft',
+      },
+      {
+        name: 'system sends after approval',
+        description: 'We need an AI agent in Help Scout to draft replies using our policy documents. After a staff member approves a draft, the agent sends the approved reply to the customer. It must not send anything before approval.',
+        expected: 'approved',
+      },
+      {
+        name: 'approval alone leaves execution unknown',
+        description: 'We need help with customer support in Help Scout. A person must approve every reply. We have not decided what the AI system should do or whether it should prepare drafts or send messages.',
+        expected: null,
+      },
+    ]) {
+      await runCase(`Customer support action boundary: ${scenario.name}`, async () => {
+        const page = await startPage(browser, 'Customer service and returns');
+        try {
+          const result = await organize(page, scenario.description);
+          if (scenario.expected === null) noInventedValues(result.state.answers, ['action_mode']);
+          else assert.equal(result.state.answers.action_mode, scenario.expected);
+          await page.getByRole('navigation').getByText('Responsibilities and service', { exact: true }).click();
+          assert.equal(await page.locator('#f_action_mode').inputValue(), scenario.expected || '', 'editable field matches the supported system role');
+          assert.equal(await page.locator('#f_action_mode').isEnabled(), true);
+          return { elapsedMs: result.elapsedMs, checks: ['draft versus execution boundary', 'editable field matches prefill', 'unsupported action remains blank'] };
+        } finally { await page.close(); }
+      });
+    }
+
     await runCase('Paid advertising prefill and counts', async () => {
       const page = await startPage(browser, 'Paid advertising');
       try {

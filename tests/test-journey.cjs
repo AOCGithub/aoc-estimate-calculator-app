@@ -52,6 +52,29 @@ assert.equal(responsibilityFacts('AOC manages the process.','aoc')[0]?.value,'ao
 assert.equal(responsibilityFacts('Our team manages the process.','client')[0]?.value,'client');
 assert.equal(responsibilityFacts('We share responsibility with AOC.','shared')[0]?.value,'shared');
 
+// Human approval alone must not promote drafting to system execution.
+function actionFacts(quote,value) {
+ return C.validate({...analysis,facts:[{id:'action_mode',value,quote}]},quote,'area1').facts;
+}
+for(const quote of [
+ 'A person must approve every reply.',
+ 'Use approved policy documents to draft replies.',
+ 'Prepare drafts for a person to approve.',
+]) assert.deepEqual(actionFacts(quote,'approved'),[], 'approval without an action cannot select approved execution: '+quote);
+for(const quote of [
+ 'Draft replies in Help Scout. A person must approve every reply.',
+ 'Prepare invoice drafts for our team to approve before sending.',
+ 'Automatically prepare draft replies for human review.',
+]) assert.equal(actionFacts(quote,'draft')[0]?.value,'draft');
+for(const quote of [
+ 'After approval, the agent sends the reply.',
+ 'Make changes only after our approval.',
+ 'The system drafts replies, then sends them once approved.',
+ 'Publish the article after sign-off.',
+ 'Create invoices only after our approval.',
+]) assert.equal(actionFacts(quote,'approved')[0]?.value,'approved','explicit approved execution stays supported: '+quote);
+assert.equal(actionFacts('Send routine replies automatically within agreed limits.','automatic')[0]?.value,'automatic');
+
 // Documented acceptance scenarios: representative areas and approved pricing drivers.
 const financeArea=B.areas.find(a=>a.id==='area0'),contentArea=B.areas.find(a=>a.id==='area7'),seoArea=B.areas.find(a=>a.id==='area8'),otherArea=B.areas.find(a=>a.id==='area11');
 assert.ok(financeArea.routes.includes('Create and send invoices'));assert.ok(financeArea.routes.includes('Process supplier bills / vendor invoices'));

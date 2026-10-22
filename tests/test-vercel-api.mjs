@@ -126,6 +126,22 @@ try {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).analysis.facts[0].value, 'help', 'API preserves explicit management-help requests');
 
+  for (const [text, value, expected] of [
+    ['We need draft replies in Help Scout. A person must approve every reply.', 'approved', []],
+    ['We need draft replies in Help Scout. A person must approve every reply.', 'draft', ['draft']],
+    ['The agent drafts replies, then sends them once approved.', 'approved', ['approved']],
+    ['Send routine replies automatically within agreed limits.', 'automatic', ['automatic']],
+  ]) {
+    output.facts = [{ id: 'action_mode', value, quote: text }];
+    response = await analysisRoute.fetch(new Request(`${origin}/api/journey/analyze`, {
+      method: 'POST',
+      headers: { origin, 'content-type': 'application/json' },
+      body: JSON.stringify({ area: 'area1', text }),
+    }));
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).analysis.facts.map(fact => fact.value), expected, 'API keeps drafting separate from execution');
+  }
+
   const vercelConfig = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.equal(vercelConfig.framework, 'vite');
   assert.equal(vercelConfig.outputDirectory, 'dist/client');
