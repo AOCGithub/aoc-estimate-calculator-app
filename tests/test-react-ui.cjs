@@ -176,6 +176,15 @@ const server = http.createServer((request, response) => {
       'manual route selection survives reorganization',
     );
 
+    await page.getByRole('navigation').getByText('Responsibilities and service', { exact: true }).click();
+    await page.locator('#f_responsibility_split').selectOption('client');
+    await page.getByRole('navigation').getByText('Describe the work', { exact: true }).click();
+    await page.getByRole('button', { name: /Organize my description/ }).click();
+    await page.getByText(/Basic local organization was used/).waitFor();
+    const correctedOwnership = await page.evaluate(() => globalThis.AOCJourney.getState().answers);
+    assert.equal(correctedOwnership.responsibility_split, 'client', 'manual responsibility choice survives reorganization');
+    assert.equal(correctedOwnership.management, 'no', 'derived management remains consistent with the manual responsibility choice');
+
     await page.locator('#f_solution').selectOption('workflow');
     assert.equal(await page.locator('#f_solution').getAttribute('required'), '', 'solution is marked required');
     assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 1, 'scope starts with one primary choice and compact required groups');

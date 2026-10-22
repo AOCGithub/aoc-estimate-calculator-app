@@ -398,6 +398,7 @@ export function useEstimator() {
       }
       const facts = { ...current.facts };
       delete facts[key];
+      if (key === 'responsibility_split') delete facts.management;
       return markDirty({ ...current, answers, facts });
     });
     return true;
@@ -559,14 +560,15 @@ export function useEstimator() {
           facts[fact.id] = fact.quote;
         }
 
-        if (facts.responsibility_split) {
+        if (Object.prototype.hasOwnProperty.call(answers, 'responsibility_split')) {
           const responsibility = answers.responsibility_split;
           answers.management = ['aoc', 'shared'].includes(responsibility)
             ? 'yes'
             : responsibility === 'client'
               ? 'no'
               : null;
-          facts.management = facts.responsibility_split;
+          if (facts.responsibility_split) facts.management = facts.responsibility_split;
+          else delete facts.management;
           if (answers.management !== 'yes') answers.tier = null;
         }
 

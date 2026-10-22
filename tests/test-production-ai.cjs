@@ -29,6 +29,7 @@ const report = {
   applicationBundle: null,
   cases: [],
 };
+let currentObservation = null;
 
 async function startPage(browser, area, mobile = false) {
   const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 } });
@@ -59,6 +60,7 @@ async function organize(page, description, live = true) {
   try { data = await response.json(); } catch { data = null; }
   await page.waitForFunction(() => globalThis.AOCJourney.getState().step === 3 && !globalThis.AOCJourney.getState().working, null, { timeout: 65000 });
   const state = await stateOf(page);
+  currentObservation = { answers: state.answers, extractedFacts: data?.analysis?.facts || [] };
   if (live) {
     assert.equal(response.status(), 200, 'production AI endpoint returns HTTP 200');
     assert.ok(data?.analysis, 'provider returns structured analysis');
@@ -85,13 +87,14 @@ async function openFieldGroup(page, field, group) {
 
 async function runCase(name, callback) {
   if (caseFilter && !name.toLowerCase().includes(caseFilter.toLowerCase())) return;
+  currentObservation = null;
   console.log(`RUN: ${name}`);
   try {
     const details = await callback();
     report.cases.push({ name, status: 'PASS', ...details });
     console.log(`PASS: ${name}`);
   } catch (error) {
-    report.cases.push({ name, status: 'FAIL', error: error.message });
+    report.cases.push({ name, status: 'FAIL', error: error.message, observation: currentObservation });
     console.log(`FAIL: ${name}: ${error.message}`);
   }
 }
