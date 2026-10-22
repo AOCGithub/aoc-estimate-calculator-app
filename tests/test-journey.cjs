@@ -75,6 +75,8 @@ for(const quote of [
  'We have not decided whether the agent should draft replies.',
  'Our staff draft replies today.',
  'We do not want the AI to draft replies.',
+ 'We don’t want the AI to draft replies.',
+ 'We haven’t decided if the AI should draft replies.',
  'The agent must never draft replies.',
  'We need the agent to draft replies, then send them once approved.',
 ]) assert.deepEqual(C.validate({...analysis,facts:[]},quote,'area2').facts,[], 'uncertain, negated, current human work or mixed execution requests are not forced to draft');

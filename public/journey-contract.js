@@ -54,7 +54,7 @@ function explicitDraftOnlyFact(text) {
  const quote=(text.match(/[^.!?;\n]+[.!?;]?/g)||[]).find(sentence=>
   /\b(?:draft(?:s|ing)?\s+(?:repl(?:y|ies)|responses?|messages?|emails?|invoices?|reports?|proposals?|articles?)|(?:prepar(?:e[sd]?|ing)|creat(?:e[sd]?|ing)|writ(?:e[sd]?|ing))\s+(?:\w+\s+){0,2}drafts?)\b/i.test(sentence)
   && (/\b(?:we (?:need|want|would like)|AI|agent|system|workflow|AOC)\b/i.test(sentence)||/^\s*(?:please\s+)?(?:only\s+)?(?:draft|prepare|create|write)\b/i.test(sentence))
-  && !/\b(?:not|never|no|don't|doesn't|mustn't|cannot|can't|unsure|undecided|unknown|whether)\b/i.test(sentence));
+  && !/\b(?:not|never|no|don't|doesn't|didn't|haven't|hasn't|hadn't|won't|wouldn't|shouldn't|mustn't|cannot|can't|unsure|undecided|unknown|whether)\b/i.test(sentence.replace(/[’‘]/g,"'")));
  return quote?{id:'action_mode',value:'draft',quote:quote.trim()}:null;
 }
 function validate(x,text,area){if(!x||typeof x.title!=='string'||x.title.length>250||typeof x.summary!=='string'||x.summary.length>5000||!['workflow','agent'].includes(x.solution))throw Error('Invalid analysis.');const allowed=new Set(fields(area).map(f=>f.id)),knownRoutes=new Set(Bank.areas.find(a=>a.id===area).fields.map(f=>f.route));if(!Array.isArray(x.facts)||x.facts.length>180||!Array.isArray(x.relevantFields)||x.relevantFields.length>180||!Array.isArray(x.routes)||!Array.isArray(x.uncertainties))throw Error('Invalid analysis lists.');const facts=[],seen=new Set();for(const f of x.facts){if(!allowed.has(f.id)||typeof f.value!=='string'||f.value.length>4000||typeof f.quote!=='string'||!f.quote.trim()||!text.includes(f.quote)||seen.has(f.id))continue;if(/^(unknown|not sure|not provided|null|n\/a)$/i.test(f.value.trim()))continue;
