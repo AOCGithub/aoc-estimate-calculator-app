@@ -127,7 +127,8 @@ try {
   assert.equal((await response.json()).analysis.facts[0].value, 'help', 'API preserves explicit management-help requests');
 
   for (const [text, value, expected] of [
-    ['We need draft replies in Help Scout. A person must approve every reply.', 'approved', []],
+    ['A person must approve every reply in Help Scout.', 'approved', []],
+    ['We need draft replies in Help Scout. A person must approve every reply.', 'approved', ['draft']],
     ['We need draft replies in Help Scout. A person must approve every reply.', 'draft', ['draft']],
     ['Make changes only after our approval.', 'approved', ['approved']],
     ['The agent drafts replies, then sends them once approved.', 'approved', ['approved']],

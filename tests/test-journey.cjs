@@ -59,9 +59,25 @@ function actionFacts(quote,value) {
 for(const quote of [
  'A person must approve every reply.',
  'Use approved policy documents to draft replies.',
- 'Prepare drafts for a person to approve.',
 ]) assert.deepEqual(actionFacts(quote,'approved'),[], 'approval without an action cannot select approved execution: '+quote);
 assert.deepEqual(actionFacts('A person must approve every reply.','Approved'),[], 'alternate capitalization cannot bypass the execution evidence check');
+for(const quote of [
+ 'We need an AI agent to use approved policy documents to judge which customer requests need escalation and draft replies in Help Scout. A person must approve every reply.',
+ 'Prepare drafts for a person to approve.',
+]) {
+ for(const facts of [[],[{id:'action_mode',value:'approved',quote:'A person must approve every reply.'}],[{id:'action_mode',value:'automatic',quote}]]) {
+  const result=C.validate({...analysis,facts},quote,'area2');
+  assert.equal(result.facts.find(f=>f.id==='action_mode')?.value,'draft','clear draft-only requests survive missing or misclassified provider facts');
+  assert.ok(quote.includes(result.facts.find(f=>f.id==='action_mode').quote));
+ }
+}
+for(const quote of [
+ 'We have not decided whether the agent should draft replies.',
+ 'Our staff draft replies today.',
+ 'We do not want the AI to draft replies.',
+ 'The agent must never draft replies.',
+ 'We need the agent to draft replies, then send them once approved.',
+]) assert.deepEqual(C.validate({...analysis,facts:[]},quote,'area2').facts,[], 'uncertain, negated, current human work or mixed execution requests are not forced to draft');
 for(const quote of [
  'Draft replies in Help Scout. A person must approve every reply.',
  'Prepare invoice drafts for our team to approve before sending.',
