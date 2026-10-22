@@ -25,8 +25,6 @@ Scope: Production verification required by the Phase 1 checklist
   - Paid advertising — marketing workflow with managed AOC service
 - The completed workflow, agent, and marketing calculations returned server results without pending items or calculation errors.
 
-## Remaining Phase 1 approvals
+## Remaining device check
 
-- Obtain final business approval for the provisional pricing coefficients and monthly service prices.
-- Approve the final support coverage and SLA wording.
 - Complete physical-device sign-off on iPhone Safari and Android Chrome if required for formal acceptance.
