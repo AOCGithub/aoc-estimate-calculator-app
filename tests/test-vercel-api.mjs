@@ -106,6 +106,26 @@ try {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).analysis.facts.length, 2);
 
+  const unknownResponsibility = 'We do not yet know who should manage it. Please help us identify the missing details.';
+  output.facts = [{ id: 'responsibility_split', value: 'help', quote: unknownResponsibility }];
+  response = await analysisRoute.fetch(new Request(`${origin}/api/journey/analyze`, {
+    method: 'POST',
+    headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify({ area: 'area0', text: unknownResponsibility }),
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).analysis.facts, [], 'API removes unsupported management-help choices');
+
+  const explicitManagementHelp = 'Please help us decide who should manage the process.';
+  output.facts = [{ id: 'responsibility_split', value: 'help', quote: explicitManagementHelp }];
+  response = await analysisRoute.fetch(new Request(`${origin}/api/journey/analyze`, {
+    method: 'POST',
+    headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify({ area: 'area0', text: explicitManagementHelp }),
+  }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).analysis.facts[0].value, 'help', 'API preserves explicit management-help requests');
+
   const vercelConfig = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.equal(vercelConfig.framework, 'vite');
   assert.equal(vercelConfig.outputDirectory, 'dist/client');

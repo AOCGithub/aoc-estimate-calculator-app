@@ -187,6 +187,23 @@ async function runCase(name, callback) {
       } finally { await page.close(); }
     });
 
+    await runCase('Explicit management help and manual responsibility correction', async () => {
+      const page = await startPage(browser, 'Finance and billing');
+      try {
+        const description = 'We prepare monthly invoices in Wave. Please help us decide who should manage this process: AOC or our team.';
+        const first = await organize(page, description);
+        assert.equal(first.state.answers.responsibility_split, 'help', 'explicit management-help request is preserved');
+        assert.equal(first.state.answers.management, null, 'help choosing does not assign AOC management');
+        await page.getByRole('navigation').getByText('Responsibilities and service', { exact: true }).click();
+        await page.locator('#f_responsibility_split').selectOption('client');
+        await page.getByRole('navigation').getByText('Describe the work', { exact: true }).click();
+        const second = await organize(page, description);
+        assert.equal(second.state.answers.responsibility_split, 'client', 'manual responsibility correction survives reorganization');
+        assert.equal(second.state.answers.management, 'no');
+        return { elapsedMs: [first.elapsedMs, second.elapsedMs], checks: ['explicit management-help request retained', 'ownership stays undecided until chosen', 'manual responsibility correction retained'] };
+      } finally { await page.close(); }
+    });
+
     await runCase('Short description validation without an AI request', async () => {
       const page = await startPage(browser, 'Finance and billing');
       let requests = 0;

@@ -27,6 +27,31 @@ const worker=fs.readFileSync('dist/server/index.js','utf8');assert.ok(worker.inc
 
 const normalized=C.validate({...analysis,facts:[{id:'blended_hourly_cost',value:'$40',quote:'40 invoices'},{id:'software_replaced_cost',value:'No',quote:'We are not replacing apps'},{id:'customer_type',value:'UNKNOWN',quote:'Wave'}]},text+' We are not replacing apps','area0');assert.equal(normalized.facts.find(f=>f.id==='blended_hourly_cost').value,'40');assert.equal(normalized.facts.find(f=>f.id==='software_replaced_portion').value,'none');assert.ok(!normalized.facts.some(f=>f.id==='customer_type'));
 
+// Unknown responsibility is not an explicit request to choose a management arrangement.
+function responsibilityFacts(quote,value='help') {
+ return C.validate({...analysis,facts:[{id:'responsibility_split',value,quote}]},quote,'area0').facts;
+}
+for(const quote of [
+ 'Our team repeats administrative work and wants to reduce manual effort. We do not yet know the systems, people count, number of departments, frequency, costs, or who should manage it. Please help us identify the missing details.',
+ 'We do not know who should manage this process.',
+ 'Please help us identify missing details about who should manage it.',
+ 'Please help us choose advertising channels. We do not know who should manage it.',
+ 'Please recommend questions to ask. Management responsibility is unknown.',
+ 'We do not need help deciding who should manage it.',
+]) assert.deepEqual(responsibilityFacts(quote),[], 'unsupported responsibility remains unanswered: '+quote);
+for(const quote of [
+ 'Please help us decide who should manage it.',
+ 'Help me choose between AOC and our team.',
+ 'We need help deciding the management responsibilities.',
+ 'Please recommend who should manage this process.',
+ 'We need guidance on who will maintain the system.',
+ 'Please help me decide who should be responsible for this process.',
+ 'Please recommend how ongoing maintenance should be managed.',
+]) assert.equal(responsibilityFacts(quote)[0]?.value,'help','explicit management help is preserved: '+quote);
+assert.equal(responsibilityFacts('AOC manages the process.','aoc')[0]?.value,'aoc');
+assert.equal(responsibilityFacts('Our team manages the process.','client')[0]?.value,'client');
+assert.equal(responsibilityFacts('We share responsibility with AOC.','shared')[0]?.value,'shared');
+
 // Documented acceptance scenarios: representative areas and approved pricing drivers.
 const financeArea=B.areas.find(a=>a.id==='area0'),contentArea=B.areas.find(a=>a.id==='area7'),seoArea=B.areas.find(a=>a.id==='area8'),otherArea=B.areas.find(a=>a.id==='area11');
 assert.ok(financeArea.routes.includes('Create and send invoices'));assert.ok(financeArea.routes.includes('Process supplier bills / vendor invoices'));
