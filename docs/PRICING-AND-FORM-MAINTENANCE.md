@@ -2,28 +2,33 @@
 
 Updated: 22 October 2026
 
-Use [Steve's implementation notes](https://docs.google.com/document/d/1ZR-7dAayjtmejgo6GQrtJeI3FSj3kGjNeq_7zIuEPMA/edit) and the [pricing workbook](https://docs.google.com/spreadsheets/d/1vUDbKYWQPTaVIvJEYGzY5pVDCt0n369Ywel0tPk9M7s/edit) as the business references.
+Steve approves the business changes. Gino updates the calculator, tests the affected results, and publishes the update.
 
-The deployed calculator currently uses the 18 October pricing snapshot, including a 10% audit calculation. The newer monthly programs and revised audit treatment still require implementation and testing. Existing production test results cover the earlier rules.
+## 1. Request a change
 
-## Updating the form
+Send Gino the approved change:
+- **Form:** identify the question or section, the replacement wording or answer options, and when it should appear or be required.
+- **Pricing:** identify the price or rule, the approved replacement, and when it should apply.
 
-Update the [form components](../src/components/sections/) or the question bank's [reviewed sheet copy](../data/sheet-snapshot-20261018.json), depending on the question. Preserve existing field identifiers and check visibility, editable answers, required-field indicators, and AI prefill.
+Use Steve's implementation notes and the pricing workbook as the business references. **Editing the workbook does not automatically update the website.** Missing or unapproved amounts go back to Steve for review.
 
-## Updating prices
+## 2. Apply the change
 
-Transfer approved workbook changes into the reviewed copy and affected calculation rules. Regenerate the pricing and question-bank files with `node scripts/compile-approved.cjs`, update the version and expected test results, and compare outputs with the workbook. Sheet edits do not update the website automatically. Flag missing amounts for Steve.
+**Form changes:** update the relevant [form components](../src/components/sections/) or the question bank in the [reviewed workbook snapshot](../data/sheet-snapshot-20261018.json). Preserve existing field identifiers and check conditional questions, required fields, editable answers, and AI prefill.
 
-The newer requirements include fixed-project and monthly-program options, an agreed fixed audit fee, a single eligible audit credit, and route-specific ROI. Test these against the current notes before reporting them as implemented.
+**Pricing changes:** transfer approved workbook changes into the reviewed snapshot and affected calculation rules. Regenerate the pricing and question-bank files with `node scripts/compile-approved.cjs`, update the configuration version and expected test results, and compare the calculations with the workbook.
 
-## Testing and publishing
+## 3. Test and publish
 
-Run `npm test` and check the affected journey, including changed and cleared answers. Verify the applicable prices, audit credit, and ROI; preserve manual corrections and leave unknown facts blank.
+1. Run `npm test`.
+2. Check the affected form journey and estimates, including changed and cleared answers, applicable prices, audit credit, and ROI. Confirm manual corrections are preserved and unknown facts remain blank.
+3. Push tested changes to GitHub's `main` branch. Vercel deploys automatically.
+4. Confirm Vercel reports **Ready**, check the live results, and record the change and test outcomes in the [production test results](PRODUCTION-TEST-RESULTS.md).
 
-Push tested changes to GitHub's `main` branch. Vercel deploys automatically. Confirm the deployment is **Ready**, check the live result, and record what changed and passed. Keep AI keys in Vercel's server settings.
+Keep AI keys in Vercel's server settings.
 
-## Review links
+## Current pricing status
 
-- [Working calculator](https://estimate.alwaysopencommerce.com)
-- [Recorded production test results](PRODUCTION-TEST-RESULTS.md)
-- [Developer setup and technical maintenance](../README.md)
+The deployed calculator uses the 18 October pricing snapshot, including a 10% audit calculation. The newer fixed-project and monthly-program options, agreed fixed audit fee, single eligible audit credit, and route-specific ROI still require implementation and testing against the business references. Existing production test results cover the earlier rules.
+
+For developer setup and further technical details, see the [README](../README.md).
