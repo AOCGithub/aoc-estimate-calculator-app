@@ -109,7 +109,16 @@ const server = http.createServer((request, response) => {
   page.on('pageerror', (error) => errors.push(error.message));
 
   try {
+    const performanceSource = fs.readFileSync(path.resolve(__dirname, '../src/lib/speedInsights.js'), 'utf8');
+    const { performanceOrigin, sanitizePerformanceEvent } = await import(`data:text/javascript;base64,${Buffer.from(performanceSource).toString('base64')}`);
+    const performanceEvent = { type: 'vital', url: `${performanceOrigin}/?email=private@example.test&description=private#answer`, route: '/private' };
+    assert.deepEqual(sanitizePerformanceEvent(performanceEvent), { type: 'vital', url: `${performanceOrigin}/`, route: '/' }, 'performance URLs exclude parameters, fragments and dynamic paths');
+    assert.ok(performanceEvent.url.includes('private@example.test'), 'sanitization does not mutate the original event');
+    for (const url of ['invalid', 'http://127.0.0.1:4175/', 'https://preview.vercel.app/', 'https://estimate.alwaysopencommerce.com.evil.test/']) {
+      assert.equal(sanitizePerformanceEvent({ type: 'vital', url }), null, 'nonproduction or malformed performance events are dropped');
+    }
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('script[data-sdkn]').count(), 0, 'local builds do not send performance data');
     const faviconLink = page.locator('link[rel="icon"]');
     assert.equal(await faviconLink.getAttribute('href'), '/favicon.png', 'favicon is hosted locally to respect the existing security policy');
     assert.equal(await faviconLink.getAttribute('type'), 'image/png');
@@ -825,6 +834,34 @@ const server = http.createServer((request, response) => {
       await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
       assert.equal((await questionState()).visible.includes('invoice_volume'),false,'route suggestions do not silently undo explicit removal');
     } finally { await questionPage.close(); }
+
+    // Load the production build under its real origin using local asset fixtures.
+    // No real visitor metrics or network requests are sent to Vercel in this test.
+    const performancePage = await browser.newPage();
+    performancePage.on('pageerror', error => errors.push(error.message));
+    try {
+      await performancePage.route(`${performanceOrigin}/**`, async route => {
+        const url = new URL(route.request().url());
+        if (url.pathname === '/_vercel/speed-insights/script.js') {
+          await route.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.__performanceFixtureLoaded = true;' });
+          return;
+        }
+        assert.ok(!url.pathname.includes('/vitals'), 'fixture must not send metrics');
+        const response = await performancePage.request.get(`http://127.0.0.1:${port}${url.pathname}`);
+        await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; object-src 'none'" } });
+      });
+      await performancePage.goto(`${performanceOrigin}/?email=private@example.test#answer`, { waitUntil: 'networkidle' });
+      await performancePage.waitForFunction(() => window.__performanceFixtureLoaded);
+      assert.equal(await performancePage.locator('script[data-sdkn="@vercel/speed-insights/react"]').count(), 1, 'production loads exactly one Speed Insights script, including in StrictMode');
+      assert.equal(await performancePage.locator('script[data-sdkn]').getAttribute('data-route'), '/');
+      const sanitized = await performancePage.evaluate(() => {
+        const beforeSend = window.siq.find(([type]) => type === 'beforeSend')[1];
+        return beforeSend({ type: 'vital', url: location.href });
+      });
+      assert.deepEqual(sanitized, { type: 'vital', url: `${performanceOrigin}/`, route: '/' });
+      assert.equal(await performancePage.locator('script[src*="/_vercel/insights/"]').count(), 0, 'Web Analytics is not added');
+      assert.equal(await performancePage.locator('.area').count(), 12, 'monitoring does not alter the calculator');
+    } finally { await performancePage.close(); }
 
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
     console.log('PASS: React desktop and complete mobile browser journeys, local AOC favicon, reset confirmation/cancellation/late AI protection, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
