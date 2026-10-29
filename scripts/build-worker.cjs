@@ -65,6 +65,7 @@ const worker = 'const ASSETS=' + JSON.stringify(assets) + ';\n'
   + source('public/journey-engine.js') + '\n'
   + source('public/journey-contract.js') + '\n'
   + source('public/journey-calculation.js') + '\n'
+  + source('worker/access-api.js') + '\n'
   + source('worker/journey-api.js') + '\n'
   + source('worker/intake-api.js') + '\n'
   + source('worker/index.js');

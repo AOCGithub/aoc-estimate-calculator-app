@@ -11,9 +11,11 @@
     "test:worker": "node tests/test-journey-worker.cjs",
     "test:intake": "node tests/test-voice-server.cjs",
     "test:vercel": "node tests/test-vercel-api.mjs",
+    "test:access": "node tests/test-access.mjs",
+    "test:access-ui": "node tests/test-access-ui.cjs",
     "test:ui": "node tests/test-react-ui.cjs",
     "test:ui:capture": "node tests/test-react-ui.cjs --capture",
-    "test": "npm run build:worker && npm run test:domain && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:ui && node scripts/validate-artifact.mjs"
+    "test": "npm run build:worker && npm run test:access && npm run test:access-ui && npm run test:domain && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:ui && node scripts/validate-artifact.mjs"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",

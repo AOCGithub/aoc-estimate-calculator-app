@@ -32,28 +32,42 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    if (url.pathname === '/api/access/status') return accessStatusAPI(request, env);
+    if (url.pathname === '/api/access/verify') return accessVerifyAPI(request, env, url);
+    if (url.pathname === '/api/access/logout') return accessLogoutAPI(request, url);
+
     if (url.pathname === "/api/journey/calculate") {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
       return calculateJourney(request, url);
     }
 
     if (url.pathname === "/api/journey/analyze") {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
       return journeyAPI(request, env, url);
     }
 
     if (url.pathname === '/api/intake/status') {
       if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
       return json({ configured: Boolean(env.OPENAI_API_KEY) });
     }
 
     if (url.pathname === '/api/intake/analyze') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
       return intakeAnalysisAPI(request, env, url);
     }
 
     if (url.pathname === '/api/intake/transcribe') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
       return intakeTranscriptionAPI(request, env, url);
     }
 

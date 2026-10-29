@@ -1,7 +1,7 @@
 # Form UX Updates
 
-Last updated: 21 October 2026
-Status: Implemented and verified locally; deployment tasks remain
+Last updated: 28 October 2026
+Status: Implemented; current commercial server routes verified, final deployed browser sign-off remains
 
 ## Purpose
 
@@ -218,8 +218,17 @@ These are planning estimates for Gino to review, not fixed deadlines. Later phas
 
 ### Remaining Phase 1 operational work
 
-- Complete the deferred GoDaddy CNAME for `estimate.alwaysopencommerce.com`, wait for Vercel to report **Valid Configuration**, and verify HTTPS before using the custom address.
-- Run the documented synthetic smoke test against the intended production URL and confirm the server-verified result.
-- Capture deployed desktop/mobile evidence and test the optional OpenAI organizer with approved server-side credentials if it is enabled for staging.
-- Add approved OpenAI credentials and the organizer enable flag to Vercel Production, redeploy, and verify known facts, blank unknowns, and preserved manual corrections before marking external AI prefill complete.
+- Run the current fixed-project and monthly-program browser journeys on the AOC hostname.
+- Capture final deployed desktop/mobile evidence for commercial configuration version `2026-10-21-commercial-v1`.
+- Complete broader production AI-prefill scenarios and resolve any findings.
 - Keep draft coefficients, monthly service amounts, SLA terms, and incomplete field mappings marked provisional until their business review is complete.
+
+## Commercial and deployment reconciliation - 28 October 2026
+
+- The AOC hostname now loads successfully over HTTPS; the earlier invalid-domain status above is historical.
+- Production AI prefill is enabled and returned validated structured output using commercial configuration version `2026-10-21-commercial-v1`; the earlier local-only status above is historical.
+- The active calculator supports the reviewed fixed-project route and the `$4,000` / `$7,000` / `$10,000` monthly build programs.
+- Initial audit pricing is a separately quoted fixed amount, not 10% of the build. Eligible audit credit is applied once under the 30-calendar-day rule.
+- Standard/Priority/Premier are working support names. Their prices, coverage, response targets, and allowances remain pending.
+- The 18 October `$11,500` / `$1,150` / `$550` fixture remains historical regression context and is not current commercial acceptance evidence.
+- Synthetic production API checks passed for fixed-project and monthly-program routes. A final deployed browser pass and current desktop/mobile evidence remain required.

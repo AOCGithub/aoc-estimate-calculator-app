@@ -1,3 +1,4 @@
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import Bank from '../public/approved-bank.js';
 import JourneyCalculation from '../public/journey-calculation.js';
 import JourneyContract from '../public/journey-contract.js';
@@ -5,6 +6,7 @@ import IntakeContract from '../public/intake-contract.js';
 import CatalogData from '../public/catalog.js';
 
 const buckets = new Map();
+const ACCESS_COOKIE = 'aoc_estimator_access';
 
 export function json(body, status = 200) {
   return Response.json(body, {
@@ -22,6 +24,168 @@ function method(request, expected) {
 
 function sameOrigin(request) {
   return request.headers.get('origin') === new URL(request.url).origin;
+}
+
+function accessEnabled() {
+  return process.env.AOC_ACCESS_GATE_ENABLED === 'true';
+}
+
+function accessSubject(email) {
+  return createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex');
+}
+
+function basicEmail(value) {
+  const parts = String(value).split('@');
+  return parts.length === 2 && parts[0].length > 0 && parts[1].length > 0 && !/\s/u.test(value);
+}
+
+function accessConfiguration() {
+  let approvals = [];
+  try {
+    const parsed = JSON.parse(process.env.AOC_APPROVED_EMAILS || '[]');
+    if (Array.isArray(parsed)) {
+      approvals = parsed
+        .map(item => typeof item === 'string' ? item.trim().toLowerCase() : '')
+        .filter(basicEmail)
+        .map(email => ({ email, subject: accessSubject(email) }));
+    }
+  } catch {
+    approvals = [];
+  }
+  const secret = String(process.env.AOC_ACCESS_SESSION_SECRET || '');
+  const requestedHours = Number(process.env.AOC_ACCESS_SESSION_HOURS || 8);
+  const hours = Number.isFinite(requestedHours) ? Math.min(24, Math.max(1, requestedHours)) : 8;
+  return { approvals, secret, hours, configured: approvals.length > 0 && secret.length >= 32 };
+}
+
+function accessCookie(request) {
+  for (const cookie of String(request.headers.get('cookie') || '').split(';')) {
+    const [name, ...parts] = cookie.trim().split('=');
+    if (name === ACCESS_COOKIE) return parts.join('=');
+  }
+  return '';
+}
+
+function safeEqual(left, right) {
+  const leftDigest = createHash('sha256').update(String(left)).digest();
+  const rightDigest = createHash('sha256').update(String(right)).digest();
+  return timingSafeEqual(leftDigest, rightDigest);
+}
+
+function signAccessPayload(payload, secret) {
+  return createHmac('sha256', secret).update(payload).digest('base64url');
+}
+
+function createAccessSession(secret, hours, subject) {
+  const payload = Buffer.from(JSON.stringify({
+    version: 1,
+    expires: Date.now() + hours * 60 * 60 * 1000,
+    nonce: randomBytes(16).toString('base64url'),
+    subject,
+  })).toString('base64url');
+  return `${payload}.${signAccessPayload(payload, secret)}`;
+}
+
+function validAccessSession(request, configuration) {
+  const token = accessCookie(request);
+  const separator = token.lastIndexOf('.');
+  if (separator < 1) return false;
+  const payload = token.slice(0, separator);
+  const signature = token.slice(separator + 1);
+  if (!safeEqual(signature, signAccessPayload(payload, configuration.secret))) return false;
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return data.version === 1
+      && Number(data.expires) > Date.now()
+      && configuration.approvals.some(item => safeEqual(item.subject, data.subject));
+  } catch {
+    return false;
+  }
+}
+
+function accessCookieHeader(request, value, maximumAge) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
+  return `${ACCESS_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maximumAge}${secure}`;
+}
+
+function normalizedText(value, maximumLength) {
+  return typeof value === 'string' ? value.trim().slice(0, maximumLength) : '';
+}
+
+function validateAccessProfile(body) {
+  const profile = {
+    name: normalizedText(body?.name, 100),
+    company: normalizedText(body?.company, 120),
+    website: normalizedText(body?.website, 500),
+    role: normalizedText(body?.role, 100),
+    businessEmail: normalizedText(body?.businessEmail, 254).toLowerCase(),
+  };
+  if (profile.name.length < 2 || profile.company.length < 2 || profile.role.length < 2) {
+    return { error: 'Add your name, company and role.' };
+  }
+  if (!basicEmail(profile.businessEmail)) {
+    return { error: 'Enter a valid business email.' };
+  }
+  try {
+    const websiteValue = /^[a-z][a-z\d+.-]*:\/\//iu.test(profile.website)
+      ? profile.website
+      : `https://${profile.website}`;
+    const website = new URL(websiteValue);
+    if (!['http:', 'https:'].includes(website.protocol)) throw new Error('invalid_protocol');
+    profile.website = website.toString();
+  } catch {
+    return { error: 'Enter your company website.' };
+  }
+  return { profile };
+}
+
+async function requireAccess(request) {
+  if (!accessEnabled()) return null;
+  const configuration = accessConfiguration();
+  if (!configuration.configured) return json({ error: 'Access verification is not configured.' }, 503);
+  if (!validAccessSession(request, configuration)) return json({ error: 'Access verification is required.' }, 401);
+  return null;
+}
+
+export function handleAccessStatus(request) {
+  const methodError = method(request, 'GET');
+  if (methodError) return methodError;
+  if (!accessEnabled()) return json({ enabled: false, configured: true, authenticated: true });
+  const configuration = accessConfiguration();
+  return json({
+    enabled: true,
+    configured: configuration.configured,
+    authenticated: configuration.configured && validAccessSession(request, configuration),
+  });
+}
+
+export async function handleAccessVerification(request) {
+  const methodError = method(request, 'POST');
+  if (methodError) return methodError;
+  if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
+  if (!accessEnabled()) return json({ enabled: false, authenticated: true });
+  const configuration = accessConfiguration();
+  if (!configuration.configured) return json({ error: 'Access verification is not configured.' }, 503);
+  if (!consumeRateLimit(request, 'access')) return json({ error: 'Too many access attempts. Try again later.' }, 429);
+  const parsed = await readJson(request, 10000);
+  if (parsed.response) return parsed.response;
+  const validated = validateAccessProfile(parsed.body);
+  if (validated.error) return json({ error: validated.error }, 400);
+  const approval = configuration.approvals.find(item => safeEqual(item.email, validated.profile.businessEmail));
+  if (!approval) return json({ error: 'This business email is not approved for calculator access.' }, 403);
+  const session = createAccessSession(configuration.secret, configuration.hours, approval.subject);
+  const response = json({ enabled: true, authenticated: true });
+  response.headers.set('set-cookie', accessCookieHeader(request, session, configuration.hours * 60 * 60));
+  return response;
+}
+
+export function handleAccessLogout(request) {
+  const methodError = method(request, 'POST');
+  if (methodError) return methodError;
+  if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
+  const response = json({ authenticated: false });
+  response.headers.set('set-cookie', accessCookieHeader(request, '', 0));
+  return response;
 }
 
 function consumeRateLimit(request, prefix) {
@@ -57,6 +221,8 @@ export async function handleJourneyCalculation(request) {
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
+  const accessError = await requireAccess(request);
+  if (accessError) return accessError;
   const parsed = await readJson(request, 100000);
   if (parsed.response) return parsed.response;
   try {
@@ -70,6 +236,8 @@ export async function handleJourneyAnalysis(request) {
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
+  const accessError = await requireAccess(request);
+  if (accessError) return accessError;
   if (process.env.AOC_AI_ORGANIZER_ENABLED !== 'true' || !process.env.OPENAI_API_KEY) {
     return json({ localFallback: true, mode: 'local' });
   }
@@ -122,6 +290,8 @@ export async function handleIntakeAnalysis(request) {
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
+  const accessError = await requireAccess(request);
+  if (accessError) return accessError;
   if (!process.env.OPENAI_API_KEY) return json({ error: 'AI organization is not configured.' }, 503);
   if (!consumeRateLimit(request, 'intake')) return json({ error: 'Analysis limit reached. Try again later.' }, 429);
   const parsed = await readJson(request, 30000);
@@ -162,6 +332,8 @@ export async function handleIntakeTranscription(request) {
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
+  const accessError = await requireAccess(request);
+  if (accessError) return accessError;
   if (!process.env.OPENAI_API_KEY) return json({ error: 'Voice transcription is not configured.' }, 503);
   try {
     const form = await request.formData();

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { estimatorBank } from './lib/domain.js';
 import { useEstimator } from './hooks/useEstimator.js';
+import { useAccessGate } from './hooks/useAccessGate.js';
 import { createFieldProps } from './components/fields/FormFields.jsx';
 import { StepNavigation } from './components/StepNavigation.jsx';
 import { StepActions } from './components/StepActions.jsx';
@@ -14,6 +15,7 @@ import { ValueSection } from './components/sections/ValueSection.jsx';
 import { ServiceSection } from './components/sections/ServiceSection.jsx';
 import { LiveContext } from './components/LiveContext.jsx';
 import { RestartDialog } from './components/RestartDialog.jsx';
+import { AccessGate } from './components/AccessGate.jsx';
 
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
@@ -74,6 +76,7 @@ function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) 
 }
 
 export default function App() {
+  const access = useAccessGate();
   const { state, selectedArea, actions } = useEstimator();
   const [toast, setToast] = useState('');
   const [restartOpen, setRestartOpen] = useState(false);
@@ -116,12 +119,22 @@ export default function App() {
     if (outcome?.message) notify(outcome.message);
   }
 
+  if (access.enabled && !access.authenticated) {
+    return <AccessGate access={access} />;
+  }
+
   return (
     <>
       <header>
         <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
         <LiveContext />
         <button id="restart" type="button" className="quiet" onClick={() => setRestartOpen(true)}>Start over</button>
+        {access.enabled && (
+          <button type="button" className="quiet" onClick={async () => {
+            const outcome = await access.logout();
+            if (outcome?.message) notify(outcome.message);
+          }}>End session</button>
+        )}
       </header>
       <main>
         {state.step === 1 ? (
@@ -135,22 +148,22 @@ export default function App() {
           </p>
         </div>
             <div className="preview-note">
-          <strong>For review and testing.</strong> Prices are indicative draft calculations, not
-          approved quotes. Voice, account verification and saved company profiles are developer
-          implementation work. Don’t enter passwords or private customer records.
+          <strong>About your estimate.</strong> Prices are indicative calculations and are not an
+          approved quote. {access.enabled ? 'Access is limited to AOC-approved participants. ' : ''}
+          Don’t enter passwords or private customer records.
         </div>
           </>
         ) : (
           <details className="journey-context">
-            <summary>About this draft estimate</summary>
+            <summary>About this estimate</summary>
             <p>
               Tell us what you want to improve. Review the details we collect, then explore the build,
               support and potential value without needing to know the technology.
             </p>
             <p>
-              <strong>For review and testing.</strong> Prices are indicative draft calculations, not
-              approved quotes. Voice, account verification and saved company profiles are developer
-              implementation work. Do not enter passwords or private customer records.
+              <strong>Estimate notice.</strong> Prices are indicative calculations and are not an
+              approved quote. {access.enabled ? 'Access is limited to AOC-approved participants. ' : ''}
+              Do not enter passwords or private customer records.
             </p>
           </details>
         )}

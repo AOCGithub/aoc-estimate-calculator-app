@@ -1,8 +1,14 @@
 # Pricing and Form Maintenance
 
-Updated: 22 October 2026
+Updated: 28 October 2026
 
 Steve approves the business changes. Gino updates the calculator, tests the affected results, and publishes the update.
+
+## Current source baseline
+
+The active commercial rule set is dated 21 October 2026. It was rechecked on 28 October against the live implementation task and the workbook as modified through 24 October. The current workbook does not approve additional package hours, support prices, coverage, or post-build maintenance pricing; those values remain pending.
+
+The production AOC hostname and organizer are active. Production browser verification and publication records must still be refreshed whenever the commercial rules or form change.
 
 ## 1. Request a change
 
@@ -23,7 +29,7 @@ Use Steve's implementation notes and the pricing workbook as the business refere
 1. Run `npm test`.
 2. Check the affected form journey and estimates, including changed and cleared answers, applicable prices, audit credit, and ROI. Confirm manual corrections are preserved and unknown facts remain blank.
 3. Push tested changes to GitHub's `main` branch. Vercel deploys automatically.
-4. Confirm Vercel reports **Ready**, check the live results, and record the change and test outcomes in the [production test results](PRODUCTION-TEST-RESULTS.md).
+4. Confirm Vercel reports **Ready**, check both fixed-project and monthly-program results, and record the change and test outcomes in the [production test results](PRODUCTION-TEST-RESULTS.md).
 
 Keep AI keys in Vercel's server settings.
 

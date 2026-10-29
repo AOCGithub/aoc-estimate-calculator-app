@@ -49,6 +49,8 @@ npm test
 
 For a Git-connected Vercel staging deployment, follow `docs/VERCEL-DEPLOYMENT.md`. The committed `vercel.json` uses the Vite build in `dist/client` and deploys the existing server calculation and organizer behavior as Vercel Functions.
 
+The Phase 2 five-field gate and server-side access foundation are available locally behind disabled-by-default environment flags. Email ownership verification and AOC's review workflow still require confirmation before Task #8 is complete or enabled for clients. Follow [Phase 2 gated entry](docs/PHASE-2-GATED-ENTRY.md) for the current scope, open decisions and tests. This step does not save a reusable client profile.
+
 The pricing model and generated field banks remain framework-independent files under `public/` so the existing Node parity checks and Worker can use the same source of truth:
 
 ```sh

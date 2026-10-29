@@ -1,6 +1,7 @@
 const fs = require('fs');
 const assert = require('assert/strict');
 const vm = require('vm');
+const { webcrypto } = require('node:crypto');
 
 const source = fs.readFileSync('dist/server/index.js', 'utf8');
 assert.ok(source.includes('/api/intake/'));
@@ -8,10 +9,14 @@ assert.ok(source.includes('gpt-4o-mini-transcribe'));
 const code = source.replace(/export default\s*\{\s*async fetch/, 'globalThis.worker={async fetch');
 const context = {
   atob,
+  btoa,
   Response,
   Request,
   URL,
   AbortSignal,
+  crypto: webcrypto,
+  TextEncoder,
+  TextDecoder,
   FormData,
   Blob,
   structuredClone,
@@ -39,6 +44,29 @@ vm.runInContext(code, context);
     const asset = await context.worker.fetch(new Request('https://demo.test' + match[1]), {});
     assert.equal(asset.status, 200, match[1]);
   }
+
+  response = await context.worker.fetch(new Request('https://demo.test/api/access/status'), {});
+  assert.deepEqual(await response.json(), { enabled: false, configured: true, authenticated: true });
+
+  const gatedEnvironment = {
+    AOC_ACCESS_GATE_ENABLED: 'true',
+    AOC_APPROVED_EMAILS: JSON.stringify(['worker@example.com']),
+    AOC_ACCESS_SESSION_SECRET: 'worker-test-session-secret-with-more-than-32-characters',
+  };
+  response = await context.worker.fetch(new Request('https://demo.test/api/access/verify', {
+    method: 'POST',
+    headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Worker Test', company: 'Example Company', website: 'example.com',
+      role: 'Operations lead', businessEmail: 'worker@example.com',
+    }),
+  }), gatedEnvironment);
+  assert.equal(response.status, 200);
+  const workerCookie = response.headers.get('set-cookie').split(';')[0];
+  response = await context.worker.fetch(new Request('https://demo.test/api/access/status', {
+    headers: { cookie: workerCookie },
+  }), gatedEnvironment);
+  assert.equal((await response.json()).authenticated, true);
 
   response = await context.worker.fetch(new Request('https://demo.test/api/intake/status'), {});
   assert.equal(response.status, 200);

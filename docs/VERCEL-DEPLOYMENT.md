@@ -1,62 +1,66 @@
-# Vercel staging deployment
+# Vercel production test deployment
 
-This repository is configured for a Git-connected Vercel preview. The Vite client is built into `dist/client`, and the existing calculation, organizer, and retained intake contracts are exposed through Vercel Functions under `api/`.
+This repository is connected to Vercel. The Vite client is built into `dist/client`, and the calculation, organizer, and retained intake contracts are exposed through Vercel Functions under `api/`.
 
-The current release remains a testing preview. Do not present it as the qualified client production calculator until the access gate, commercial pricing approvals, and remaining launch checks in `DEVELOPER-HANDOFF.md` are complete.
+The current release is still a testing preview. Use synthetic information only. Do not present it as the qualified client calculator until the access gate, remaining commercial approvals, hosting-account review, and final launch checks are complete.
 
-## Current deployment status - 20 October 2026
+## Current deployment status - 28 October 2026
 
-- Git-connected production deployment: `https://aoc-estimate-calculator.vercel.app/`
-- Proposed custom hostname: `estimate.alwaysopencommerce.com`
-- The custom hostname has been added to the Vercel Production environment but is not connected. Vercel currently requests a CNAME named `estimate` pointing to `f47cea59923446c4.vercel-dns-017.com`.
-- The domain uses GoDaddy nameservers (`ns19.domaincontrol.com` and `ns20.domaincontrol.com`), while the apex and `www` records continue to serve the WordPress site. Do not modify those existing records when adding the calculator subdomain.
-- DNS work is intentionally deferred. Do not report the custom domain as complete until Vercel shows **Valid Configuration**, HTTPS loads correctly, and the production smoke test passes.
+- AOC test hostname: `https://estimate.alwaysopencommerce.com/`
+- Vercel fallback hostname: `https://aoc-estimate-calculator.vercel.app/`
+- The AOC hostname resolves through the GoDaddy-managed `estimate` CNAME and loads successfully over HTTPS.
+- The production organizer is enabled and returned a validated response using commercial configuration version `2026-10-21-commercial-v1` on 28 October 2026.
+- The public test version does not have the later qualification gate. Do not enter private client records.
+- Pushes to the configured production branch deploy automatically. Confirm Vercel reports **Ready** before starting live checks.
 
 ## Import from GitHub
 
-1. Sign in to Vercel with an account that can access `AOCGithub/aoc-estimate-calculator-app`.
-2. Choose **Add New > Project**, then import that GitHub repository.
-3. Keep the repository root as the project root.
-4. Vercel should detect **Vite**. The committed `vercel.json` supplies:
+1. Sign in to the AOC-owned Vercel team that has access to `AOCGithub/aoc-estimate-calculator-app`.
+2. Import that GitHub repository and keep the repository root as the project root.
+3. Vercel should detect **Vite**. The committed `vercel.json` supplies:
    - Build command: `npm run build`
    - Output directory: `dist/client`
    - Node.js Functions for the existing `/api` routes
-5. Deploy first as a preview and use synthetic test information only.
+4. Use synthetic test information until the client qualification and release controls are approved.
 
 ## Environment variables
 
-The calculator works without OpenAI by using its conservative local organizer. For the initial preview, set:
+The calculator has a conservative local organizer when the external provider is unavailable. Production AI organization requires these server-side settings:
 
 ```text
-AOC_AI_ORGANIZER_ENABLED=false
+AOC_AI_ORGANIZER_ENABLED=true
 AOC_INTAKE_MODEL=gpt-5.4
+OPENAI_API_KEY=<approved server-side secret>
 ```
 
-To test the optional OpenAI organizer later, add `OPENAI_API_KEY` as a Vercel secret and change `AOC_AI_ORGANIZER_ENABLED=true`. Configure these as server-side variables for the intended Preview or Production environment. Never use a `VITE_` prefix for the key; that would expose it to browser code. Redeploy after changing environment variables.
+Never use a `VITE_` prefix for the API key. For local development, copy `.env.example` to the Git-ignored `.env.local`, add an approved key if provider testing is required, and restart Vite.
 
-For local development, `.env.example` is only a committed template. Copy it to the Git-ignored `.env.local`, add the approved key there, and restart Vite. The current workspace has `.env.local` prepared with the organizer enabled and its key intentionally blank; this ignored file is not distributed through Git.
+Provider failure must preserve the typed description and fall back without blocking the visitor. AI prefill must apply only supported facts, leave unknowns blank, and preserve manual corrections.
 
-A live production check on 20 October 2026 returned `{"localFallback":true,"mode":"local"}` from `/api/journey/analyze`. This confirms that typing and conservative local prefill work, but it does not prove that the external OpenAI provider is connected. To complete that task, configure the three Production variables, redeploy, and test with synthetic text that known facts are filled, unknowns remain blank, and manual corrections survive reorganization.
+The Phase 2 five-field gate and server-side access foundation are implemented locally but disabled by default. Email ownership verification and AOC's approval workflow are not yet defined. Do not enable the gate for clients until those decisions are confirmed and implemented as described in [Phase 2 gated entry](PHASE-2-GATED-ENTRY.md). Do not enable only the browser flag or only the server flag.
 
-## Required smoke test
+## Required commercial smoke test
 
-After Vercel provides the preview URL:
+After a deployment reports **Ready**:
 
-1. Load the estimator and confirm all 12 business areas appear.
-2. Use the synthetic Finance fixture documented in `DEVELOPER-HANDOFF.md`.
-3. Confirm the result badge says **SERVER VERIFIED** and returns build `$11,500`, audit `$1,150`, and Priority monthly service `$550`.
-4. Change responsibility to self-managed and confirm monthly service becomes `$0` after recalculation.
-5. Confirm changing an answer marks the estimate for recalculation.
-6. Test the mobile layout and the estimate-summary download.
-7. If OpenAI organization is enabled, use synthetic text and confirm provider failure still preserves the description and falls back safely.
+1. Load the AOC hostname and confirm all 12 business areas appear.
+2. Test a synthetic fixed-price project. Confirm the audit is an entered fixed quote rather than a build percentage, one eligible credit is applied at most once, and the remaining project balance uses the 50/50 project schedule.
+3. Test the three monthly build programs. Confirm the reviewed fees are `$4,000`, `$7,000`, and `$10,000` per month, included work is not added as a second upfront build charge, and the fixed-project 50/50 schedule is not used.
+4. Leave monthly hours and the agency blend unanswered. Confirm the result keeps them pending instead of inventing an allowance or universal hourly rate.
+5. Test self-management, unknown management, and managed support. Confirm self-management adds no optional post-project AOC fee, unknown remains unknown, and Standard/Priority/Premier support prices remain pending until approved.
+6. Confirm changing or clearing an answer marks the result for recalculation and removes any result that is no longer supported.
+7. Test the estimate-summary download and the complete desktop/mobile journey without page-level overflow.
+8. Use a synthetic description to confirm known facts are prefilled, unknown facts remain blank, and manual corrections survive reorganization.
+
+Quoted audit, project, agreement, hour, and blend values used in tests are synthetic fixtures. They are not approved customer prices or package entitlements.
 
 ## Platform notes
 
-- Vercel Functions have a 4.5 MB request/response payload limit. The retained transcription adapter therefore rejects audio at 4 MB. Voice remains disabled in the current interface and requires its separate documented implementation phase.
-- The Vercel adapter does not change pricing. It imports the same deterministic calculation, field bank, and validation contracts used by local development and the packaged Worker.
-- `vercel.json` applies baseline content, referrer, permissions, and content-type response headers. WordPress embedding is a later phase and will require a deliberate `frame-ancestors` policy change.
+- Vercel Functions have a 4.5 MB request/response payload limit. The retained transcription adapter therefore rejects audio at 4 MB. Voice remains disabled in the current interface.
+- The Vercel adapter does not define pricing. It imports the same reviewed calculation rules and validation contracts used by local development and the packaged Worker.
+- `vercel.json` applies baseline content, referrer, permissions, and content-type response headers. WordPress embedding is a later phase and requires a deliberate `frame-ancestors` policy change.
 - `.vercel/` is ignored and must not be committed.
 
 ## Automatic deployments
 
-After the GitHub repository is connected, pushes to the configured production branch create deployments automatically. Use Vercel preview deployments for review and testing; promote to a production domain only after the launch blockers are resolved and approved.
+Pushes to the configured production branch create deployments automatically. After publishing, verify the exact deployed version, run the commercial smoke test above, and record the results in `PRODUCTION-TEST-RESULTS.md`.
