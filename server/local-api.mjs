@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import {
   handleAccessStatus, handleAccessVerification, handleAccessLogout, handleAccessRedemption,
-  handleJourneyCalculation, handleJourneyAnalysis, json,
+  handleJourneyCalculation, handleJourneyAnalysis, handleLiveVoice, handleDescriptionCorrection, json,
 } from './api-handlers.mjs';
 
 const routes = {
@@ -11,6 +11,8 @@ const routes = {
   '/api/access/redeem': handleAccessRedemption,
   '/api/journey/calculate': handleJourneyCalculation,
   '/api/journey/analyze': handleJourneyAnalysis,
+  '/api/voice/session': handleLiveVoice,
+  '/api/journey/correct': handleDescriptionCorrection,
 };
 
 // Adapt Vite's Node request to the same handlers used in Vercel. Business rules,

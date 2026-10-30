@@ -13,7 +13,7 @@ const origin = 'https://aoc-estimate-calculator-app.vercel.app';
 
 try {
   for (const path of ['access/status', 'access/verify', 'access/logout', 'access/redeem',
-    'journey/calculate', 'journey/analyze', 'intake/status', 'intake/analyze', 'intake/transcribe']) {
+    'journey/calculate', 'journey/analyze', 'journey/correct', 'intake/status', 'intake/analyze', 'intake/transcribe', 'voice/session']) {
     const route = await import('../api/' + path + '.mjs');
     assert.equal(typeof route.default.fetch, 'function', path + ' must use the Web Request/Response entry format.');
   }

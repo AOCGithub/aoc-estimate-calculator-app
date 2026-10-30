@@ -73,6 +73,26 @@ button.primary:not(:disabled):active {
   min-height: 100vh;
 }
 
+.live-voice { gap: 12px; }
+.description-correction { margin: 10px 0 16px; overflow-wrap: anywhere; }
+.description-correction .correction-toggle { display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; }
+.correction-toggle input { width: auto; margin: 0; }
+.description-correction small { color: var(--muted); }
+.description-correction .helper { margin: 4px 0; }
+.correction-undo { margin-left: 10px; padding: 4px 8px; font-size: 12px; }
+.voice-mic { width: 22px; height: 24px; flex: 0 0 auto; }
+.live-voice__copy { min-width: 0; flex: 1; }
+.live-voice__status { margin-top: 4px; }
+.live-voice--listening { border: 1px solid #b3564a; }
+.live-voice--listening .voice-mic { color: #a4362d; }
+.voice-time { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
+.voice-privacy { margin-top: -4px; }
+.live-voice .voice-toggle { margin-left: 0; flex-shrink: 0; }
+@media (max-width: 700px) {
+  .live-voice .voice-toggle { width: 100%; min-height: 48px; }
+  .correction-toggle, .correction-undo { min-height: 44px; }
+}
+
 #mainPanel {
   min-width: 0;
 }

@@ -35,6 +35,14 @@ const mime = {
 
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
+  if (pathname === '/api/journey/correct') {
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ configured: false }));
+    return;
+  }
+  if (pathname === '/api/voice/session') {
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ enabled: false, configured: false }));
+    return;
+  }
   if (pathname === '/api/journey/analyze') {
     const sendAnalysisFailure = () => response.writeHead(429, { 'content-type': 'application/json' }).end(JSON.stringify({
       error: 'Synthetic provider failure',

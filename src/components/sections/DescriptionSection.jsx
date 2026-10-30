@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLiveDictation } from '../../hooks/useLiveDictation.js';
+import { useDescriptionCorrection } from '../../hooks/useDescriptionCorrection.js';
+import { VoiceInput } from '../VoiceInput.jsx';
 
 const organizingMessages = [
   'Reading the work and outcome you described.',
@@ -9,6 +12,12 @@ const organizingMessages = [
 
 export function DescriptionSection({ state, area, onDescriptionChange, onOrganize, onContinue }) {
   const [organizingStage, setOrganizingStage] = useState(0);
+  const [composing, setComposing] = useState(false);
+  const textareaRef = useRef(null);
+  const voice = useLiveDictation({ description: state.description, area: state.area, onChange: onDescriptionChange });
+  const busy = state.working || voice.active;
+  const correction = useDescriptionCorrection({ description: state.description, area: state.area,
+    blocked: busy || composing, onChange: onDescriptionChange, textareaRef });
 
   useEffect(() => {
     if (!state.working) {
@@ -32,21 +41,29 @@ export function DescriptionSection({ state, area, onDescriptionChange, onOrganiz
       <label htmlFor="description">What happens today, and what should happen instead?</label>
       <textarea
         id="description"
+        ref={textareaRef}
         maxLength="18000"
+        spellCheck
+        autoCorrect="on"
+        autoCapitalize="sentences"
         placeholder={area.prompt}
         value={state.description}
-        readOnly={state.working}
-        aria-describedby={state.working ? 'organizing-status' : undefined}
+        readOnly={busy}
+        aria-describedby={state.working ? 'organizing-status' : 'voice-help'}
         onChange={(event) => onDescriptionChange(event.target.value)}
+        onCompositionStart={() => setComposing(true)}
+        onCompositionEnd={() => setComposing(false)}
       />
-      <div className="voice">
-        <span aria-hidden="true">◉</span>
-        <div>
-          <strong>Prefer to speak?</strong>
-          <small>Voice input is planned. Type or paste your explanation in this review version.</small>
+      {correction.ready && <div className="description-correction">
+        <label className="correction-toggle"><input type="checkbox" checked={correction.enabled} disabled={busy}
+          onChange={event => correction.toggle(event.target.checked)} /> Auto-correct spelling</label>
+        <small>OpenAI checks spelling after you pause or stop speaking. Unclear wording needs your review.</small>
+        <div className="helper" role="status">{correction.checking ? 'Checking spelling…' : correction.message}
+          {correction.canUndo && <button type="button" className="correction-undo" disabled={busy} onClick={correction.undo}>Undo correction</button>}
         </div>
-        <button type="button" disabled>Voice · planned</button>
-      </div>
+        {correction.review.map((item, index) => <p className="helper" key={index}>Please check “{item.before}” — possibly “{item.after}”. Edit the description to confirm.</p>)}
+      </div>}
+      <VoiceInput voice={voice} disabled={state.working || (!voice.active && state.description.length >= 18000)} />
       {state.working && (
         <div
           id="organizing-status"
@@ -69,13 +86,13 @@ export function DescriptionSection({ state, area, onDescriptionChange, onOrganiz
         <button
           type="button"
           className="primary"
-          disabled={state.working}
+          disabled={busy}
           aria-busy={state.working}
           onClick={onOrganize}
         >
           {state.working ? 'Organizing…' : 'Organize my description →'}
         </button>
-        <button type="button" disabled={state.working} onClick={onContinue}>Continue with editable fields</button>
+        <button type="button" disabled={busy} onClick={onContinue}>Continue with editable fields</button>
       </div>
       <p className={`helper ${state.analysisError ? 'error' : ''}`} role="status">
         {state.analysisError || (state.analysis

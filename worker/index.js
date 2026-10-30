@@ -45,6 +45,18 @@ export default {
     if (url.pathname === '/api/access/redeem') return AOCManualAccess.enabled(env)
       ? AOCManualAccess.handle(request, env, 'redeem') : json({ error: 'Not found.' }, 404);
 
+    if (url.pathname === '/api/journey/correct') {
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
+      return AOCDescriptionCorrection.handle(request, env);
+    }
+
+    if (url.pathname === '/api/voice/session') {
+      const accessError = await requireWorkerAccess(request, env);
+      if (accessError) return accessError;
+      return AOCLiveVoice.handle(request, env);
+    }
+
     if (url.pathname === "/api/journey/calculate") {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
       const accessError = await requireWorkerAccess(request, env);

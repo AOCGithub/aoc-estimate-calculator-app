@@ -8,6 +8,8 @@ import AccessRequests from './access-requests.cjs';
 import ManualAccess from './manual-access.cjs';
 import EstimateRecords from './estimate-records.cjs';
 import Pricing from '../public/approved-pricing.js';
+import LiveVoice from './live-voice.cjs';
+import DescriptionCorrection from './description-correction.cjs';
 
 const buckets = new Map();
 const ACCESS_COOKIE = 'aoc_estimator_access';
@@ -244,6 +246,18 @@ export function handleAccessLogout(request, environment = process.env) {
 export function handleAccessRedemption(request, environment = process.env) {
   if (!ManualAccess.enabled(environment)) return json({ error: 'Not found.' }, 404);
   return ManualAccess.handle(request, environment, 'redeem');
+}
+
+export async function handleDescriptionCorrection(request, environment = process.env) {
+  const accessError = await requireAccess(request, environment);
+  if (accessError) return accessError;
+  return DescriptionCorrection.handle(request, environment);
+}
+
+export async function handleLiveVoice(request, environment = process.env) {
+  const accessError = await requireAccess(request, environment);
+  if (accessError) return accessError;
+  return LiveVoice.handle(request, environment);
 }
 
 function consumeRateLimit(request, prefix) {

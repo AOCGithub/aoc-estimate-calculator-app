@@ -47,6 +47,8 @@ function createPreviewServer() {
     let pathname;
     try { pathname = decodeURIComponent(new URL(request.url, `http://${request.headers.host}`).pathname); }
     catch { return json(response, 400, { error: 'Invalid path.' }); }
+    if (pathname === '/api/voice/session') return json(response, 200, { enabled: false, configured: false });
+    if (pathname === '/api/journey/correct') return json(response, 200, { configured: false });
     if (pathname.startsWith('/api/')) {
       if (request.method !== 'POST') return json(response, 405, { error: 'POST required.' });
       if (request.headers.origin !== `http://${request.headers.host}`) return json(response, 403, { error: 'Use the local preview page.' });

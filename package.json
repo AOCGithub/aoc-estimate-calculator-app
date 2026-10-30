@@ -25,13 +25,14 @@
     "test:intake": "node tests/test-voice-server.cjs",
     "test:vercel": "node tests/test-vercel-api.mjs",
     "test:local-api": "node tests/test-local-api.mjs",
+    "test:live-voice": "node tests/test-live-voice.mjs && node tests/test-description-correction.mjs && node tests/test-live-voice-ui.cjs",
     "test:access": "node tests/test-access.mjs && node tests/test-access-requests.mjs && node tests/test-manual-access.mjs && node tests/test-intake-access.mjs && node tests/test-estimate-records.mjs",
     "test:manual-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-manual-access-database-ui.mjs",
     "test:intake-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-intake-access-database-ui.mjs",
     "test:access-ui": "node tests/test-access-ui.cjs",
     "test:ui": "node tests/test-react-ui.cjs",
     "test:ui:capture": "node tests/test-react-ui.cjs --capture",
-    "test": "npm run build:worker && npm run test:access && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:ui && node scripts/validate-artifact.mjs"
+    "test": "npm run build:worker && npm run test:access && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:live-voice && npm run test:ui && node scripts/validate-artifact.mjs"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
