@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 const fixture = require('./fixtures/commercial.cjs');
 const engine = require('../public/journey-calculation.js');
 const live = process.argv.includes('--live');
+const liveAi = live && !process.argv.includes('--skip-ai');
 const baseURL = live ? 'https://estimate.alwaysopencommerce.com' : 'http://localhost:5173';
 const connection = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING;
 assert.ok(connection, 'Run through Vercel env run for database credentials.');
@@ -21,7 +22,7 @@ let browser;
 let stage = 'startup';
 let debugPage;
 try {
-  console.log('Target: ' + baseURL + (live ? ' (one paid synthetic AI request)' : ' (no paid AI)'));
+  console.log('Target: ' + baseURL + (liveAi ? ' (one paid synthetic AI request)' : ' (no paid AI)'));
   const status = await (await fetch(baseURL + '/api/access/status', { signal: AbortSignal.timeout(8000) })).json();
   assert.equal(status.intakeOnly, true, 'Start npm run dev:access for temporary save-and-continue access.');
   assert.equal(status.recordsEnabled, true, 'Local calculation recording must be enabled.');
@@ -36,9 +37,11 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(baseURL, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'Continue to calculator' }).waitFor();
-    assert.equal(await page.locator('input').count(), 5);
+    assert.equal(await page.locator('input:not([type="checkbox"])').count(), 5);
+    const consent = page.getByRole('checkbox', { name: /Save my details and estimates/ });
+    assert.equal(await consent.isChecked(), false);
     assert.equal(await page.getByText(/Verification and approval are on hold/).count(), 1);
-    assert.equal(await page.getByText(/your answers and results are also saved privately/).count(), 1);
+    assert.equal(await page.getByText(/without saving your business details or estimate records/).count(), 1);
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     assert.equal(await page.locator('.area').count(), 0, 'Required fields must still be completed.');
     const email = 'intake-' + width + '-' + randomUUID().slice(0, 8) + '@example.com';
@@ -48,6 +51,7 @@ try {
     let rows = await sql`select id from public.access_requests where company = ${company} and business_email = ${email}`;
     assert.equal(rows.length, 0);
     for (const [field, value] of Object.entries(profile)) await page.locator('#access-' + field).fill(value);
+    await consent.check();
     await page.route('**/api/access/verify', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic save failure. Please try again.' }) }));
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     await page.getByRole('alert').waitFor();
@@ -64,7 +68,7 @@ try {
     assert.equal(cookies.find(cookie => cookie.name === 'aoc_estimator_access').httpOnly, true);
     if (live) assert.equal(cookies.find(cookie => cookie.name === 'aoc_estimator_access').secure, true);
     assert.equal(cookies.some(cookie => cookie.name === 'aoc_estimator_review_access'), false);
-    if (live && width === 1440) {
+    if (liveAi && width === 1440) {
       stage = 'live paid-advertising AI prefill';
       await page.getByRole('button', { name: 'Paid advertising', exact: true }).click();
       await page.getByRole('button', { name: /^Describe the work/ }).click();
@@ -168,9 +172,27 @@ try {
     if (width === 390) await page.screenshot({ path: 'artifacts/intake-only-mobile.png', fullPage: true });
     const blocked = await context.request.post(baseURL + '/api/journey/calculate', { headers: { origin: baseURL }, data: payload });
     assert.equal(blocked.status(), 401);
+    const privateEmail = 'private-' + randomUUID() + '@example.com';
+    for (const [field, value] of Object.entries({ ...profile, businessEmail: privateEmail })) await page.locator('#access-' + field).fill(value);
+    assert.equal(await consent.isChecked(), false, 'Saving must default off again after logout.');
+    await page.getByRole('button', { name: 'Continue to calculator' }).click();
+    await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
+    const privateRows = await sql`select id from public.access_requests where company = ${company} and business_email = ${privateEmail}`;
+    assert.equal(privateRows.length, 0, 'No-save entry must not create a form record.');
+    const privateCalculation = await context.request.post(baseURL + '/api/journey/calculate', { headers: { origin: baseURL }, data: payload });
+    assert.equal(privateCalculation.status(), 200);
+    const privateResult = await privateCalculation.json();
+    assert.deepEqual(privateResult.result, engine.calculate(payload).result);
+    assert.deepEqual(privateResult.record, { saved: false, skipped: true });
+    const privateCookies = await context.cookies();
+    const privateToken = JSON.parse(Buffer.from(privateCookies.find(cookie => cookie.name === 'aoc_estimator_access').value.split('.')[0], 'base64url').toString());
+    assert.equal(privateToken.requestId, undefined);
+    assert.equal(privateToken.saveData, false);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
     assert.deepEqual(errors, []);
     await context.close();
-    console.log(`PASS: Real Supabase + ${width}px form save, no verification, linked calculation snapshots, edited/cleared answers, actual Calculate button, pricing version, reload and logout.`);
+    console.log(`PASS: Real Supabase + ${width}px optional saving, no-save entry/calculation, linked snapshots when selected, edited/cleared answers, Calculate button, pricing version, reload and logout.`);
   }
 } catch (error) {
   console.error('Intake-only integration failed at', stage, ':', error instanceof assert.AssertionError || error.name === 'TimeoutError'

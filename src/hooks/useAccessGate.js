@@ -26,6 +26,8 @@ export function useAccessGate() {
     manualApproval: false,
     intakeOnly: false,
     recordsEnabled: false,
+    savingAvailable: false,
+    saveData: false,
     invitationToken: initialInvitation,
   });
 
@@ -63,6 +65,8 @@ export function useAccessGate() {
           manualApproval: Boolean(data.manualApproval),
           intakeOnly: Boolean(data.intakeOnly),
           recordsEnabled: Boolean(data.recordsEnabled),
+          savingAvailable: Boolean(data.savingAvailable),
+          saveData: data.saveData === true,
           loading: false,
           error: data.enabled && !data.configured ? 'Calculator access is not configured yet.' : '',
         }));
@@ -102,6 +106,7 @@ export function useAccessGate() {
         error: '',
         pending: false,
         invitationToken: '',
+        saveData: data.saveData === true,
       }));
       return { ok: true };
     } catch (error) {
@@ -121,6 +126,7 @@ export function useAccessGate() {
       setState(current => ({
         ...current,
         authenticated: false,
+        saveData: false,
         error: '',
         working: false,
         pending: false,

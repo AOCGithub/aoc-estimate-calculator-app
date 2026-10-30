@@ -62,7 +62,7 @@ function accessConfiguration(environment) {
   const requests = AccessRequests.configuration(environment);
   const intakeOnly = environment.AOC_INTAKE_ONLY_ENABLED === 'true';
   return { approvals, secret, hours, requests, intakeOnly, environment, configured: secret.length >= 32
-    && (intakeOnly ? requests.enabled && requests.configured : requests.enabled ? requests.configured : approvals.length > 0) };
+    && (intakeOnly || (requests.enabled ? requests.configured : approvals.length > 0)) };
 }
 
 function accessCookie(request) {
@@ -83,13 +83,14 @@ function signAccessPayload(payload, secret) {
   return createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-function createAccessSession(secret, hours, subject, mode = 'allowlist', requestId = null) {
+function createAccessSession(secret, hours, subject, mode = 'allowlist', requestId = null, saveData) {
   const payload = Buffer.from(JSON.stringify({
     version: 1,
     expires: Date.now() + hours * 60 * 60 * 1000,
     nonce: randomBytes(16).toString('base64url'),
     subject,
     mode,
+    ...(typeof saveData === 'boolean' ? { saveData } : {}),
     ...(requestId ? { requestId } : {}),
   })).toString('base64url');
   return `${payload}.${signAccessPayload(payload, secret)}`;
@@ -106,7 +107,8 @@ function validAccessSession(request, configuration) {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     return data.version === 1
       && Number(data.expires) > Date.now()
-      && (!EstimateRecords.enabled(configuration.environment) || EstimateRecords.validId(data.requestId))
+      && (configuration.intakeOnly && data.mode === 'intake' && data.saveData === false
+        ? !data.requestId : !EstimateRecords.enabled(configuration.environment) || EstimateRecords.validId(data.requestId))
       && (configuration.intakeOnly ? data.mode === 'intake'
         : data.mode !== 'intake' && configuration.approvals.some(item => safeEqual(item.subject, data.subject)));
   } catch {
@@ -165,12 +167,16 @@ export function handleAccessStatus(request, environment = process.env) {
   if (methodError) return methodError;
   if (!accessEnabled(environment)) return json({ enabled: false, configured: true, authenticated: true });
   const configuration = accessConfiguration(environment);
+  const authenticated = configuration.configured && validAccessSession(request, configuration);
+  const session = authenticated ? JSON.parse(Buffer.from(accessCookie(request).split('.')[0], 'base64url').toString('utf8')) : null;
   return json({
     enabled: true,
     configured: configuration.configured,
-    authenticated: configuration.configured && validAccessSession(request, configuration),
+    authenticated,
     ...(configuration.requests.enabled ? { requestsEnabled: true } : {}),
-    ...(configuration.intakeOnly ? { intakeOnly: true } : {}),
+    ...(configuration.intakeOnly ? { intakeOnly: true,
+      savingAvailable: configuration.requests.enabled && configuration.requests.configured,
+      saveData: Boolean(authenticated && session.saveData === true) } : {}),
     ...(EstimateRecords.enabled(environment) ? { recordsEnabled: true } : {}),
   });
 }
@@ -188,6 +194,20 @@ export async function handleAccessVerification(request, environment = process.en
   if (parsed.response) return parsed.response;
   const validated = validateAccessProfile(parsed.body);
   if (validated.error) return json({ error: validated.error }, 400);
+  if (configuration.intakeOnly && parsed.body.saveData !== undefined && typeof parsed.body.saveData !== 'boolean') {
+    return json({ error: 'Choose whether to save your data.' }, 400);
+  }
+  // Opting out (including an older client with no choice) never writes personal
+  // details or estimate records. Only a random session identifier is retained.
+  if (configuration.intakeOnly && parsed.body.saveData !== true) {
+    const session = createAccessSession(configuration.secret, configuration.hours, randomUUID(), 'intake', null, false);
+    const response = json({ enabled: true, authenticated: true, saveData: false });
+    response.headers.set('set-cookie', accessCookieHeader(request, session, configuration.hours * 60 * 60));
+    return response;
+  }
+  if (configuration.intakeOnly && (!configuration.requests.enabled || !configuration.requests.configured)) {
+    return json({ error: 'Saving is unavailable. Uncheck the saving option to continue without saving.' }, 503);
+  }
   const requestId = EstimateRecords.enabled(environment) ? randomUUID() : null;
   if (configuration.requests.enabled) {
     try {
@@ -197,8 +217,8 @@ export async function handleAccessVerification(request, environment = process.en
     }
   }
   if (configuration.intakeOnly) {
-    const session = createAccessSession(configuration.secret, configuration.hours, accessSubject(validated.profile.businessEmail), 'intake', requestId);
-    const response = json({ enabled: true, authenticated: true });
+    const session = createAccessSession(configuration.secret, configuration.hours, accessSubject(validated.profile.businessEmail), 'intake', requestId, true);
+    const response = json({ enabled: true, authenticated: true, saveData: true });
     response.headers.set('set-cookie', accessCookieHeader(request, session, configuration.hours * 60 * 60));
     return response;
   }
@@ -271,7 +291,8 @@ export async function handleJourneyCalculation(request, environment = process.en
     if (EstimateRecords.enabled(environment)) {
       // requireAccess already verified signature, mode and expiry before decoding.
       const session = JSON.parse(Buffer.from(accessCookie(request).split('.')[0], 'base64url').toString('utf8'));
-      record = await EstimateRecords.save(AccessRequests.configuration(environment), session.requestId, parsed.body, calculation, Pricing.version);
+      record = session.saveData !== true ? { saved: false, skipped: true }
+        : await EstimateRecords.save(AccessRequests.configuration(environment), session.requestId, parsed.body, calculation, Pricing.version);
     }
     return json({ ...calculation, source: 'server', ...(record ? { record } : {}) });
   } catch (error) {

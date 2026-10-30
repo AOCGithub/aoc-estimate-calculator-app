@@ -137,6 +137,9 @@ export default function App() {
         )}
       </header>
       <main>
+        {access.intakeOnly && <p className="session-saving-note" role="note">{access.saveData
+          ? `Data saving is on. Your details${access.recordsEnabled ? ' and calculated estimates' : ''} are saved privately with AOC.`
+          : 'Data saving is off. Your details and estimate records are not saved to AOC’s database for this session.'}</p>}
         {state.step === 1 ? (
           <>
             <div className="intro">

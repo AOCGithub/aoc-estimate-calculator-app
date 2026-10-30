@@ -13,7 +13,7 @@ const env = { AOC_ACCESS_GATE_ENABLED: 'true', AOC_ACCESS_REQUESTS_ENABLED: 'tru
   AOC_APPROVED_EMAILS: '[]', AOC_ACCESS_SESSION_HOURS: '8', SUPABASE_URL: 'https://database.example.test', SUPABASE_SECRET_KEY: 'sb_secret_test_only' };
 const originals = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
 const previousFetch = globalThis.fetch;
-const profile = { name: 'Intake Test', company: 'Example Company', website: 'example.com', role: 'Testing', businessEmail: 'not-approved@example.com' };
+const profile = { name: 'Intake Test', company: 'Example Company', website: 'example.com', role: 'Testing', businessEmail: 'not-approved@example.com', saveData: true };
 const payload = { area: fixture.area, confirmed: true, answers: Object.fromEntries(Object.entries(fixture).filter(([key]) => !['area', 'process_confirmed'].includes(key))) };
 let writes = [];
 let failure = false;
@@ -33,7 +33,7 @@ function request(path, value, headers = {}, method = value === undefined ? 'GET'
 async function exercise(dispatch, settings) {
   writes = []; failure = false;
   let response = await dispatch(request('/api/access/status'), settings);
-  assert.deepEqual(await response.json(), { enabled: true, configured: true, authenticated: false, requestsEnabled: true, intakeOnly: true });
+  assert.deepEqual(await response.json(), { enabled: true, configured: true, authenticated: false, requestsEnabled: true, intakeOnly: true, savingAvailable: true, saveData: false });
   response = await dispatch(request('/api/journey/calculate', payload), settings);
   assert.equal(response.status, 401, 'A saved-intake session is still required for the API.');
   response = await dispatch(request('/api/access/verify', { ...profile, company: '' }), settings);
@@ -49,7 +49,7 @@ async function exercise(dispatch, settings) {
   failure = false;
   response = await dispatch(request('/api/access/verify', { ...profile, review_status: 'approved', verified: true }), settings);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { enabled: true, authenticated: true });
+  assert.deepEqual(await response.json(), { enabled: true, authenticated: true, saveData: true });
   assert.deepEqual(writes, [{ name: profile.name, company: profile.company, website: 'https://example.com/', role: profile.role,
     business_email: profile.businessEmail, review_status: 'pending' }], 'Access does not pretend verification or change approval status.');
   const setCookie = response.headers.get('set-cookie');
@@ -72,7 +72,28 @@ async function exercise(dispatch, settings) {
   response = await dispatch(request('/api/access/status', undefined, { cookie }), { ...withoutIntake, AOC_MANUAL_ACCESS_ENABLED: 'true' });
   assert.equal((await response.json()).authenticated, false);
   response = await dispatch(request('/api/access/status'), { ...settings, AOC_ACCESS_REQUESTS_ENABLED: 'false' });
-  assert.equal((await response.json()).configured, false, 'Intake-only mode cannot silently skip saving.');
+  const unavailable = await response.json();
+  assert.equal(unavailable.configured, true, 'The no-save calculator still works without database configuration.');
+  assert.equal(unavailable.savingAvailable, false);
+  failure = true;
+  const before = writes.length;
+  response = await dispatch(request('/api/access/verify', { ...profile, saveData: false }), settings);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).saveData, false);
+  assert.equal(writes.length, before, 'Opting out must not contact storage, including during an outage.');
+  const guestCookie = response.headers.get('set-cookie').split(';')[0];
+  response = await dispatch(request('/api/access/status', undefined, { cookie: guestCookie }), settings);
+  assert.equal((await response.json()).saveData, false);
+  response = await dispatch(request('/api/journey/calculate', payload, { cookie: guestCookie }), settings);
+  assert.equal(response.status, 200);
+  assert.equal(writes.length, before);
+  const { saveData, ...oldClient } = profile;
+  response = await dispatch(request('/api/access/verify', oldClient), settings);
+  assert.equal((await response.json()).saveData, false, 'Missing consent never defaults to saving.');
+  response = await dispatch(request('/api/access/verify', { ...profile, saveData: 'true' }), settings);
+  assert.equal(response.status, 400);
+  response = await dispatch(request('/api/access/verify', profile), { ...settings, AOC_ACCESS_REQUESTS_ENABLED: 'false' });
+  assert.equal(response.status, 503, 'An opt-in save cannot silently become an unsaved session.');
 }
 try {
   globalThis.fetch = provider;

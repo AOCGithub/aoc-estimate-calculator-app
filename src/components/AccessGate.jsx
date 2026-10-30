@@ -4,6 +4,7 @@ import { AccessDetailsFields, emptyAccessProfile } from './fields/AccessDetailsF
 
 export function AccessGate({ access }) {
   const [profile, setProfile] = useState(emptyAccessProfile);
+  const [saveData, setSaveData] = useState(false);
 
   if (access.loading) {
     return (
@@ -20,7 +21,7 @@ export function AccessGate({ access }) {
 
   async function submit(event) {
     event.preventDefault();
-    await access.verify(profile);
+    await access.verify(access.intakeOnly ? { ...profile, saveData } : profile);
   }
 
   return (
@@ -40,7 +41,7 @@ export function AccessGate({ access }) {
               </p>
               <ol className="access-steps" aria-label="Access process">
                 <li><span>1</span><div><strong>Confirm your details</strong><small>Enter your business information.</small></div></li>
-                <li><span>2</span><div><strong>{access.intakeOnly ? 'Save your details' : access.requestsEnabled ? 'Request access' : 'Confirm your access'}</strong><small>{access.intakeOnly ? 'Your details are saved before you continue.' : access.requestsEnabled ? 'AOC reviews requests before granting access.' : 'Use the business email approved by AOC.'}</small></div></li>
+                <li><span>2</span><div><strong>{access.intakeOnly ? 'Choose whether to save' : access.requestsEnabled ? 'Request access' : 'Confirm your access'}</strong><small>{access.intakeOnly ? 'Saving your details and estimates is optional.' : access.requestsEnabled ? 'AOC reviews requests before granting access.' : 'Use the business email approved by AOC.'}</small></div></li>
                 <li><span>3</span><div><strong>Explore your estimate</strong><small>Review every answer before calculating.</small></div></li>
               </ol>
             </div>
@@ -69,9 +70,18 @@ export function AccessGate({ access }) {
               </div>
             ) : <form className="access-form" onSubmit={submit}>
               <AccessDetailsFields profile={profile} onChange={setProfile} />
+              {access.intakeOnly && <div className="access-saving-choice">
+                <label htmlFor="access-save-data"><input id="access-save-data" name="saveData" type="checkbox"
+                  checked={saveData} disabled={access.working || !access.savingAvailable}
+                  aria-describedby="access-saving-help" onChange={event => setSaveData(event.target.checked)} />
+                  Save my details{access.recordsEnabled ? ' and estimates' : ''} with AOC (optional)
+                </label>
+                <p id="access-saving-help">Leave unchecked to use the calculator without saving your business details{access.recordsEnabled ? ' or estimate records' : ''} to AOC’s database.
+                  {!access.savingAvailable && ' Saving is currently unavailable; you can continue without it.'}</p>
+              </div>}
               {access.error && <p className="access-error" role="alert">{access.error}</p>}
               <button type="submit" className="primary access-submit" disabled={access.working || !access.configured}>
-                <span>{access.working ? (access.intakeOnly ? 'Saving details…' : access.requestsEnabled ? 'Submitting request…' : 'Checking access…') : (access.intakeOnly ? 'Continue to calculator' : access.requestsEnabled ? 'Request access / continue' : 'Continue to estimator')}</span>
+                <span>{access.working ? (access.intakeOnly ? saveData ? 'Saving details…' : 'Opening calculator…' : access.requestsEnabled ? 'Submitting request…' : 'Checking access…') : (access.intakeOnly ? 'Continue to calculator' : access.requestsEnabled ? 'Request access / continue' : 'Continue to estimator')}</span>
                 {!access.working && <i aria-hidden="true">→</i>}
               </button>
             </form>}
@@ -80,8 +90,7 @@ export function AccessGate({ access }) {
               <div>
                 <strong>Access and privacy</strong>
                 <p>
-                  {access.recordsEnabled && 'When you calculate, your answers and results are also saved privately and linked to this submission. '}
-                  {access.intakeOnly ? 'Your name, company, website, role and business email are saved privately as an access submission. This preview does not verify your identity or wait for approval. ' : access.requestsEnabled ? 'Your name, company, website, role and business email are saved privately for access review. ' : 'These details are used to confirm access to the calculator. '}We do not request
+                  {access.intakeOnly ? 'You choose whether AOC saves your business details and estimates. Without saving, the calculator still works for your session. AI features still process descriptions you submit. Verification and approval remain on hold. ' : access.requestsEnabled ? 'Your name, company, website, role and business email are saved privately for access review. ' : 'These details are used to confirm access to the calculator. '}We do not request
                   LinkedIn access or email-inbox access, save a reusable profile, enroll you in
                   marketing or send unsolicited follow-up.
                 </p>

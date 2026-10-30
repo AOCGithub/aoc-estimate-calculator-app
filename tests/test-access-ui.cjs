@@ -42,7 +42,8 @@ const server = http.createServer((request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   const authenticated = String(request.headers.cookie || '').includes('aoc_gate_test=approved');
   if (pathname === '/api/access/status') {
-    json(response, 200, { enabled: true, configured: true, authenticated, requestsEnabled, intakeOnly });
+    json(response, 200, { enabled: true, configured: true, authenticated, requestsEnabled, intakeOnly,
+      recordsEnabled: intakeOnly, savingAvailable: intakeOnly, saveData: String(request.headers.cookie || '').includes('aoc_saving_test=true') });
     return;
   }
   if (pathname === '/api/access/verify') {
@@ -51,9 +52,9 @@ const server = http.createServer((request, response) => {
     request.on('end', () => {
       const body = JSON.parse(raw);
       submissions += 1;
-      assert.deepEqual(Object.keys(body).sort(), ['businessEmail', 'company', 'name', 'role', 'website']);
+      assert.deepEqual(Object.keys(body).sort(), ['businessEmail', 'company', 'name', ...(intakeOnly ? ['saveData'] : []), 'role', 'website'].sort());
       const valid = body.businessEmail === 'approved@example.com';
-      if (requestsEnabled && storageFailure) {
+      if (requestsEnabled && storageFailure && (!intakeOnly || body.saveData)) {
         json(response, 503, { error: 'We could not save your access request. Your details are still here; please try again later.' });
         return;
       }
@@ -65,8 +66,8 @@ const server = http.createServer((request, response) => {
         json(response, 403, { error: 'This business email is not approved for calculator access.' });
         return;
       }
-      json(response, 200, { enabled: true, authenticated: true }, {
-        'set-cookie': 'aoc_gate_test=approved; Path=/; HttpOnly; SameSite=Lax',
+      json(response, 200, { enabled: true, authenticated: true, saveData: body.saveData === true }, {
+        'set-cookie': ['aoc_gate_test=approved; Path=/; HttpOnly; SameSite=Lax', 'aoc_saving_test=' + (body.saveData === true) + '; Path=/; HttpOnly; SameSite=Lax'],
       });
     });
     return;
@@ -199,28 +200,49 @@ const server = http.createServer((request, response) => {
         pageElement.scrollLeft = 190;
         return pageElement.scrollLeft;
       }), 0, 'Decorative overflow cannot shift the form sideways.');
-      assert.equal(await page.locator('input').count(), 5);
+      assert.equal(await page.locator('input:not([type="checkbox"])').count(), 5);
+      const consent = page.getByRole('checkbox', { name: /Save my details and estimates/ });
+      assert.equal(await consent.isChecked(), false);
       assert.equal(await page.getByText(/Verification and approval are on hold/).count(), 1);
       await page.getByLabel('Your name').fill('Intake Browser Test');
       await page.getByLabel('Company', { exact: true }).fill('Example Company');
       await page.getByLabel('Company website').fill('example.com');
       await page.getByLabel('Your role').fill('Testing');
       await page.getByLabel('Business email').fill('not-approved@example.com');
+      await consent.check();
       storageFailure = true;
       await page.getByRole('button', { name: 'Continue to calculator' }).click();
       await page.getByRole('alert').waitFor();
       assert.equal(await page.getByLabel('Your name').inputValue(), 'Intake Browser Test');
       assert.equal(await page.locator('.area').count(), 0);
-      storageFailure = false;
+      await consent.uncheck();
       await page.getByRole('button', { name: 'Continue to calculator' }).click();
       await page.locator('.area').first().waitFor();
+      await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
       assert.equal(await page.locator('.area').count(), 12);
       await page.reload({ waitUntil: 'networkidle' });
       await page.locator('.area').first().waitFor();
+      await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       await page.getByRole('button', { name: 'End session' }).click();
       await page.getByLabel('Your name').waitFor();
       assert.equal(await page.getByLabel('Your name').inputValue(), '');
+      assert.equal(await consent.isChecked(), false);
+      await page.getByLabel('Your name').fill('Saved Browser Test');
+      await page.getByLabel('Company', { exact: true }).fill('Example Company');
+      await page.getByLabel('Company website').fill('example.com');
+      await page.getByLabel('Your role').fill('Testing');
+      await page.getByLabel('Business email').fill('save@example.com');
+      await consent.check();
+      storageFailure = false;
+      await page.getByRole('button', { name: 'Continue to calculator' }).click();
+      await page.locator('.area').first().waitFor();
+      await page.getByRole('note').filter({ hasText: 'Data saving is on.' }).waitFor();
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByRole('note').filter({ hasText: 'Data saving is on.' }).waitFor();
+      await page.getByRole('button', { name: 'End session' }).click();
+      await consent.waitFor();
+      assert.equal(await consent.isChecked(), false);
     }
     assert.deepEqual(errors, []);
     console.log('PASS: Gate compatibility, pending requests, save-and-continue mode, failure recovery, private-storage disclosure, approved access, logout, and desktop/mobile layout.');

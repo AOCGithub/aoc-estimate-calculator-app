@@ -51,7 +51,7 @@ async function accessGateConfiguration(env) {
   const requests = AOCAccessRequests.configuration(env);
   const intakeOnly = env.AOC_INTAKE_ONLY_ENABLED === 'true';
   return { approvals, secret, hours, requests, intakeOnly, environment: env, configured: secret.length >= 32
-    && (intakeOnly ? requests.enabled && requests.configured : requests.enabled ? requests.configured : approvals.length > 0) };
+    && (intakeOnly || (requests.enabled ? requests.configured : approvals.length > 0)) };
 }
 
 async function accessSafeEqual(left, right) {
@@ -90,7 +90,9 @@ async function accessSessionValid(request, configuration) {
   try {
     const data = JSON.parse(new TextDecoder().decode(accessDecodeBase64Url(payload)));
     if (data.version !== 1 || Number(data.expires) <= Date.now()) return false;
-    if (AOCEstimateRecords.enabled(configuration.environment) && !AOCEstimateRecords.validId(data.requestId)) return false;
+    if (configuration.intakeOnly && data.mode === 'intake' && data.saveData === false) {
+      if (data.requestId) return false;
+    } else if (AOCEstimateRecords.enabled(configuration.environment) && !AOCEstimateRecords.validId(data.requestId)) return false;
     if (configuration.intakeOnly) return data.mode === 'intake';
     if (data.mode === 'intake') return false;
     const matches = await Promise.all(configuration.approvals.map(item => accessSafeEqual(item.subject, data.subject)));
@@ -100,7 +102,7 @@ async function accessSessionValid(request, configuration) {
   }
 }
 
-async function createAccessSession(configuration, subject, mode = 'allowlist', requestId = null) {
+async function createAccessSession(configuration, subject, mode = 'allowlist', requestId = null, saveData) {
   const nonce = new Uint8Array(16);
   crypto.getRandomValues(nonce);
   const payload = accessBase64Url(accessEncoder.encode(JSON.stringify({
@@ -109,6 +111,7 @@ async function createAccessSession(configuration, subject, mode = 'allowlist', r
     nonce: accessBase64Url(nonce),
     subject,
     mode,
+    ...(typeof saveData === 'boolean' ? { saveData } : {}),
     ...(requestId ? { requestId } : {}),
   })));
   return payload + '.' + await accessSignature(payload, configuration.secret);
@@ -176,12 +179,16 @@ async function accessStatusAPI(request, env) {
   if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
   if (!accessGateEnabled(env)) return json({ enabled: false, configured: true, authenticated: true });
   const configuration = await accessGateConfiguration(env);
+  const authenticated = configuration.configured && await accessSessionValid(request, configuration);
+  const session = authenticated ? JSON.parse(new TextDecoder().decode(accessDecodeBase64Url(accessCookie(request).split('.')[0]))) : null;
   return json({
     enabled: true,
     configured: configuration.configured,
-    authenticated: configuration.configured && await accessSessionValid(request, configuration),
+    authenticated,
     ...(configuration.requests.enabled ? { requestsEnabled: true } : {}),
-    ...(configuration.intakeOnly ? { intakeOnly: true } : {}),
+    ...(configuration.intakeOnly ? { intakeOnly: true,
+      savingAvailable: configuration.requests.enabled && configuration.requests.configured,
+      saveData: Boolean(authenticated && session.saveData === true) } : {}),
     ...(AOCEstimateRecords.enabled(env) ? { recordsEnabled: true } : {}),
   });
 }
@@ -207,6 +214,18 @@ async function accessVerifyAPI(request, env, url) {
   if (parsed.response) return parsed.response;
   const validated = validateAccessRequest(parsed.body);
   if (validated.error) return json({ error: validated.error }, 400);
+  if (configuration.intakeOnly && parsed.body.saveData !== undefined && typeof parsed.body.saveData !== 'boolean') {
+    return json({ error: 'Choose whether to save your data.' }, 400);
+  }
+  if (configuration.intakeOnly && parsed.body.saveData !== true) {
+    const response = json({ enabled: true, authenticated: true, saveData: false });
+    response.headers.set('set-cookie', accessCookieHeader(request,
+      await createAccessSession(configuration, crypto.randomUUID(), 'intake', null, false), configuration.hours * 60 * 60));
+    return response;
+  }
+  if (configuration.intakeOnly && (!configuration.requests.enabled || !configuration.requests.configured)) {
+    return json({ error: 'Saving is unavailable. Uncheck the saving option to continue without saving.' }, 503);
+  }
   const requestId = AOCEstimateRecords.enabled(env) ? crypto.randomUUID() : null;
   if (configuration.requests.enabled) {
     try {
@@ -216,9 +235,9 @@ async function accessVerifyAPI(request, env, url) {
     }
   }
   if (configuration.intakeOnly) {
-    const response = json({ enabled: true, authenticated: true });
+    const response = json({ enabled: true, authenticated: true, saveData: true });
     response.headers.set('set-cookie', accessCookieHeader(request,
-      await createAccessSession(configuration, await accessSubject(validated.profile.businessEmail), 'intake', requestId), configuration.hours * 60 * 60));
+      await createAccessSession(configuration, await accessSubject(validated.profile.businessEmail), 'intake', requestId, true), configuration.hours * 60 * 60));
     return response;
   }
   const matches = await Promise.all(configuration.approvals.map(item => accessSafeEqual(item.email, validated.profile.businessEmail)));

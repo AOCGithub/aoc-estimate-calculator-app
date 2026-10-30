@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { webcrypto, randomUUID } from 'node:crypto';
+import { webcrypto, randomUUID, createHmac } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { handleAccessVerification, handleAccessStatus, handleJourneyCalculation } from '../server/api-handlers.mjs';
 const require = createRequire(import.meta.url);
@@ -15,7 +15,7 @@ const env = { AOC_ACCESS_GATE_ENABLED: 'true', AOC_ACCESS_REQUESTS_ENABLED: 'tru
 const originals = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
 const originalFetch = globalThis.fetch;
 const payload = { area: fixture.area, confirmed: true, answers: Object.fromEntries(Object.entries(fixture).filter(([key]) => !['area', 'process_confirmed'].includes(key))) };
-const profile = { name: 'Test Person', company: 'Test Company', role: 'Testing', website: 'example.com', businessEmail: 'test@example.com' };
+const profile = { name: 'Test Person', company: 'Test Company', role: 'Testing', website: 'example.com', businessEmail: 'test@example.com', saveData: true };
 let writes, fail;
 async function provider(url, options) {
   const table = url.split('/').pop();
@@ -45,6 +45,31 @@ async function exercise(dispatch) {
   assert.equal(forms[0].review_status, 'pending');
   response = await dispatch(request('/api/journey/calculate', payload));
   assert.equal(response.status, 401);
+  const beforeGuest = writes.length;
+  response = await dispatch(request('/api/access/verify', { ...profile, saveData: false }));
+  assert.equal(response.status, 200);
+  const guestCookie = response.headers.get('set-cookie').split(';')[0];
+  const guest = JSON.parse(Buffer.from(guestCookie.split('=')[1].split('.')[0], 'base64url').toString());
+  assert.equal(guest.saveData, false);
+  assert.equal(guest.requestId, undefined);
+  assert.ok(!JSON.stringify(guest).includes(profile.businessEmail));
+  for (const changed of [payload, { ...payload, answers: { ...payload.answers, team_time: 90 } }, { ...payload, saveData: true, access_request_id: forms[0].id }]) {
+    response = await dispatch(request('/api/journey/calculate', changed, guestCookie));
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(data.result, engine.calculate(changed).result);
+    assert.deepEqual(data.record, { saved: false, skipped: true });
+  }
+  assert.equal(writes.length, beforeGuest, 'No-save entry and repeated calculations must make zero database writes.');
+  response = await dispatch(request('/api/access/status', undefined, guestCookie));
+  assert.equal((await response.json()).saveData, false);
+  const legacy = JSON.parse(Buffer.from(cookies[0].split('=')[1].split('.')[0], 'base64url').toString());
+  delete legacy.saveData;
+  const legacyPayload = Buffer.from(JSON.stringify(legacy)).toString('base64url');
+  const legacyCookie = 'aoc_estimator_access=' + legacyPayload + '.' + createHmac('sha256', env.AOC_ACCESS_SESSION_SECRET).update(legacyPayload).digest('base64url');
+  response = await dispatch(request('/api/journey/calculate', payload, legacyCookie));
+  assert.equal((await response.json()).record.skipped, true, 'Older sessions cannot assume consent to new saves.');
+  assert.equal(writes.length, beforeGuest);
   response = await dispatch(request('/api/journey/calculate', payload, cookies[0], 'https://evil.test'));
   assert.equal(response.status, 403);
   response = await dispatch(request('/api/journey/calculate', { ...payload, area: 'invalid' }, cookies[0]));

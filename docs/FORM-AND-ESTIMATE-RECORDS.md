@@ -7,18 +7,20 @@ Implemented locally on 29 October and deployed on 30 October 2026. Verification 
 - `public.access_requests`: existing five-field form records (name, company, website, role, business email), UUID `id`, timestamp and review status. Existing records are preserved; new submissions stay `pending`.
 - `public.estimates`: new UUID `id`, timestamp, `access_request_id` foreign key, business area, answer snapshot, scope-confirmation flag, server-calculated result, calculator version and pricing version.
 
-One form submission can have many estimate snapshots. Each successful server calculation adds a record; changed or cleared answers produce a new snapshot rather than overwriting earlier results. Local-preview fallback calculations are not saved. A failed database write leaves the calculation visible and explicitly reports that it was not saved.
+Saving is optional as of 30 October 2026. The entry form's **Save my details and estimates with AOC** checkbox starts unchecked. Without explicit selection, neither a form record nor estimate snapshots are written to the database. A signed session retains the choice; request-body flags cannot override it. Missing consent and older sessions do not authorize new writes. Existing records are preserved, and no schema change is required.
+
+For a saved submission, each successful server calculation adds a record; changed or cleared answers produce a new snapshot rather than overwriting earlier results. Local-preview fallback calculations are not saved. A failed requested database write leaves the calculation visible and explicitly reports that it was not saved.
 
 The parent ID identifies a submission, not a verified person. Re-entering the form creates another submission, even with the same email. Returning-client identification, saved-profile recovery and a client-facing history screen are not included.
 
 ## Use and inspect
 
-1. Run `npm run dev:access`; open http://localhost:5173 and submit the five details.
+1. Run `npm run dev:access`; open http://localhost:5173, complete the five details and select the saving checkbox if you want database records.
 2. Complete the calculator and calculate. Successful storage shows **Estimate calculated and saved.**
 3. In Supabase **Table Editor → public → access_requests**, find the submission and copy its `id`.
 4. Open **estimates** and filter `access_request_id` by that value to see its calculation records.
 
-The server selects the parent ID from its signed HTTP-only session, never a submitted owner ID. Old sessions without this link need the entry form once again. Browser keys cannot read or write either table. Estimates have RLS enabled and insert-only server permissions; no public history endpoint was added. Deleting a form record is restricted while estimates reference it, preventing accidental history loss.
+For saved submissions, the server selects the parent ID from its signed HTTP-only session, never a submitted owner ID. No-save sessions have no parent record; older sessions without the saving choice continue without new writes. End the session and submit the form again to choose saving. Browser keys cannot read or write either table. Estimates have RLS enabled and insert-only server permissions; no public history endpoint was added. Deleting a form record is restricted while estimates reference it, preventing accidental history loss.
 
 ## Configuration and checks
 

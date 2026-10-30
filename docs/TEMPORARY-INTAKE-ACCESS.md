@@ -6,11 +6,11 @@ Requested on 29 October 2026 and published on 30 October 2026. The live estimato
 
 1. Run `npm run dev` (or `npm run dev:access`) and open http://localhost:5173.
 2. Enter name, company, website, role and business email.
-3. After the server saves the details to Supabase, the calculator opens immediately. A failed save keeps the entries editable and does not grant access.
+3. Choose the optional **Save my details and estimates with AOC** checkbox. It starts unchecked. Without it, the calculator opens without writing the details or estimates to AOC's database. With it selected, the details must save successfully before entry; calculations then save linked snapshots. A failed requested save keeps the form editable, and the visitor can retry or uncheck the option.
 
 Verification, AOC approval and private links are not required in this temporary mode. Records remain `pending`; entry does not mark anyone verified or approved. The HTTP-only session lasts eight hours by default, so refreshing does not require the form again. Logging out or an expired session requires another submission.
 
-The five entry details and server-calculated estimate snapshots are now saved in [linked form and estimate tables](FORM-AND-ESTIMATE-RECORDS.md). No reusable profiles, email provider or marketing were added. Submissions use the connected Supabase database; they are not stored in a separate local database.
+When saving is selected, the five entry details and server-calculated estimate snapshots use [linked form and estimate tables](FORM-AND-ESTIMATE-RECORDS.md). The signed session carries the saving choice across refreshes. Missing consent and older sessions do not authorize new writes. Existing saved records are preserved. AI features still process descriptions submitted to them; the no-save choice applies to AOC's database. No reusable profiles, email provider or marketing were added.
 
 On 30 October 2026, the visible “Checking access” loading card was removed. The session check still runs before the entry form or calculator appears; the header stays visible while it completes.
 

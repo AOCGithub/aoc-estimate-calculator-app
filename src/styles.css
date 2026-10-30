@@ -346,6 +346,12 @@ button.primary:not(:disabled):active {
   gap: 0 16px;
 }
 
+.access-saving-choice { margin: 4px 0 20px; }
+.access-saving-choice label { display: flex; align-items: flex-start; gap: 9px; min-height: 44px; margin: 0; cursor: pointer; }
+.access-saving-choice input { width: auto; flex: 0 0 auto; margin: 5px 0 0; }
+.access-saving-choice p { margin: 4px 0 0; font-size: 11px; line-height: 1.6; }
+.session-saving-note { margin: 0 0 16px; color: var(--muted); font-size: 12px; }
+
 .access-field {
   margin-bottom: 17px;
 }

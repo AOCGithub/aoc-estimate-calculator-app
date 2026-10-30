@@ -17,7 +17,7 @@ const environment = {
 };
 const payload = { area: fixture.area, confirmed: true,
   answers: Object.fromEntries(Object.entries(fixture).filter(([key]) => !['area', 'process_confirmed'].includes(key))) };
-const profile = { name: 'Synthetic Person', company: 'Example Company', website: 'example.com', role: 'Testing', businessEmail: 'not-approved@example.com' };
+const profile = { name: 'Synthetic Person', company: 'Example Company', website: 'example.com', role: 'Testing', businessEmail: 'not-approved@example.com', saveData: true };
 const analysis = { title: 'Invoices', summary: 'Monthly invoices', solution: 'workflow', recommendationReason: 'Defined rules',
   classification: { steps: 2, variations: 1, decisions: null, reason: 'Several steps' }, routes: ['Create and send invoices'],
   facts: [{ id: 'systems', value: 'Wave', quote: 'Wave' }], relevantFields: [], uncertainties: [] };
@@ -52,7 +52,7 @@ try {
   let response = await originalFetch(origin + '/');
   assert.equal(response.status, 404, 'Non-API requests pass through to Vite.');
   response = await originalFetch(origin + '/api/access/status?check=1');
-  assert.deepEqual(await response.json(), { enabled: true, configured: true, authenticated: false, requestsEnabled: true, intakeOnly: true, recordsEnabled: true });
+  assert.deepEqual(await response.json(), { enabled: true, configured: true, authenticated: false, requestsEnabled: true, intakeOnly: true, recordsEnabled: true, savingAvailable: true, saveData: false });
   assert.equal(response.headers.get('cache-control'), 'no-store');
   response = await originalFetch(origin + '/api/journey/calculate');
   assert.equal(response.status, 405);

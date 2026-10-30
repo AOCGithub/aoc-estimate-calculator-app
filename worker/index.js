@@ -26,7 +26,8 @@ async function calculateJourney(request, url, env) {
     let record;
     if (AOCEstimateRecords.enabled(env)) {
       const session = JSON.parse(new TextDecoder().decode(accessDecodeBase64Url(accessCookie(request).split('.')[0])));
-      record = await AOCEstimateRecords.save(AOCAccessRequests.configuration(env), session.requestId, body, calculation, AOCPricing.version);
+      record = session.saveData !== true ? { saved: false, skipped: true }
+        : await AOCEstimateRecords.save(AOCAccessRequests.configuration(env), session.requestId, body, calculation, AOCPricing.version);
     }
     return json({ ...calculation, source: 'server', ...(record ? { record } : {}) });
   } catch (error) {

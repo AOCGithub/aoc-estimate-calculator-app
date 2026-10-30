@@ -545,7 +545,7 @@ export function useEstimator() {
     return {
       ok: true,
       message: source === 'server'
-        ? record?.saved === false ? record.error : record?.saved === true
+        ? record?.skipped ? 'Estimate calculated for this session. It was not saved.' : record?.saved === false ? record.error : record?.saved === true
           ? 'Estimate calculated and saved.' : 'Estimate calculated and verified by the server.'
         : 'Server calculation is unavailable; showing a local preview that requires server verification.',
     };
