@@ -6,6 +6,14 @@ Scope: Production verification required by the Phase 1 checklist
 
 Pricing scope: the active calculator uses the reviewed 21 October commercial rules. The live workbook was rechecked through its 24 October modification; unapproved hours, support prices, coverage, and allowances remain pending.
 
+## Voice input release — 30 October 2026
+
+Published application commit `d53a50e25252e0f297395d99e9e04b5250a0dd40`. Vercel reported Ready for the production deployment, with `AOC_VOICE_ENABLED=true` and `AOC_DESCRIPTION_CORRECTION_ENABLED=true`. Both features use the existing server-side OpenAI key; the page permits microphone access from its own origin.
+
+Passed on the live AOC domain using synthetic audio at 1440px and 390px: microphone preparation, words appearing before Stop, final transcription, editable captured text, preservation of existing typed text, no horizontal overflow, and logout. “Testing” was correct on its first occurrence in both live and final transcripts, including the single-word mobile-viewport sample. One additional live desktop spelling check corrected typed misspellings, preserved the amount and draft-only/approval restrictions, and supported Undo. Database saving stayed off for both test sessions. These checks used two short audio sessions and one text-correction request; no physical microphone, customer audio or saved form/estimate records were used.
+
+The full local regression suite passed before publication. Physical phone browsers, microphones and accent/noise coverage remain separate from these synthetic Chromium checks. See [voice maintenance instructions](LIVE-VOICE-INPUT.md).
+
 ## Optional saving release — 30 October 2026
 
 Published application commit `a40900289440b18b5270a4af556afe4a11b17637` to the live AOC domain. The saving checkbox starts unchecked. Without explicit selection, entry and calculation work without writing business details or estimate records to AOC's database. Selecting it retains the linked saving flow. Ending a session clears answers held on the page; existing database records are preserved.

@@ -148,8 +148,9 @@ try {
     await page.getByRole('button', { name: 'Continue to calculator', exact: true }).waitFor();
   }
   const result = { passed: true, target: origin, width, submittedRecords: 0, voiceStarts, correctionRequests,
-    correctionAndUndoPassed: checkCorrection, syntheticAudioOnly: true, speechStartedAfterListening: true,
-    elapsedMs: Date.now() - started, providerRequests, partial, final, firstWord, expectedFirst, liveDeltasBeforeStop: true };
+    correctionAndUndoPassed: checkCorrection ? true : null, syntheticAudioOnly: true, speechStartedAfterListening: true,
+    elapsedMs: Date.now() - started, providerRequests: production ? null : providerRequests,
+    partial, final, firstWord, expectedFirst, liveDeltasBeforeStop: true };
   console.log(JSON.stringify(result));
   await writeFile(`artifacts/live-voice-${production ? 'production' : 'local'}-${width}.json`, JSON.stringify(result, null, 2));
   await page.screenshot({ path: `artifacts/live-voice-${production ? 'production' : 'local'}-${width}.png`, fullPage: true });
