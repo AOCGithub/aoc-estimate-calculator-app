@@ -1,3 +1,3 @@
-import { handleJourneyAnalysis } from '../_shared.mjs';
+import { handleJourneyAnalysis } from '../../server/api-handlers.mjs';
 
-export default { fetch: handleJourneyAnalysis };
+export default { fetch: request => handleJourneyAnalysis(request) };

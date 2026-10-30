@@ -149,7 +149,7 @@ export default function App() {
         </div>
             <div className="preview-note">
           <strong>About your estimate.</strong> Prices are indicative calculations and are not an
-          approved quote. {access.enabled ? 'Access is limited to AOC-approved participants. ' : ''}
+          approved quote. {access.enabled && !access.intakeOnly ? 'Access is limited to AOC-approved participants. ' : ''}
           Don’t enter passwords or private customer records.
         </div>
           </>
@@ -162,7 +162,7 @@ export default function App() {
             </p>
             <p>
               <strong>Estimate notice.</strong> Prices are indicative calculations and are not an
-              approved quote. {access.enabled ? 'Access is limited to AOC-approved participants. ' : ''}
+              approved quote. {access.enabled && !access.intakeOnly ? 'Access is limited to AOC-approved participants. ' : ''}
               Do not enter passwords or private customer records.
             </p>
           </details>

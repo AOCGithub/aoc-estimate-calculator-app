@@ -16,6 +16,7 @@ The default page is the seven-section estimate journey. Previous interfaces are 
 - `data/` — versioned workbook and regression snapshots; never served publicly.
 - `docs/` — implementation handoff, release constraints, and deployment instructions.
 - `api/` — Vercel Function adapters for the existing calculator and organizer contracts.
+- `server/` — shared Node API handlers, private persistence helpers, and the thin Vite API adapter.
 - `legacy/` — pre-React interfaces retained for reconciliation; excluded from builds.
 - `dist/` — generated output from `npm run build:worker`.
 
@@ -25,6 +26,8 @@ The user interface is a React 19 application built with Vite 6. Use Node 20 or n
 npm install
 npm run dev
 ```
+
+The current local command starts the five-field entry form with Supabase saving, then opens the estimator immediately without email verification or approval. It uses the linked Vercel project's server environment, so Vercel CLI access and the local session-secret configuration are required. See [temporary entry](docs/TEMPORARY-INTAKE-ACCESS.md). Production settings are not changed by this command.
 
 The local organizer is the default and requires no external API. It conservatively prefills facts
 that are explicitly stated and leaves pricing-sensitive answers for review. OpenAI organization is

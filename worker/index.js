@@ -7,7 +7,7 @@ function json(body, status = 200) {
   });
 }
 
-async function calculateJourney(request, url) {
+async function calculateJourney(request, url, env) {
   if (request.headers.get('origin') !== url.origin) {
     return json({ error: 'Use this estimator page.' }, 403);
   }
@@ -21,8 +21,14 @@ async function calculateJourney(request, url) {
   try {
     const raw = await request.text();
     if (raw.length > 100000) return json({ error: 'The calculation request is too large.' }, 413);
-    const calculation = AOCJourneyCalculation.calculate(JSON.parse(raw));
-    return json({ ...calculation, source: 'server' });
+    const body = JSON.parse(raw);
+    const calculation = AOCJourneyCalculation.calculate(body);
+    let record;
+    if (AOCEstimateRecords.enabled(env)) {
+      const session = JSON.parse(new TextDecoder().decode(accessDecodeBase64Url(accessCookie(request).split('.')[0])));
+      record = await AOCEstimateRecords.save(AOCAccessRequests.configuration(env), session.requestId, body, calculation, AOCPricing.version);
+    }
+    return json({ ...calculation, source: 'server', ...(record ? { record } : {}) });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : 'Could not read the calculation request.' }, 400);
   }
@@ -34,13 +40,15 @@ export default {
 
     if (url.pathname === '/api/access/status') return accessStatusAPI(request, env);
     if (url.pathname === '/api/access/verify') return accessVerifyAPI(request, env, url);
-    if (url.pathname === '/api/access/logout') return accessLogoutAPI(request, url);
+    if (url.pathname === '/api/access/logout') return accessLogoutAPI(request, url, env);
+    if (url.pathname === '/api/access/redeem') return AOCManualAccess.enabled(env)
+      ? AOCManualAccess.handle(request, env, 'redeem') : json({ error: 'Not found.' }, 404);
 
     if (url.pathname === "/api/journey/calculate") {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
       const accessError = await requireWorkerAccess(request, env);
       if (accessError) return accessError;
-      return calculateJourney(request, url);
+      return calculateJourney(request, url, env);
     }
 
     if (url.pathname === "/api/journey/analyze") {

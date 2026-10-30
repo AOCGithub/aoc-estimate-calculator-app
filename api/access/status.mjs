@@ -1,5 +1,3 @@
-import { handleAccessStatus } from '../_shared.mjs';
+import { handleAccessStatus } from '../../server/api-handlers.mjs';
 
-export default function handler(request) {
-  return handleAccessStatus(request);
-}
+export default { fetch: request => handleAccessStatus(request) };

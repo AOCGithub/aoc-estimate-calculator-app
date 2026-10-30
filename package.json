@@ -3,19 +3,35 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "npm run dev:access",
+    "dev:access": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-access.mjs",
+    "dev:access:previous": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-access.mjs --previous",
+    "dev:access:review": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-access.mjs --review",
+    "access:manual:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/manual-access-database.mjs setup",
+    "access:manual:check": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/manual-access-database.mjs check",
+    "access:invite": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/issue-access-invitation.mjs",
+    "access:db:check": "node scripts/access-database.mjs check",
+    "access:db:setup": "node scripts/access-database.mjs setup",
+    "access:db:test": "node scripts/access-database.mjs test",
+    "estimates:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/estimate-database.mjs setup",
+    "estimates:db:check": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/estimate-database.mjs check",
+    "preview:test-pricing": "npm run build && node scripts/local-test-pricing.cjs",
     "build": "vite build",
     "build:worker": "npm run build && node scripts/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:domain": "node tests/test-journey.cjs && node tests/test-commercial.cjs",
+    "test:local-pricing": "node tests/test-local-pricing.cjs && node tests/test-local-pricing-ui.cjs",
     "test:worker": "node tests/test-journey-worker.cjs",
     "test:intake": "node tests/test-voice-server.cjs",
     "test:vercel": "node tests/test-vercel-api.mjs",
-    "test:access": "node tests/test-access.mjs",
+    "test:local-api": "node tests/test-local-api.mjs",
+    "test:access": "node tests/test-access.mjs && node tests/test-access-requests.mjs && node tests/test-manual-access.mjs && node tests/test-intake-access.mjs && node tests/test-estimate-records.mjs",
+    "test:manual-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-manual-access-database-ui.mjs",
+    "test:intake-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-intake-access-database-ui.mjs",
     "test:access-ui": "node tests/test-access-ui.cjs",
     "test:ui": "node tests/test-react-ui.cjs",
     "test:ui:capture": "node tests/test-react-ui.cjs --capture",
-    "test": "npm run build:worker && npm run test:access && npm run test:access-ui && npm run test:domain && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:ui && node scripts/validate-artifact.mjs"
+    "test": "npm run build:worker && npm run test:access && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:ui && node scripts/validate-artifact.mjs"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
@@ -25,6 +41,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "playwright-core": "^1.64.1",
+    "postgres": "3.4.9",
     "vite": "^6.1.0"
   }
 }

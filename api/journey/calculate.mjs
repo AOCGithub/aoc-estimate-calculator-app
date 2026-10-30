@@ -1,3 +1,3 @@
-import { handleJourneyCalculation } from '../_shared.mjs';
+import { handleJourneyCalculation } from '../../server/api-handlers.mjs';
 
-export default { fetch: handleJourneyCalculation };
+export default { fetch: request => handleJourneyCalculation(request) };

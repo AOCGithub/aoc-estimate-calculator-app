@@ -12,6 +12,11 @@ const originalEnabled = process.env.AOC_AI_ORGANIZER_ENABLED;
 const origin = 'https://aoc-estimate-calculator-app.vercel.app';
 
 try {
+  for (const path of ['access/status', 'access/verify', 'access/logout', 'access/redeem',
+    'journey/calculate', 'journey/analyze', 'intake/status', 'intake/analyze', 'intake/transcribe']) {
+    const route = await import('../api/' + path + '.mjs');
+    assert.equal(typeof route.default.fetch, 'function', path + ' must use the Web Request/Response entry format.');
+  }
   const {area:fixtureArea,process_confirmed:fixtureConfirmed,management:fixtureManagement,...quoteAnswers}=commercialFixture;
   const calculation = {
     area: 'area0',

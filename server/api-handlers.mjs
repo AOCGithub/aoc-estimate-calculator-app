@@ -1,9 +1,13 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import Bank from '../public/approved-bank.js';
 import JourneyCalculation from '../public/journey-calculation.js';
 import JourneyContract from '../public/journey-contract.js';
 import IntakeContract from '../public/intake-contract.js';
 import CatalogData from '../public/catalog.js';
+import AccessRequests from './access-requests.cjs';
+import ManualAccess from './manual-access.cjs';
+import EstimateRecords from './estimate-records.cjs';
+import Pricing from '../public/approved-pricing.js';
 
 const buckets = new Map();
 const ACCESS_COOKIE = 'aoc_estimator_access';
@@ -26,8 +30,8 @@ function sameOrigin(request) {
   return request.headers.get('origin') === new URL(request.url).origin;
 }
 
-function accessEnabled() {
-  return process.env.AOC_ACCESS_GATE_ENABLED === 'true';
+function accessEnabled(environment) {
+  return environment.AOC_ACCESS_GATE_ENABLED === 'true';
 }
 
 function accessSubject(email) {
@@ -39,10 +43,10 @@ function basicEmail(value) {
   return parts.length === 2 && parts[0].length > 0 && parts[1].length > 0 && !/\s/u.test(value);
 }
 
-function accessConfiguration() {
+function accessConfiguration(environment) {
   let approvals = [];
   try {
-    const parsed = JSON.parse(process.env.AOC_APPROVED_EMAILS || '[]');
+    const parsed = JSON.parse(environment.AOC_APPROVED_EMAILS || '[]');
     if (Array.isArray(parsed)) {
       approvals = parsed
         .map(item => typeof item === 'string' ? item.trim().toLowerCase() : '')
@@ -52,10 +56,13 @@ function accessConfiguration() {
   } catch {
     approvals = [];
   }
-  const secret = String(process.env.AOC_ACCESS_SESSION_SECRET || '');
-  const requestedHours = Number(process.env.AOC_ACCESS_SESSION_HOURS || 8);
+  const secret = String(environment.AOC_ACCESS_SESSION_SECRET || '');
+  const requestedHours = Number(environment.AOC_ACCESS_SESSION_HOURS || 8);
   const hours = Number.isFinite(requestedHours) ? Math.min(24, Math.max(1, requestedHours)) : 8;
-  return { approvals, secret, hours, configured: approvals.length > 0 && secret.length >= 32 };
+  const requests = AccessRequests.configuration(environment);
+  const intakeOnly = environment.AOC_INTAKE_ONLY_ENABLED === 'true';
+  return { approvals, secret, hours, requests, intakeOnly, environment, configured: secret.length >= 32
+    && (intakeOnly ? requests.enabled && requests.configured : requests.enabled ? requests.configured : approvals.length > 0) };
 }
 
 function accessCookie(request) {
@@ -76,12 +83,14 @@ function signAccessPayload(payload, secret) {
   return createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-function createAccessSession(secret, hours, subject) {
+function createAccessSession(secret, hours, subject, mode = 'allowlist', requestId = null) {
   const payload = Buffer.from(JSON.stringify({
     version: 1,
     expires: Date.now() + hours * 60 * 60 * 1000,
     nonce: randomBytes(16).toString('base64url'),
     subject,
+    mode,
+    ...(requestId ? { requestId } : {}),
   })).toString('base64url');
   return `${payload}.${signAccessPayload(payload, secret)}`;
 }
@@ -97,7 +106,9 @@ function validAccessSession(request, configuration) {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     return data.version === 1
       && Number(data.expires) > Date.now()
-      && configuration.approvals.some(item => safeEqual(item.subject, data.subject));
+      && (!EstimateRecords.enabled(configuration.environment) || EstimateRecords.validId(data.requestId))
+      && (configuration.intakeOnly ? data.mode === 'intake'
+        : data.mode !== 'intake' && configuration.approvals.some(item => safeEqual(item.subject, data.subject)));
   } catch {
     return false;
   }
@@ -139,39 +150,60 @@ function validateAccessProfile(body) {
   return { profile };
 }
 
-async function requireAccess(request) {
-  if (!accessEnabled()) return null;
-  const configuration = accessConfiguration();
+async function requireAccess(request, environment = process.env) {
+  if (ManualAccess.enabled(environment)) return ManualAccess.requireAccess(request, environment);
+  if (!accessEnabled(environment)) return null;
+  const configuration = accessConfiguration(environment);
   if (!configuration.configured) return json({ error: 'Access verification is not configured.' }, 503);
   if (!validAccessSession(request, configuration)) return json({ error: 'Access verification is required.' }, 401);
   return null;
 }
 
-export function handleAccessStatus(request) {
+export function handleAccessStatus(request, environment = process.env) {
+  if (ManualAccess.enabled(environment)) return ManualAccess.handle(request, environment, 'status');
   const methodError = method(request, 'GET');
   if (methodError) return methodError;
-  if (!accessEnabled()) return json({ enabled: false, configured: true, authenticated: true });
-  const configuration = accessConfiguration();
+  if (!accessEnabled(environment)) return json({ enabled: false, configured: true, authenticated: true });
+  const configuration = accessConfiguration(environment);
   return json({
     enabled: true,
     configured: configuration.configured,
     authenticated: configuration.configured && validAccessSession(request, configuration),
+    ...(configuration.requests.enabled ? { requestsEnabled: true } : {}),
+    ...(configuration.intakeOnly ? { intakeOnly: true } : {}),
+    ...(EstimateRecords.enabled(environment) ? { recordsEnabled: true } : {}),
   });
 }
 
-export async function handleAccessVerification(request) {
+export async function handleAccessVerification(request, environment = process.env) {
+  if (ManualAccess.enabled(environment)) return ManualAccess.handle(request, environment, 'verify');
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
-  if (!accessEnabled()) return json({ enabled: false, authenticated: true });
-  const configuration = accessConfiguration();
+  if (!accessEnabled(environment)) return json({ enabled: false, authenticated: true });
+  const configuration = accessConfiguration(environment);
   if (!configuration.configured) return json({ error: 'Access verification is not configured.' }, 503);
   if (!consumeRateLimit(request, 'access')) return json({ error: 'Too many access attempts. Try again later.' }, 429);
   const parsed = await readJson(request, 10000);
   if (parsed.response) return parsed.response;
   const validated = validateAccessProfile(parsed.body);
   if (validated.error) return json({ error: validated.error }, 400);
+  const requestId = EstimateRecords.enabled(environment) ? randomUUID() : null;
+  if (configuration.requests.enabled) {
+    try {
+      await AccessRequests.save(configuration.requests, validated.profile, requestId);
+    } catch {
+      return json({ error: 'We could not save your access request. Your details are still here; please try again later.' }, 503);
+    }
+  }
+  if (configuration.intakeOnly) {
+    const session = createAccessSession(configuration.secret, configuration.hours, accessSubject(validated.profile.businessEmail), 'intake', requestId);
+    const response = json({ enabled: true, authenticated: true });
+    response.headers.set('set-cookie', accessCookieHeader(request, session, configuration.hours * 60 * 60));
+    return response;
+  }
   const approval = configuration.approvals.find(item => safeEqual(item.email, validated.profile.businessEmail));
+  if (!approval && configuration.requests.enabled) return json({ enabled: true, authenticated: false, pending: true }, 202);
   if (!approval) return json({ error: 'This business email is not approved for calculator access.' }, 403);
   const session = createAccessSession(configuration.secret, configuration.hours, approval.subject);
   const response = json({ enabled: true, authenticated: true });
@@ -179,7 +211,8 @@ export async function handleAccessVerification(request) {
   return response;
 }
 
-export function handleAccessLogout(request) {
+export function handleAccessLogout(request, environment = process.env) {
+  if (ManualAccess.enabled(environment)) return ManualAccess.handle(request, environment, 'logout');
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
@@ -188,8 +221,15 @@ export function handleAccessLogout(request) {
   return response;
 }
 
+export function handleAccessRedemption(request, environment = process.env) {
+  if (!ManualAccess.enabled(environment)) return json({ error: 'Not found.' }, 404);
+  return ManualAccess.handle(request, environment, 'redeem');
+}
+
 function consumeRateLimit(request, prefix) {
-  const id = `${prefix}:${request.headers.get('oai-authenticated-user-id') || 'public-pilot'}`;
+  // Access requests are public: never let a caller-supplied identity header bypass the write limit.
+  const identity = prefix === 'access' ? 'public-pilot' : request.headers.get('oai-authenticated-user-id') || 'public-pilot';
+  const id = `${prefix}:${identity}`;
   const now = Date.now();
   for (const [key, value] of buckets) {
     if (now - value.start > 3600000) buckets.delete(key);
@@ -217,28 +257,35 @@ async function readJson(request, maximumLength) {
   }
 }
 
-export async function handleJourneyCalculation(request) {
+export async function handleJourneyCalculation(request, environment = process.env) {
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
-  const accessError = await requireAccess(request);
+  const accessError = await requireAccess(request, environment);
   if (accessError) return accessError;
   const parsed = await readJson(request, 100000);
   if (parsed.response) return parsed.response;
   try {
-    return json({ ...JourneyCalculation.calculate(parsed.body), source: 'server' });
+    const calculation = JourneyCalculation.calculate(parsed.body);
+    let record;
+    if (EstimateRecords.enabled(environment)) {
+      // requireAccess already verified signature, mode and expiry before decoding.
+      const session = JSON.parse(Buffer.from(accessCookie(request).split('.')[0], 'base64url').toString('utf8'));
+      record = await EstimateRecords.save(AccessRequests.configuration(environment), session.requestId, parsed.body, calculation, Pricing.version);
+    }
+    return json({ ...calculation, source: 'server', ...(record ? { record } : {}) });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : 'Could not read the calculation request.' }, 400);
   }
 }
 
-export async function handleJourneyAnalysis(request) {
+export async function handleJourneyAnalysis(request, environment = process.env) {
   const methodError = method(request, 'POST');
   if (methodError) return methodError;
   if (!sameOrigin(request)) return json({ error: 'Use this estimator page.' }, 403);
-  const accessError = await requireAccess(request);
+  const accessError = await requireAccess(request, environment);
   if (accessError) return accessError;
-  if (process.env.AOC_AI_ORGANIZER_ENABLED !== 'true' || !process.env.OPENAI_API_KEY) {
+  if (environment.AOC_AI_ORGANIZER_ENABLED !== 'true' || !environment.OPENAI_API_KEY) {
     return json({ localFallback: true, mode: 'local' });
   }
   const parsed = await readJson(request, 30000);
@@ -254,9 +301,9 @@ export async function handleJourneyAnalysis(request) {
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${environment.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: process.env.AOC_INTAKE_MODEL || 'gpt-5.4',
+        model: environment.AOC_INTAKE_MODEL || 'gpt-5.4',
         store: false,
         instructions: JourneyContract.prompt(body.area),
         input: body.text,

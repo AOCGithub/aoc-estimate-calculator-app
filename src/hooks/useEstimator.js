@@ -498,6 +498,7 @@ export function useEstimator() {
     let result;
     let source = 'server';
     let response;
+    let record;
     try {
       response = await fetch('/api/journey/calculate', {
         method: 'POST',
@@ -520,6 +521,7 @@ export function useEstimator() {
 
       if (response.ok && payload?.result) {
         result = payload.result;
+        record = payload.record;
       } else if (response.status >= 400 && response.status < 500) {
         if (request !== requestRef.current) return { ok: false, stale: true };
         setState((current) => ({ ...current, calculating: false }));
@@ -543,7 +545,8 @@ export function useEstimator() {
     return {
       ok: true,
       message: source === 'server'
-        ? 'Estimate calculated and verified by the server.'
+        ? record?.saved === false ? record.error : record?.saved === true
+          ? 'Estimate calculated and saved.' : 'Estimate calculated and verified by the server.'
         : 'Server calculation is unavailable; showing a local preview that requires server verification.',
     };
   }, [state.answers, state.area, state.confirmed]);

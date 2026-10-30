@@ -1,3 +1,3 @@
-import { handleIntakeStatus } from '../_shared.mjs';
+import { handleIntakeStatus } from '../../server/api-handlers.mjs';
 
 export default { fetch: handleIntakeStatus };

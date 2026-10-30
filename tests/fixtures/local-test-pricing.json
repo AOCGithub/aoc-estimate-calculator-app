@@ -1,0 +1,10 @@
+{
+  "testOnly": true,
+  "label": "SYNTHETIC LOCAL TEST DATA - NOT APPROVED AOC PRICING",
+  "supportPrices": { "standard": 300, "priority": 625, "premier": 1000 },
+  "monthlyProposals": {
+    "level1": { "hours": 16, "blend": 250 },
+    "level2": { "hours": 28, "blend": 250 },
+    "level3": { "hours": 40, "blend": 250 }
+  }
+}

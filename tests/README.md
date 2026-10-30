@@ -10,6 +10,10 @@ The maintained React-era regression suite is:
 
 `npm test` builds the current client and packaged Worker before running tests that inspect generated artifacts.
 
+It also runs `test-local-api.mjs` against a real local HTTP listener with synthetic providers, covering the thin Vite adapter and shared Node handlers without paid AI calls. `test-vercel-api.mjs` checks the Web Request/Response export format of every API entry. Real Supabase/browser journeys remain explicit opt-in tests (`test:intake-access:db` and `test:manual-access:db`); the latter accepts a localhost-only `AOC_TEST_BASE_URL` for an isolated review-mode preview.
+
+For the deployed submit-and-enter flow, `npm run test:intake-access:db -- --live` explicitly tests the AOC production domain. It saves and removes only its synthetic database rows and makes one paid advertising AI-prefill request in total. Omitting `--live` keeps the test on localhost with no paid AI calls. The older `test-production-ai.cjs` suite below predates gated entry; use the gated smoke test for this release.
+
 The browser suite includes fixed-project and monthly-program desktop/mobile journeys, conditional agreement/quote fields, plan switching/removal and stale results. Fixture quote amounts and agreed hours/rates are synthetic test data, not newly approved prices.
 
 For two opt-in live-provider checks against the current local API code, run `node --env-file=.env.local tests/test-commercial-ai.mjs --live`. This uses synthetic text and saves `artifacts/commercial-ai-results.json`. It does not deploy or certify the live website. Never commit the key or local artifact.

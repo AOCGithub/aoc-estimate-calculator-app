@@ -1,5 +1,3 @@
-import { handleAccessVerification } from '../_shared.mjs';
+import { handleAccessVerification } from '../../server/api-handlers.mjs';
 
-export default async function handler(request) {
-  return handleAccessVerification(request);
-}
+export default { fetch: request => handleAccessVerification(request) };

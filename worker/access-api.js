@@ -48,7 +48,10 @@ async function accessGateConfiguration(env) {
   const secret = String(env.AOC_ACCESS_SESSION_SECRET || '');
   const requestedHours = Number(env.AOC_ACCESS_SESSION_HOURS || 8);
   const hours = Number.isFinite(requestedHours) ? Math.min(24, Math.max(1, requestedHours)) : 8;
-  return { approvals, secret, hours, configured: approvals.length > 0 && secret.length >= 32 };
+  const requests = AOCAccessRequests.configuration(env);
+  const intakeOnly = env.AOC_INTAKE_ONLY_ENABLED === 'true';
+  return { approvals, secret, hours, requests, intakeOnly, environment: env, configured: secret.length >= 32
+    && (intakeOnly ? requests.enabled && requests.configured : requests.enabled ? requests.configured : approvals.length > 0) };
 }
 
 async function accessSafeEqual(left, right) {
@@ -87,6 +90,9 @@ async function accessSessionValid(request, configuration) {
   try {
     const data = JSON.parse(new TextDecoder().decode(accessDecodeBase64Url(payload)));
     if (data.version !== 1 || Number(data.expires) <= Date.now()) return false;
+    if (AOCEstimateRecords.enabled(configuration.environment) && !AOCEstimateRecords.validId(data.requestId)) return false;
+    if (configuration.intakeOnly) return data.mode === 'intake';
+    if (data.mode === 'intake') return false;
     const matches = await Promise.all(configuration.approvals.map(item => accessSafeEqual(item.subject, data.subject)));
     return matches.some(Boolean);
   } catch {
@@ -94,7 +100,7 @@ async function accessSessionValid(request, configuration) {
   }
 }
 
-async function createAccessSession(configuration, subject) {
+async function createAccessSession(configuration, subject, mode = 'allowlist', requestId = null) {
   const nonce = new Uint8Array(16);
   crypto.getRandomValues(nonce);
   const payload = accessBase64Url(accessEncoder.encode(JSON.stringify({
@@ -102,6 +108,8 @@ async function createAccessSession(configuration, subject) {
     expires: Date.now() + configuration.hours * 60 * 60 * 1000,
     nonce: accessBase64Url(nonce),
     subject,
+    mode,
+    ...(requestId ? { requestId } : {}),
   })));
   return payload + '.' + await accessSignature(payload, configuration.secret);
 }
@@ -155,6 +163,7 @@ async function readAccessRequest(request) {
 }
 
 async function requireWorkerAccess(request, env) {
+  if (AOCManualAccess.enabled(env)) return AOCManualAccess.requireAccess(request, env);
   if (!accessGateEnabled(env)) return null;
   const configuration = await accessGateConfiguration(env);
   if (!configuration.configured) return json({ error: 'Access verification is not configured.' }, 503);
@@ -163,6 +172,7 @@ async function requireWorkerAccess(request, env) {
 }
 
 async function accessStatusAPI(request, env) {
+  if (AOCManualAccess.enabled(env)) return AOCManualAccess.handle(request, env, 'status');
   if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
   if (!accessGateEnabled(env)) return json({ enabled: false, configured: true, authenticated: true });
   const configuration = await accessGateConfiguration(env);
@@ -170,10 +180,14 @@ async function accessStatusAPI(request, env) {
     enabled: true,
     configured: configuration.configured,
     authenticated: configuration.configured && await accessSessionValid(request, configuration),
+    ...(configuration.requests.enabled ? { requestsEnabled: true } : {}),
+    ...(configuration.intakeOnly ? { intakeOnly: true } : {}),
+    ...(AOCEstimateRecords.enabled(env) ? { recordsEnabled: true } : {}),
   });
 }
 
 async function accessVerifyAPI(request, env, url) {
+  if (AOCManualAccess.enabled(env)) return AOCManualAccess.handle(request, env, 'verify');
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
   if (request.headers.get('origin') !== url.origin) return json({ error: 'Use this estimator page.' }, 403);
   if (!accessGateEnabled(env)) return json({ enabled: false, authenticated: true });
@@ -193,8 +207,23 @@ async function accessVerifyAPI(request, env, url) {
   if (parsed.response) return parsed.response;
   const validated = validateAccessRequest(parsed.body);
   if (validated.error) return json({ error: validated.error }, 400);
+  const requestId = AOCEstimateRecords.enabled(env) ? crypto.randomUUID() : null;
+  if (configuration.requests.enabled) {
+    try {
+      await AOCAccessRequests.save(configuration.requests, validated.profile, requestId);
+    } catch {
+      return json({ error: 'We could not save your access request. Your details are still here; please try again later.' }, 503);
+    }
+  }
+  if (configuration.intakeOnly) {
+    const response = json({ enabled: true, authenticated: true });
+    response.headers.set('set-cookie', accessCookieHeader(request,
+      await createAccessSession(configuration, await accessSubject(validated.profile.businessEmail), 'intake', requestId), configuration.hours * 60 * 60));
+    return response;
+  }
   const matches = await Promise.all(configuration.approvals.map(item => accessSafeEqual(item.email, validated.profile.businessEmail)));
   const approval = configuration.approvals[matches.findIndex(Boolean)];
+  if (!approval && configuration.requests.enabled) return json({ enabled: true, authenticated: false, pending: true }, 202);
   if (!approval) return json({ error: 'This business email is not approved for calculator access.' }, 403);
   const response = json({ enabled: true, authenticated: true });
   response.headers.set('set-cookie', accessCookieHeader(
@@ -205,7 +234,8 @@ async function accessVerifyAPI(request, env, url) {
   return response;
 }
 
-function accessLogoutAPI(request, url) {
+function accessLogoutAPI(request, url, env) {
+  if (AOCManualAccess.enabled(env)) return AOCManualAccess.handle(request, env, 'logout');
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
   if (request.headers.get('origin') !== url.origin) return json({ error: 'Use this estimator page.' }, 403);
   const response = json({ authenticated: false });

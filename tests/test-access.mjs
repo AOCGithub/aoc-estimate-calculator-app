@@ -5,7 +5,7 @@ import {
   handleAccessStatus,
   handleAccessVerification,
   handleJourneyCalculation,
-} from '../api/_shared.mjs';
+} from '../server/api-handlers.mjs';
 
 const require = createRequire(import.meta.url);
 const fixture = require('./fixtures/commercial.cjs');

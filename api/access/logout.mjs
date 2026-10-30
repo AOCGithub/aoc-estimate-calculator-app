@@ -1,5 +1,3 @@
-import { handleAccessLogout } from '../_shared.mjs';
+import { handleAccessLogout } from '../../server/api-handlers.mjs';
 
-export default function handler(request) {
-  return handleAccessLogout(request);
-}
+export default { fetch: request => handleAccessLogout(request) };

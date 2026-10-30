@@ -80,7 +80,8 @@ button.primary:not(:disabled):active {
 .access-page {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  /* Decorative overflow must not create a scroll container that shifts on focus. */
+  overflow: clip;
   background:
     radial-gradient(circle at 10% 18%, rgb(8 123 121 / 9%), transparent 26%),
     radial-gradient(circle at 90% 78%, rgb(190 145 70 / 8%), transparent 25%),
