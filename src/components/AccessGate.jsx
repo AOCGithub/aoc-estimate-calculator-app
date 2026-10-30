@@ -11,13 +11,7 @@ export function AccessGate({ access }) {
         <header className="access-header">
           <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
         </header>
-        <main className="access-shell">
-          <section className="access-card access-card--loading" aria-live="polite">
-            <div className="access-loading" aria-hidden="true" />
-            <h1>Checking access</h1>
-            <p>Please wait while we confirm your access.</p>
-          </section>
-        </main>
+        <main className="access-shell" aria-busy="true" aria-label="Loading calculator" />
       </div>
     );
   }

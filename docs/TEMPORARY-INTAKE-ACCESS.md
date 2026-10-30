@@ -12,6 +12,8 @@ Verification, AOC approval and private links are not required in this temporary 
 
 The five entry details and server-calculated estimate snapshots are now saved in [linked form and estimate tables](FORM-AND-ESTIMATE-RECORDS.md). No reusable profiles, email provider or marketing were added. Submissions use the connected Supabase database; they are not stored in a separate local database.
 
+On 30 October 2026, the visible “Checking access” loading card was removed. The session check still runs before the entry form or calculator appears; the header stays visible while it completes.
+
 On 30 October 2026, the standard `npm run dev` command was changed to use this same save-and-continue launcher. Previously it could start the older approval-only mode. The estimator also no longer shows the AOC-approval restriction notice while intake-only mode is active. Email format and required-field checks remain; email ownership verification, allowlist approval and invitations are not required in this mode.
 
 ## Restore review later
