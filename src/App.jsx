@@ -132,6 +132,10 @@ export default function App() {
         {access.enabled && (
           <button type="button" className="quiet" onClick={async () => {
             const outcome = await access.logout();
+            if (outcome?.ok) {
+              actions.restart();
+              setToast('');
+            }
             if (outcome?.message) notify(outcome.message);
           }}>End session</button>
         )}

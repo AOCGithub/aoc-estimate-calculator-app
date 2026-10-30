@@ -12,6 +12,8 @@ Verification, AOC approval and private links are not required in this temporary 
 
 When saving is selected, the five entry details and server-calculated estimate snapshots use [linked form and estimate tables](FORM-AND-ESTIMATE-RECORDS.md). The signed session carries the saving choice across refreshes. Missing consent and older sessions do not authorize new writes. Existing saved records are preserved. AI features still process descriptions submitted to them; the no-save choice applies to AOC's database. No reusable profiles, email provider or marketing were added.
 
+Ending a session clears the estimate held on the page, including unsaved answers, before another visitor enters. Previously saved database records are not removed.
+
 On 30 October 2026, the visible “Checking access” loading card was removed. The session check still runs before the entry form or calculator appears; the header stays visible while it completes.
 
 On 30 October 2026, the standard `npm run dev` command was changed to use this same save-and-continue launcher. Previously it could start the older approval-only mode. The estimator also no longer shows the AOC-approval restriction notice while intake-only mode is active. Email format and required-field checks remain; email ownership verification, allowlist approval and invitations are not required in this mode.

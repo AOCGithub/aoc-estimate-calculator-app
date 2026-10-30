@@ -177,6 +177,10 @@ try {
     assert.equal(await consent.isChecked(), false, 'Saving must default off again after logout.');
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
+    const privateState = await page.evaluate(() => globalThis.AOCJourney.getState());
+    assert.equal(privateState.description, '');
+    assert.deepEqual(privateState.answers, {}, 'Ending the previous session must clear private answers held on the page.');
+    assert.equal(privateState.result, null);
     const privateRows = await sql`select id from public.access_requests where company = ${company} and business_email = ${privateEmail}`;
     assert.equal(privateRows.length, 0, 'No-save entry must not create a form record.');
     const privateCalculation = await context.request.post(baseURL + '/api/journey/calculate', { headers: { origin: baseURL }, data: payload });
