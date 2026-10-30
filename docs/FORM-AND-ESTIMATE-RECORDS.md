@@ -1,6 +1,6 @@
 # Form and calculation records
 
-Implemented for local testing on 29 October 2026. Verification and approval remain paused; live app/settings are unchanged. The additive table is in the connected Supabase database, not a separate local database.
+Implemented locally on 29 October and deployed on 30 October 2026. Verification and approval remain paused. The live form and linked calculation saving passed desktop/mobile checks; see [production test results](PRODUCTION-TEST-RESULTS.md). Tables use the connected Supabase database, not a separate local database.
 
 ## Linked tables
 

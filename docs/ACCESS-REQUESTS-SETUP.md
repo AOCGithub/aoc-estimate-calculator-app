@@ -1,6 +1,6 @@
 # Access requests — Supabase Free
 
-Prepared locally only. No deployment, production gate enablement, or live access changes were made.
+Prepared locally on 29 October and published on 30 October 2026. The live estimator saves details and opens immediately without approval. See [production test results](PRODUCTION-TEST-RESULTS.md).
 
 The current local mode is [temporary save-and-continue entry](TEMPORARY-INTAKE-ACCESS.md): `npm run dev:access` saves the five details, then opens the calculator without verification or approval. Records remain pending. `npm run dev:access:review` restores [manual review and private invitations](MANUAL-ACCESS-TRIAL.md); `npm run dev:access:previous` restores the earlier provisional allowlist.
 
@@ -45,7 +45,7 @@ npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- 
 npm test
 ```
 
-The database test uses synthetic details and removes only its own test records. The server requires `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (legacy `SUPABASE_SERVICE_ROLE_KEY` fallback). `AOC_ACCESS_REQUESTS_ENABLED=true` enables saving; the browser/server gate flags must also be enabled together. These flags have **not** been enabled on the live site.
+The database test uses synthetic details and removes only its own test records. The server requires `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (legacy `SUPABASE_SERVICE_ROLE_KEY` fallback). Production now has request saving and both gate flags enabled, together with intake-only entry and estimate recording. Manual review is disabled; verification remains paused.
 
 ## Earlier review/allowlist test results — 29 October 2026
 

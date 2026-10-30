@@ -4,13 +4,15 @@ This repository is connected to Vercel. The Vite client is built into `dist/clie
 
 The current release is still a testing preview. Use synthetic information only. Do not present it as the qualified client calculator until the access gate, remaining commercial approvals, hosting-account review, and final launch checks are complete.
 
-## Current deployment status - 28 October 2026
+## Current deployment status - 30 October 2026
+
+The five-field entry form and linked calculation storage are now live in submit-and-enter mode. Production has `VITE_AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_REQUESTS_ENABLED`, `AOC_INTAKE_ONLY_ENABLED` and `AOC_ESTIMATE_RECORDS_ENABLED` set to `true`; `AOC_MANUAL_ACCESS_ENABLED=false`. The session secret and database/OpenAI credentials are server-only. Desktop/mobile live saving and one paid-advertising AI-prefill check passed; see [production test results](PRODUCTION-TEST-RESULTS.md).
 
 - AOC test hostname: `https://estimate.alwaysopencommerce.com/`
 - Vercel fallback hostname: `https://aoc-estimate-calculator.vercel.app/`
 - The AOC hostname resolves through the GoDaddy-managed `estimate` CNAME and loads successfully over HTTPS.
 - The production organizer is enabled and returned a validated response using commercial configuration version `2026-10-21-commercial-v1` on 28 October 2026.
-- The public test version does not have the later qualification gate. Do not enter private client records.
+- The live test version collects the five business details but does not verify email ownership or require AOC approval. Do not treat this as a completed qualification gate or enter private customer records.
 - Pushes to the configured production branch deploy automatically. Confirm Vercel reports **Ready** before starting live checks.
 
 ## Import from GitHub
@@ -37,7 +39,7 @@ Never use a `VITE_` prefix for the API key. For local development, copy `.env.ex
 
 Provider failure must preserve the typed description and fall back without blocking the visitor. AI prefill must apply only supported facts, leave unknowns blank, and preserve manual corrections.
 
-The Phase 2 five-field gate and server-side access foundation are implemented locally but disabled by default. Email ownership verification and AOC's approval workflow are not yet defined. Do not enable the gate for clients until those decisions are confirmed and implemented as described in [Phase 2 gated entry](PHASE-2-GATED-ENTRY.md). Do not enable only the browser flag or only the server flag.
+The five-field form, signed sessions and record storage are deployed in the explicitly requested submit-and-enter mode. Verification and approval are paused; the preserved manual-review mode is not enabled in production. Do not enable only the browser flag or only the server flag. A later verified-client release remains separate, as described in [Phase 2 gated entry](PHASE-2-GATED-ENTRY.md).
 
 ## Required commercial smoke test
 

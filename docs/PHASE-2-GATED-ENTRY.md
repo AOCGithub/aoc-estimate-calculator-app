@@ -1,6 +1,6 @@
 # Phase 2 gated entry
 
-Status: five-field gate and private Supabase request storage prepared locally. Live access remains unchanged. Email ownership verification is not implemented.
+Status — 30 October 2026: five-field entry and linked Supabase calculation storage are deployed. Submission opens the estimator without approval. Email ownership verification and mandatory AOC review remain paused, not completed. See [production test results](PRODUCTION-TEST-RESULTS.md).
 
 Verification and approval are now on hold at the user's request. The default local command uses [temporary save-and-continue entry](TEMPORARY-INTAKE-ACCESS.md): save the five details, then open the calculator immediately. Records remain pending. This convenience mode does not complete Task #8 verification or AOC review.
 
@@ -8,7 +8,7 @@ The preserved [manual-approval trial](MANUAL-ACCESS-TRIAL.md) is available with 
 
 The local gate collects the five Task #8 fields: name, company, website, role and business email. It does not request LinkedIn access or email-inbox access, save a reusable client profile, enroll anyone in marketing, or trigger unsolicited follow-up.
 
-The gate remains disabled by default and must not be enabled for client access until the open decisions below are confirmed and implemented.
+The example flags remain disabled by default. The live testing preview deliberately uses submit-and-enter mode; the verification/review decisions below still apply to a later qualified-client release.
 
 ## Implemented locally
 

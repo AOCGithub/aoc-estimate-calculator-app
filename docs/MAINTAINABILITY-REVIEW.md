@@ -2,6 +2,8 @@
 
 Scope: simplify existing implementation without removing features or publishing changes.
 
+Release follow-up: the reviewed changes were subsequently published with user authorization on 30 October 2026. See [production test results](PRODUCTION-TEST-RESULTS.md); the sections below record the preceding local review.
+
 ## Changes made
 
 - Share the five-field entry template in `src/components/fields/AccessDetailsFields.jsx`. Normal entry and the paused review form retain their existing field IDs, labels, limits, autocomplete settings and submission behavior.

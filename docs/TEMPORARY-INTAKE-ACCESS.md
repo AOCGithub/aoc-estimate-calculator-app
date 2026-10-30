@@ -1,6 +1,6 @@
 # Temporary local entry — verification on hold
 
-Requested on 29 October 2026. Local only; live access is unchanged.
+Requested on 29 October 2026 and published on 30 October 2026. The live estimator now uses the same submit-and-enter flow. See [production test results](PRODUCTION-TEST-RESULTS.md).
 
 ## Current flow
 
@@ -18,7 +18,7 @@ On 30 October 2026, the standard `npm run dev` command was changed to use this s
 
 Stop the local server, then run `npm run dev:access:review` for the preserved [manual-review/private-link flow](MANUAL-ACCESS-TRIAL.md). `npm run dev:access:previous` restores the older provisional allowlist instead. Existing submissions are not deleted.
 
-`AOC_INTAKE_ONLY_ENABLED=true` selects this temporary server mode. It defaults to false in the example configuration; no live Vercel settings were changed. Temporary sessions are not accepted by the restored review/allowlist modes.
+`AOC_INTAKE_ONLY_ENABLED=true` selects this temporary server mode. The example configuration defaults to false; production is configured separately with the paired gate, storage and estimate-record flags enabled and manual review disabled. Temporary sessions are not accepted by restored review/allowlist modes.
 
 ## Checks — 29 October 2026
 
