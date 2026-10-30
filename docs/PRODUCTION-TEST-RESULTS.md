@@ -6,6 +6,14 @@ Scope: Production verification required by the Phase 1 checklist
 
 Pricing scope: the active calculator uses the reviewed 21 October commercial rules. The live workbook was rechecked through its 24 October modification; unapproved hours, support prices, coverage, and allowances remain pending.
 
+## Optional saving release — 30 October 2026
+
+Published application commit `a40900289440b18b5270a4af556afe4a11b17637` to the live AOC domain. The saving checkbox starts unchecked. Without explicit selection, entry and calculation work without writing business details or estimate records to AOC's database. Selecting it retains the linked saving flow. Ending a session clears answers held on the page; existing database records are preserved.
+
+Passed real deployed browser/Supabase checks at 1440px and 390px: both saving choices, no-save submission absent from the form table, skipped estimate persistence with unchanged calculation results, saved snapshots and edited/cleared answers, required fields, save-error recovery, refresh/logout and clearing the previous visitor's on-page estimate. The full isolated release regression suite passed before publication. Only the tests' own two saved submissions and eight estimate snapshots were removed. No paid AI requests or database schema changes were made for these checks.
+
+Repeat the data-only live check with `npm run test:intake-access:db -- --live --skip-ai`.
+
 ## Submit-and-enter release — 30 October 2026
 
 Published application commit `f7b6816af291dfd813b991a19fedebb0cfffb448` to [the live AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel reported Ready for deployment `dpl_62mVRSWuaj3honSGU9jDhMr4vfu1`. The shared handlers/templates, linked form/calculation storage, removed preview badge and focus-clipping fix are included. Pricing rules were not changed.
