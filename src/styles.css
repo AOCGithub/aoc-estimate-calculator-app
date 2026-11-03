@@ -97,6 +97,21 @@ button.primary:not(:disabled):active {
   min-width: 0;
 }
 
+@media (max-width: 480px) {
+  header:not(.access-header) {
+    flex-wrap: wrap;
+  }
+
+  header:not(.access-header) .brand {
+    flex: 1 1 100%;
+  }
+
+  header:not(.access-header) .live-context {
+    margin-left: 0;
+    margin-right: auto;
+  }
+}
+
 .access-page {
   position: relative;
   min-height: 100vh;

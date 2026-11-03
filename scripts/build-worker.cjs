@@ -17,6 +17,8 @@ function contentType(filename) {
   if (filename.endsWith('.js')) return 'text/javascript;charset=utf-8';
   if (filename.endsWith('.svg')) return 'image/svg+xml';
   if (filename.endsWith('.png')) return 'image/png';
+  if (filename.endsWith('.woff2')) return 'font/woff2';
+  if (filename.endsWith('.txt')) return 'text/plain;charset=utf-8';
   if (filename.endsWith('.json')) return 'application/json;charset=utf-8';
   return 'application/octet-stream';
 }
@@ -30,8 +32,8 @@ function collectAssets(directory) {
     }
 
     const relative = '/' + path.relative(clientPath, absolute).replaceAll('\\', '/');
-    if (!/\.(html|css|js|png)$/i.test(entry.name)) continue;
-    const binary = /\.png$/i.test(entry.name);
+    if (!/\.(html|css|js|png|woff2|txt)$/i.test(entry.name)) continue;
+    const binary = /\.(png|woff2)$/i.test(entry.name);
     assets[relative] = {
       type: contentType(entry.name),
       body: fs.readFileSync(absolute, binary ? 'base64' : 'utf8'),

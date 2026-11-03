@@ -1,13 +1,26 @@
 # Form UX Updates
 
-Last updated: 28 October 2026
-Status: Implemented; current commercial server routes verified, final deployed browser sign-off remains
+Last updated: 3 November 2026
+Status: Local UI redesign prepared for review; production deployment pending
 
 ## Purpose
 
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Minimal interface redesign — 3 November 2026
+
+- Rebuilt the entry page as a split layout: the AOC estimator identity and a restrained React Bits Aurora background sit on the left, with the business-details form on the right. Small screens stack the panels. All five fields, the saving choice and privacy information remain. Removed the **How it works** disclosure as requested.
+- Refined the form with a soft neutral surface, a small heading icon, clear field focus states, and a distinct optional-saving section. Its validation, saving behavior and unchecked default remain unchanged.
+- Retested the refined entry at desktop/mobile widths and verified submission, both saving choices, failure recovery, reduced motion and unavailable/lost WebGL. Layout checks passed from 320px through 1440px without horizontal overflow.
+- Integrated the supplied Aurora JavaScript/CSS under `src/components/visuals/`, without a new npm package. It uses a static fallback without WebGL, stops animation for reduced motion, and releases graphics after entry. The original license is retained at `public/licenses/react-bits.txt`.
+- Kept locally hosted **Inter** on the entry page, with its redistribution license included. The Worker serves the font as a binary asset.
+- Restored the calculator's previous design: original typography, business-area choices, vertical desktop navigation, central form and estimate sidebar. Mobile retains its section selector and responsive layout.
+- Allowed the calculator header to wrap on narrow phones so the brand, session controls and live context fit without overflow.
+- Kept all existing editable and conditional questions, validation, AI prefill, voice/correction controls, calculations and downloads. No pricing or allowance rules changed.
+- Kept entry styling scoped in `src/styles/access.css`; `public/journey.css` and `src/styles.css` continue to style the calculator. No UI framework or npm dependency was added.
+- Local build, access/saving, pricing, voice/correction and complete desktop/mobile journey checks passed. The correction test now waits for the existing cursor-restoration animation frame. Production deployment remains pending.
 
 ### Simplified prospect journey
 
@@ -137,7 +150,7 @@ Before shipping another form reduction or reorganization:
 - The estimate gives a concrete next step: download the review summary and send it to the prospect's existing AOC contact. No contact address, payment, or checkout behavior was invented.
 - The current React interface uses the journey analysis and calculation routes. Historical intake and transcription routes remain packaged for reconciliation, while voice stays disabled in the interface until its documented later phase.
 - Release checks cover the documented $11,500 synthetic fixture; representative Finance, Content, SEO, and Other scenarios; approved complexity drivers; volume-only behavior; and availability of the retained intake routes without enabling voice in the React interface.
-- Relevant implementation files: `src/components/sections/DescriptionSection.jsx`, `src/components/EstimateSidebar.jsx`, `worker/index.js`, `worker/intake-api.js`, `scripts/build-worker.cjs`, `tests/test-journey.cjs`, `tests/test-journey-worker.cjs`, and `scripts/validate-artifact.mjs`.
+- Relevant implementation files: `src/components/sections/DescriptionSection.jsx`, `src/components/EstimateReport.jsx`, `worker/index.js`, `worker/intake-api.js`, `scripts/build-worker.cjs`, `tests/test-journey.cjs`, `tests/test-journey-worker.cjs`, and `scripts/validate-artifact.mjs`.
 
 ## Four-hour task update - 20 October 2026
 

@@ -98,7 +98,7 @@ Return: staging link, source access/export, configuration version, field-to-rule
 
 ### Source orientation and current verification limits
 src/App.jsx + src/components + src/hooks/useEstimator.js: React seven-section UI and centralized journey state.
-index.html + public/journey.css: Vite entry point and retained visual system. legacy/journey-pre-react.js is retained only for reconciliation.
+index.html: Vite entry point. public/journey.css + src/styles.css: calculator visual system. src/styles/access.css: scoped Aurora entry-page design. legacy/journey-pre-react.js remains for historical reconciliation.
 public/approved-bank.js: compiled category/shared field definitions and app suggestions.
 public/journey-engine.js + approved-pricing.js + engine.js: deterministic draft model, preserving core pricing coefficients.
 public/journey-contract.js + worker/journey-api.js: field schema, evidence validation and extraction route.

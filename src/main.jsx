@@ -4,6 +4,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import App from './App.jsx';
 import { performanceOrigin, sanitizePerformanceEvent } from './lib/speedInsights.js';
 import './styles.css';
+import './styles/access.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

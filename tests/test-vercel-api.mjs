@@ -171,6 +171,8 @@ try {
   assert.equal(vercelConfig.framework, 'vite');
   assert.equal(vercelConfig.outputDirectory, 'dist/client');
   assert.ok(vercelConfig.headers.some(rule => rule.headers.some(header => header.key === 'Content-Security-Policy')));
+  const csp = vercelConfig.headers.flatMap(rule => rule.headers).find(header => header.key === 'Content-Security-Policy').value;
+  assert.ok(csp.split(';').find(directive => directive.trim().startsWith('font-src ')).split(/\s+/).includes("'self'"), 'Self-hosted entry fonts are permitted by production CSP');
 
   console.log('PASS: Vercel calculation, organizer fallback/provider contract, retained status, origin guard, output path, and security configuration.');
 } finally {

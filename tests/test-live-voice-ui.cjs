@@ -314,6 +314,8 @@ function fakeDevices() {
       await description.fill(original);
       await description.evaluate(element => { element.setSelectionRange(20, 20); });
       await page.waitForFunction(text => document.querySelector('#description').value === text, corrected);
+      // The correction restores the caret on the next animation frame after React updates the value.
+      await page.waitForFunction(() => document.querySelector('#description').selectionStart === 19);
       assert.equal(correctionSources.at(-1), 'typed');
       assert.equal(await description.evaluate(element => element.selectionStart), 19, 'Caret tracks a shorter corrected word.');
       assert.equal(await description.evaluate(element => element.spellcheck), true);

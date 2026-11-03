@@ -21,12 +21,15 @@ if (!executablePath) {
 
 const projectRoot = path.resolve(__dirname, '..');
 const clientRoot = path.join(projectRoot, 'dist', 'client');
+const productionCsp = JSON.parse(fs.readFileSync(path.join(projectRoot, 'vercel.json'), 'utf8'))
+  .headers.flatMap(rule => rule.headers).find(header => header.key === 'Content-Security-Policy').value;
 
 const mime = {
   '.html': 'text/html;charset=utf-8',
   '.css': 'text/css;charset=utf-8',
   '.js': 'text/javascript;charset=utf-8',
   '.png': 'image/png',
+  '.woff2': 'font/woff2',
 };
 
 function json(response, status, data, headers = {}) {
@@ -90,7 +93,7 @@ const server = http.createServer((request, response) => {
     if (relative === 'index.html') {
       body = Buffer.from(body.toString('utf8').replace('</head>', '<meta name="aoc-access-gate" content="enabled" /></head>'));
     }
-    response.writeHead(200, { 'content-type': contentType });
+    response.writeHead(200, { 'content-type': contentType, 'content-security-policy': productionCsp });
     response.end(body);
   } catch {
     response.writeHead(404).end('Not found');
@@ -100,7 +103,8 @@ const server = http.createServer((request, response) => {
 (async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
-  const browser = await chromium.launch({ executablePath, headless: true });
+  const browser = await chromium.launch({ executablePath, headless: true,
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -115,7 +119,7 @@ const server = http.createServer((request, response) => {
 
   try {
     await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
-    await page.getByRole('heading', { name: 'Continue to the AI Commerce estimator' }).waitFor();
+    await page.getByRole('heading', { name: 'Always Open Commerce Estimator.' }).waitFor();
     for (const label of ['Your name', 'Company', 'Company website', 'Your role', 'Business email']) {
       assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, label + ' is present');
     }
@@ -144,7 +148,7 @@ const server = http.createServer((request, response) => {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'gate and calculator fit mobile width');
 
     await page.getByRole('button', { name: 'End session' }).click();
-    await page.getByRole('heading', { name: 'Continue to the AI Commerce estimator' }).waitFor();
+    await page.getByRole('heading', { name: 'Always Open Commerce Estimator.' }).waitFor();
     assert.equal(await page.getByLabel('Business email').inputValue(), '', 'gate details are not reused after logout');
     assert.equal(await page.getByLabel('Your name').inputValue(), '');
     requestsEnabled = true;
@@ -244,7 +248,90 @@ const server = http.createServer((request, response) => {
       await consent.waitFor();
       assert.equal(await consent.isChecked(), false);
     }
+    // Use software WebGL only in this isolated browser to exercise real shaders.
+    function trackGraphics({ disabled = false } = {}) {
+      const fixture = { draws: 0, frames: 0, gl: null };
+      window.auroraFixture = fixture;
+      const requestFrame = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = callback => requestFrame(time => { fixture.frames++; callback(time); });
+      const contexts = new WeakSet();
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+        if (type === 'webgl2' && disabled) return null;
+        const context = getContext.call(this, type, ...args);
+        if (type === 'webgl2' && context) {
+          fixture.gl = context;
+          if (!contexts.has(context)) {
+            contexts.add(context);
+            const draw = context.drawArrays.bind(context);
+            context.drawArrays = (...values) => { fixture.draws++; return draw(...values); };
+          }
+        }
+        return context;
+      };
+    }
+    async function enterFixture(target) {
+      for (const [label, value] of Object.entries({ 'Your name': 'Aurora Browser Test', Company: 'Example Company',
+        'Company website': 'example.com', 'Your role': 'Testing', 'Business email': 'aurora@example.com' })) {
+        await target.getByLabel(label, { exact: true }).fill(value);
+      }
+      assert.equal(await target.getByRole('checkbox', { name: /Save my details and estimates/ }).isChecked(), false);
+      await target.getByRole('button', { name: 'Continue to calculator' }).click();
+      await target.locator('.area').first().waitFor();
+    }
+    const motionContext = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'no-preference' });
+    await motionContext.addInitScript(trackGraphics);
+    const motionPage = await motionContext.newPage();
+    motionPage.on('pageerror', error => errors.push(error.message));
+    await motionPage.goto(`http://127.0.0.1:${port}`, { waitUntil: 'networkidle' });
+    await motionPage.evaluate(() => document.fonts.ready);
+    assert.equal(await motionPage.evaluate(() => [...document.fonts].some(font => font.family === 'Inter' && font.status === 'loaded')), true, 'Entry font loads under the production security policy.');
+    await motionPage.waitForFunction(() => window.auroraFixture.draws > 1);
+    await motionPage.emulateMedia({ reducedMotion: 'reduce' });
+    await motionPage.waitForTimeout(500);
+    let draws = await motionPage.evaluate(() => window.auroraFixture.draws);
+    await motionPage.waitForTimeout(300);
+    assert.equal(await motionPage.evaluate(() => window.auroraFixture.draws), draws, 'Reduced motion stops the render loop.');
+    await motionPage.emulateMedia({ reducedMotion: 'no-preference' });
+    await motionPage.waitForFunction(previous => window.auroraFixture.draws > previous, draws);
+    await enterFixture(motionPage);
+    await motionPage.waitForTimeout(200);
+    draws = await motionPage.evaluate(() => window.auroraFixture.draws);
+    await motionPage.waitForTimeout(300);
+    assert.equal(await motionPage.evaluate(() => window.auroraFixture.draws), draws, 'Entering the calculator releases the animation.');
+    await motionContext.close();
+
+    const lossContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await lossContext.addInitScript(trackGraphics);
+    const lossPage = await lossContext.newPage();
+    lossPage.on('pageerror', error => errors.push(error.message));
+    await lossPage.goto(`http://127.0.0.1:${port}`, { waitUntil: 'networkidle' });
+    await lossPage.waitForFunction(() => window.auroraFixture.draws > 1);
+    await lossPage.getByLabel('Your name').fill('Keep this answer');
+    await lossPage.evaluate(() => window.auroraFixture.gl.getExtension('WEBGL_lose_context').loseContext());
+    await lossPage.waitForFunction(() => !document.querySelector('.aurora-container').dataset.renderer);
+    await lossPage.setViewportSize({ width: 390, height: 844 });
+    await lossPage.waitForTimeout(500);
+    const lostFrames = await lossPage.evaluate(() => window.auroraFixture.frames);
+    await lossPage.waitForTimeout(300);
+    assert.equal(await lossPage.evaluate(() => window.auroraFixture.frames), lostFrames, 'Resizing a lost graphics context cannot restart the render loop.');
+    assert.equal(await lossPage.getByLabel('Your name').inputValue(), 'Keep this answer');
+    await enterFixture(lossPage);
+    await lossContext.close();
+
+    const fallbackContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await fallbackContext.addInitScript(trackGraphics, { disabled: true });
+    const fallbackPage = await fallbackContext.newPage();
+    fallbackPage.on('pageerror', error => errors.push(error.message));
+    await fallbackPage.goto(`http://127.0.0.1:${port}`, { waitUntil: 'networkidle' });
+    await fallbackPage.getByRole('button', { name: 'Continue to calculator' }).waitFor();
+    assert.equal(await fallbackPage.locator('.aurora-container').getAttribute('data-renderer'), null);
+    assert.equal(await fallbackPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await enterFixture(fallbackPage);
+    await fallbackContext.close();
+
     assert.deepEqual(errors, []);
+    console.log('PASS: Aurora renders, reduced motion and unmount stop drawing, GPU loss keeps answers, and entry works without WebGL.');
     console.log('PASS: Gate compatibility, pending requests, save-and-continue mode, failure recovery, private-storage disclosure, approved access, logout, and desktop/mobile layout.');
   } finally {
     await browser.close();

@@ -39,6 +39,15 @@ vm.runInContext(code, context);
   assert.equal(favicon.status, 200);
   assert.equal(favicon.headers.get('content-type'), 'image/png');
   assert.deepEqual(Buffer.from(await favicon.arrayBuffer()), fs.readFileSync('public/favicon.png'), 'packaged favicon preserves the original AOC image bytes');
+  for (const font of ['inter-latin.woff2']) {
+    const response = await context.worker.fetch(new Request('https://demo.test/fonts/' + font), {});
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'font/woff2');
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), fs.readFileSync('public/fonts/' + font), 'packaged fonts retain their binary data');
+  }
+  const fontLicense = await context.worker.fetch(new Request('https://demo.test/fonts/Inter-OFL.txt'), {});
+  assert.equal(fontLicense.status, 200);
+  assert.match(await fontLicense.text(), /SIL OPEN FONT LICENSE/);
 
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) {
     const asset = await context.worker.fetch(new Request('https://demo.test' + match[1]), {});

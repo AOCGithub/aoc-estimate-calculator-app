@@ -1,0 +1,20 @@
+.aurora-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 10% 100%, rgb(21 130 119 / 38%), transparent 65%),
+    radial-gradient(ellipse at 90% 80%, rgb(61 126 157 / 25%), transparent 70%);
+}
+
+.aurora-container[data-renderer='webgl'] { background: transparent; }
+.aurora-container:not([data-renderer='webgl']) .aurora-canvas { visibility: hidden; }
+
+.aurora-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
