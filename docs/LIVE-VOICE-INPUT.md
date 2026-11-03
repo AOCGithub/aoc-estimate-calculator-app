@@ -1,6 +1,6 @@
 # Live voice input
 
-Published on 30 October 2026. Live synthetic-speech checks passed at desktop and mobile browser widths, along with a live spelling-correction/Undo check. See [production test results](PRODUCTION-TEST-RESULTS.md).
+Published on 30 October 2026, with voice reliability and correction improvements deployed on 3 November 2026. Live synthetic-speech checks passed at desktop and mobile browser widths, along with a live spelling-correction/Undo check. See [production test results](PRODUCTION-TEST-RESULTS.md).
 
 In **Describe the work**, click **Start live voice input**, allow microphone access, and wait for **Listening** before speaking. Words appear in the existing description field. Stop recording to edit the text, then use the existing organizer or continue with editable fields. Existing typed text is preserved.
 
@@ -10,7 +10,7 @@ OpenAI's `gpt-live-transcribe` model transcribes speech and can revise the captu
 
 ## Description auto-correction
 
-Local improvements — 3 November 2026 (not yet published): cleanup now distinguishes voice transcripts from typed text, adds missing commas and a final period without rewriting the original words, and offers **Use suggestion** for uncertain wording. A voice-specific single-word check suggested **Testing** for **Testem**, requiring the client to confirm it. Undo remains available. Existing names, numeric formatting, identifiers and approval/negation instructions are protected; unclear amounts are not filled in.
+Published improvements — 3 November 2026: cleanup now distinguishes voice transcripts from typed text, adds missing commas and a final period without rewriting the original words, and offers **Use suggestion** for uncertain wording. A voice-specific single-word check suggested **Testing** for **Testem**, requiring the client to confirm it. Undo remains available. Existing names, numeric formatting, identifiers and approval/negation instructions are protected; unclear amounts are not filled in.
 
 The clean synthetic recording preserved the opening word and commas. A quieter recording with synthetic noise misheard the opening word; increasing transcription delay did not recover it, so the normal `medium` delay was retained. These tests do not establish accuracy for the user's microphone or make inaudible speech reliably recoverable. Local tests also verified comma insertion and confirmation/Undo on desktop and mobile browser widths. No production settings or database records were changed for these checks.
 

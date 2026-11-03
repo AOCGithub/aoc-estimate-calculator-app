@@ -143,10 +143,11 @@ try {
   if (expectedFirst) assert.equal(firstWord.toLowerCase(), expectedFirst.toLowerCase(), 'The opening word must be transcribed without repeating it.');
   if (checkCorrection) {
     await correctionToggle.check();
-    const typed = 'we need adverstising and weekly reprots. budget is $2500 monthly. only draft replies; do not send them.';
+    const typed = 'we need adverstising and weekly reprots. we use Meta Shopify and Google Sheets. budget is $2500 monthly. only draft replies; do not send them.';
     await page.locator('#description').fill(typed);
     await page.waitForFunction(() => /advertising and weekly reports/.test(document.querySelector('#description').value));
     const corrected = await page.locator('#description').inputValue();
+    assert.match(corrected, /Meta, Shopify,? and Google Sheets/u, 'Add commas to the stated list without changing its names.');
     assert.ok(corrected.includes('$2500 monthly'));
     assert.ok(corrected.includes('only draft replies; do not send them.'));
     await page.getByRole('button', { name: 'Undo correction' }).click();

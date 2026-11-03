@@ -1,10 +1,18 @@
 # Production Test Results
 
 Date: 21 October 2026
-Last updated: 30 October 2026
+Last updated: 3 November 2026
 Scope: Production verification required by the Phase 1 checklist
 
 Pricing scope: the active calculator uses the reviewed 21 October commercial rules. The live workbook was rechecked through its 24 October modification; unapproved hours, support prices, coverage, and allowances remain pending.
+
+## Voice reliability and correction release — 3 November 2026
+
+Published application commit `cf69d4ec4fd10cb5b30f50f57f45f1ea939e0de2` to [the live AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel reported Ready for deployment `dpl_NSNRJSHwMfTG3AmHBQSL7JZaUCBr` and confirmed the release commit on `main`.
+
+Passed live synthetic-audio checks at 1440px and 390px: **Testing** was recognized on its first occurrence, words appeared before Stop, the final transcript arrived afterward, existing typed details remained intact, captured text was editable, no horizontal overflow appeared, and logout worked. One additional desktop text request verified spelling and list-comma correction, preservation of `$2500 monthly` and draft-only/approval instructions, and Undo. Data saving stayed off; no form or estimate records were saved.
+
+The full local regression suite passed before publication, including silent audio, delayed/out-of-order finals, send failures, final timeouts, unavailable microphones, device removal, background-tab cleanup and recording/text limits. A separate six-second real-provider silence check passed locally without adding words. This release keeps unclear wording reviewable rather than promising recovery of inaudible speech. Physical iPhone/Android microphone, accent and noise checks remain separate from synthetic browser tests. See [voice maintenance instructions](LIVE-VOICE-INPUT.md).
 
 ## Voice input release — 30 October 2026
 
