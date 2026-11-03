@@ -13,11 +13,15 @@ const organizingMessages = [
 export function DescriptionSection({ state, area, onDescriptionChange, onOrganize, onContinue }) {
   const [organizingStage, setOrganizingStage] = useState(0);
   const [composing, setComposing] = useState(false);
+  const [inputSource, setInputSource] = useState('typed');
   const textareaRef = useRef(null);
-  const voice = useLiveDictation({ description: state.description, area: state.area, onChange: onDescriptionChange });
+  const voice = useLiveDictation({ description: state.description, area: state.area, onChange: text => {
+    setInputSource('voice');
+    onDescriptionChange(text);
+  } });
   const busy = state.working || voice.active;
   const correction = useDescriptionCorrection({ description: state.description, area: state.area,
-    blocked: busy || composing, onChange: onDescriptionChange, textareaRef });
+    source: inputSource, blocked: busy || composing, onChange: onDescriptionChange, textareaRef });
 
   useEffect(() => {
     if (!state.working) {
@@ -50,18 +54,21 @@ export function DescriptionSection({ state, area, onDescriptionChange, onOrganiz
         value={state.description}
         readOnly={busy}
         aria-describedby={state.working ? 'organizing-status' : 'voice-help'}
-        onChange={(event) => onDescriptionChange(event.target.value)}
+        onChange={(event) => { setInputSource('typed'); onDescriptionChange(event.target.value); }}
         onCompositionStart={() => setComposing(true)}
         onCompositionEnd={() => setComposing(false)}
       />
       {correction.ready && <div className="description-correction">
         <label className="correction-toggle"><input type="checkbox" checked={correction.enabled} disabled={busy}
-          onChange={event => correction.toggle(event.target.checked)} /> Auto-correct spelling</label>
-        <small>OpenAI checks spelling after you pause or stop speaking. Unclear wording needs your review.</small>
-        <div className="helper" role="status">{correction.checking ? 'Checking spelling…' : correction.message}
+          onChange={event => correction.toggle(event.target.checked)} /> Auto-correct spelling and punctuation</label>
+        <small>OpenAI checks spelling and commas after you pause or stop speaking. Unclear wording needs your review.</small>
+        <div className="helper" role="status">{correction.checking ? 'Checking spelling and punctuation…' : correction.message}
           {correction.canUndo && <button type="button" className="correction-undo" disabled={busy} onClick={correction.undo}>Undo correction</button>}
         </div>
-        {correction.review.map((item, index) => <p className="helper" key={index}>Please check “{item.before}” — possibly “{item.after}”. Edit the description to confirm.</p>)}
+        {correction.review.map((item, index) => <p className="helper" key={index}>Please check “{item.before}” — possibly “{item.after}”.
+          <button type="button" className="correction-undo" disabled={busy} onClick={() => correction.applySuggestion(item)}
+            aria-label={`Use suggested wording: ${item.after}`}>Use suggestion</button>
+        </p>)}
       </div>}
       <VoiceInput voice={voice} disabled={state.working || (!voice.active && state.description.length >= 18000)} />
       {state.working && (

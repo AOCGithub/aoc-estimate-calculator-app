@@ -60,6 +60,7 @@ export function useLiveDictation({ description, area, onChange }) {
     }
     session.phase = 'finishing';
     session.notice = notice;
+    session.finalItem = null;
     clearInterval(session.clock);
     // Stop the microphone immediately; leave the data channel open for final corrections.
     session.stream.getTracks().forEach(track => { track.onended = null; track.stop(); });
@@ -67,7 +68,12 @@ export function useLiveDictation({ description, area, onChange }) {
     session.commitTimeout = setTimeout(() => {
       if (current.current !== session) return;
       if (session.channel.readyState !== 'open') return finish('Captured text kept. Review the last words before continuing.');
-      session.channel.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+      try {
+        session.commitSent = true;
+        session.channel.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+      } catch {
+        finish('Voice could not finish sending. Captured text is kept; please review or retry.');
+      }
     }, 250);
     session.finalTimeout = setTimeout(() => {
       if (current.current === session) finish('Final confirmation timed out. Captured text is kept; please review it.');
@@ -76,7 +82,8 @@ export function useLiveDictation({ description, area, onChange }) {
 
   async function start() {
     if (current.current || !supported || !status.ready || latest.current.description.length >= 18000) return;
-    const session = { controller: new AbortController(), phase: 'connecting', transcript: createLiveTranscript(latest.current.description) };
+    const session = { controller: new AbortController(), phase: 'connecting', prefix: latest.current.description,
+      transcript: createLiveTranscript(latest.current.description) };
     current.current = session;
     setStatus(state => ({ ...state, phase: 'connecting', seconds: 0, error: '', notice: '' }));
     session.connectTimeout = setTimeout(() => {
@@ -93,7 +100,9 @@ export function useLiveDictation({ description, area, onChange }) {
       session.peer = peer;
       tracks.forEach(track => {
         peer.addTrack(track, stream);
-        track.onended = () => finish('Microphone stopped. Captured text is kept.');
+        track.onended = () => {
+          if (current.current === session) finish('Microphone stopped. Captured text is kept. Check your microphone or type.');
+        };
       });
       const channel = peer.createDataChannel('oai-events');
       session.channel = channel;
@@ -133,6 +142,7 @@ export function useLiveDictation({ description, area, onChange }) {
         if (current.current !== session) return;
         let event;
         try { event = JSON.parse(message.data); } catch { return; }
+        if (!event || typeof event !== 'object') return;
         if (event.type === 'session.created' || event.type === 'transcription_session.created') {
           if (session.phase !== 'connecting' || session.verified) return;
           if (event.session?.type !== 'transcription') return finish('', 'Voice session could not be verified. Please type or retry.');
@@ -145,9 +155,11 @@ export function useLiveDictation({ description, area, onChange }) {
         if (['input_audio_buffer.committed', 'conversation.item.input_audio_transcription.delta', 'conversation.item.input_audio_transcription.completed'].includes(event.type)) {
           session.transcript.update(event);
           latest.current.onChange(session.transcript.text());
-          if (event.type === 'input_audio_buffer.committed') session.finalItem = event.item_id;
+          if (event.type === 'input_audio_buffer.committed' && session.commitSent) session.finalItem = event.item_id;
           if (session.phase === 'finishing' && session.finalItem && session.transcript.completed(session.finalItem)) {
-            finish(session.notice || 'Voice stopped. Review names, numbers and unclear wording before organizing.');
+            finish(session.transcript.text() === session.prefix
+              ? 'No words were captured. Try again closer to your microphone, or type your description.'
+              : session.notice || 'Voice stopped. Review names, numbers and unclear wording before organizing.');
           } else if (session.phase === 'listening' && session.transcript.text().length >= 18000) stop('Description limit reached. Review or shorten the captured text.');
         }
       };
@@ -156,7 +168,7 @@ export function useLiveDictation({ description, area, onChange }) {
       await peer.setLocalDescription(offer);
       const response = await fetch('/api/voice/session', {
         method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ area: latest.current.area, sdp: peer.localDescription.sdp }), signal: session.controller.signal,
+        body: JSON.stringify({ area: latest.current.area, sdp: peer.localDescription.sdp, context: latest.current.description.slice(-600) }), signal: session.controller.signal,
       });
       const data = await response.json();
       if (current.current !== session) return;
@@ -171,8 +183,10 @@ export function useLiveDictation({ description, area, onChange }) {
     } catch (error) {
       if (current.current !== session) return;
       const denied = ['NotAllowedError', 'SecurityError'].includes(error.name);
+      const unavailable = ['NotFoundError', 'NotReadableError', 'AbortError'].includes(error.name) || error.message === 'no_microphone';
       finish('', denied ? 'Microphone permission was denied. Allow it in your browser or type your description.'
-        : error.voiceMessage || 'Could not start live voice. Your description is preserved; check your microphone or try again.');
+        : unavailable ? 'Your microphone is unavailable. Connect it or close other apps using it, then retry. You can also type.'
+          : error.voiceMessage || 'Could not start live voice. Your description is preserved; check your microphone or try again.');
     }
   }
 

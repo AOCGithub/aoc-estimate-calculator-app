@@ -12,6 +12,7 @@ let starts = 0;
 let enabled = true;
 let connectionError = false;
 let correctionConfigured = false, correctionDelay = 0, correctionFailure = false, correctionCalls = 0;
+const correctionSources = [];
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   response.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=(self)');
@@ -22,11 +23,15 @@ const server = http.createServer((request, response) => {
     request.on('data', chunk => { raw += chunk; });
     request.on('end', () => {
       correctionCalls++;
-      const { text } = JSON.parse(raw);
+      const { text, source } = JSON.parse(raw);
+      assert.ok(['typed', 'voice'].includes(source));
+      correctionSources.push(source);
       const result = Correction.validate(text, { edits: [
         { before: 'adverstising', after: 'advertising', kind: 'typo' },
         { before: 'reprots', after: 'reports', kind: 'typo' },
         { before: 'lead routing', after: 'lead scoring', kind: 'unclear' },
+        { before: 'Testem', after: 'Testing', kind: 'unclear' },
+        { before: 'we use Meta Shopify and Google Sheets', after: 'we use Meta, Shopify, and Google Sheets.', kind: 'punctuation' },
       ] });
       setTimeout(() => response.writeHead(correctionFailure ? 503 : 200).end(JSON.stringify(correctionFailure ? { error: 'Synthetic failure.' } : result)), correctionDelay);
     });
@@ -39,7 +44,7 @@ const server = http.createServer((request, response) => {
     request.on('data', data => { raw += data; });
     request.on('end', () => {
       const body = JSON.parse(raw);
-      assert.deepEqual(Object.keys(body).sort(), ['area', 'sdp']);
+      assert.deepEqual(Object.keys(body).sort(), ['area', 'context', 'sdp']);
       starts++;
       if (connectionError) return response.writeHead(502).end(JSON.stringify({ error: 'Could not connect live voice. Your typed description is preserved.' }));
       response.end(JSON.stringify({ sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n', maxSeconds: 120 }));
@@ -68,13 +73,18 @@ function fakeDevices() {
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
     async getUserMedia() {
       if (fixture.mode === 'deny') throw new DOMException('Synthetic permission refusal', 'NotAllowedError');
+      if (fixture.mode === 'missing') throw new DOMException('Synthetic missing microphone', 'NotFoundError');
+      if (fixture.mode === 'busy') throw new DOMException('Synthetic busy microphone', 'NotReadableError');
       if (fixture.mode === 'pending') return new Promise(resolve => { fixture.grant = () => resolve(stream()); });
       return stream();
     },
   } });
   class Channel {
     constructor() { this.readyState = 'connecting'; this.sent = []; }
-    send(value) { this.sent.push(JSON.parse(value)); }
+    send(value) {
+      if (fixture.sendFailure) throw new DOMException('Synthetic closed transport', 'InvalidStateError');
+      this.sent.push(JSON.parse(value));
+    }
     close() { this.readyState = 'closed'; this.onclose?.(); }
   }
   window.RTCPeerConnection = class {
@@ -152,7 +162,78 @@ function fakeDevices() {
       await page.locator('#description').fill('Manual correction after voice.');
       assert.equal(await page.getByRole('button', { name: /Organize my description/ }).isEnabled(), true);
 
+      // A final for an earlier turn cannot finish recording before Stop's commit.
+      await start();
+      await emit(null);
+      await page.evaluate(() => window.voiceFixture.channel.onmessage({ data: 'not JSON' }));
+      await emit({ type: 'input_audio_buffer.committed', item_id: 'earlier', previous_item_id: null });
+      await page.evaluate(() => {
+        document.querySelector('.voice-toggle').click();
+        window.voiceFixture.emit({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'earlier', transcript: 'Earlier words.' });
+      });
+      assert.equal(await page.getByRole('button', { name: 'Keep captured text' }).count(), 1);
+      await page.waitForFunction(() => window.voiceFixture.channel.sent.length > 0);
+      await emit({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'latest', transcript: 'Latest words.' });
+      assert.equal(await page.getByRole('button', { name: 'Keep captured text' }).count(), 1, 'Wait for the matching committed item, even if its final arrives first.');
+      await emit({ type: 'input_audio_buffer.committed', item_id: 'latest', previous_item_id: 'earlier' });
+      await page.getByRole('button', { name: 'Start live voice input' }).waitFor();
+      assert.equal(await page.locator('#description').inputValue(), 'Manual correction after voice.\n\nEarlier words. Latest words.');
+
+      await page.locator('#description').fill('Keep my existing details.');
+      await start();
+      await page.getByRole('button', { name: 'Stop voice input' }).click();
+      await finalize('');
+      await page.getByRole('status').filter({ hasText: 'No words were captured' }).waitFor();
+      assert.equal(await page.locator('#description').inputValue(), 'Keep my existing details.');
+      assert.equal(await page.locator('#description').getAttribute('readonly'), null);
+
+      await start();
+      await emit({ type: 'conversation.item.input_audio_transcription.delta', item_id: 'turn1', delta: 'Keep partial words.' });
+      await page.evaluate(() => { window.voiceFixture.sendFailure = true; });
+      await page.getByRole('button', { name: 'Stop voice input' }).click();
+      await page.getByRole('status').filter({ hasText: 'could not finish sending' }).waitFor();
+      assert.ok((await page.locator('#description').inputValue()).endsWith('Keep partial words.'));
+      assert.equal(await page.evaluate(() => window.voiceFixture.streams.at(-1).getTracks()[0].stopped), true);
+      await page.evaluate(() => { window.voiceFixture.sendFailure = false; });
+
+      await start();
+      await emit({ type: 'conversation.item.input_audio_transcription.delta', item_id: 'turn1', delta: 'Preserve on timeout.' });
+      await page.getByRole('button', { name: 'Stop voice input' }).click();
+      await page.getByRole('status').filter({ hasText: 'Final confirmation timed out' }).waitFor({ timeout: 15000 });
+      assert.ok((await page.locator('#description').inputValue()).endsWith('Preserve on timeout.'));
+      assert.equal(await page.locator('#description').getAttribute('readonly'), null);
+
+      await start();
+      await page.evaluate(() => window.voiceFixture.streams.at(-1).getTracks()[0].onended());
+      await page.getByRole('status').filter({ hasText: 'Microphone stopped' }).waitFor();
+      assert.equal(await page.evaluate(() => window.voiceFixture.peers.at(-1).connectionState), 'closed');
+      await start();
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+        delete document.hidden;
+      });
+      await page.getByRole('status').filter({ hasText: 'left this tab' }).waitFor();
+      assert.equal(await page.evaluate(() => window.voiceFixture.streams.at(-1).getTracks()[0].stopped), true);
+
+      await page.locator('#description').fill('x'.repeat(17990));
+      await start();
+      await emit({ type: 'conversation.item.input_audio_transcription.delta', item_id: 'turn1', delta: 'More words than fit.' });
+      await page.getByRole('button', { name: 'Keep captured text' }).waitFor();
+      await finalize('More words than fit.');
+      assert.equal((await page.locator('#description').inputValue()).length, 18000);
+      assert.equal(await page.getByRole('button', { name: 'Start live voice input' }).isDisabled(), true);
+      assert.equal(await page.locator('#description').getAttribute('readonly'), null);
+      await page.getByRole('status').filter({ hasText: 'Description limit reached' }).waitFor();
+      await page.locator('#description').fill('Manual correction after voice.');
+
       const beforeDenied = starts;
+      for (const mode of ['missing', 'busy']) {
+        await page.evaluate(value => { window.voiceFixture.mode = value; }, mode);
+        await page.getByRole('button', { name: 'Start live voice input' }).click();
+        await page.getByRole('alert').filter({ hasText: 'microphone is unavailable' }).waitFor();
+        assert.equal(starts, beforeDenied, 'An unavailable device must not create a paid session.');
+      }
       await page.evaluate(() => { window.voiceFixture.mode = 'deny'; });
       await page.getByRole('button', { name: 'Start live voice input' }).click();
       await page.getByRole('alert').filter({ hasText: 'permission was denied' }).waitFor();
@@ -212,7 +293,7 @@ function fakeDevices() {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.deepEqual(errors, []);
       await context.close();
-      console.log(`PASS: ${width}px live text/corrections, typed-prefix preservation, mic stop, permissions, late grants, network failure, navigation/reset cleanup, timer limit and mobile layout.`);
+      console.log(`PASS: ${width}px live/final ordering, silence, malformed messages, send failure, final timeout, missing/busy/denied microphones, device removal, background-tab cleanup, text preservation, navigation/reset, timer limit and mobile layout.`);
     }
     correctionConfigured = true;
     for (const width of [1440, 390]) {
@@ -233,6 +314,7 @@ function fakeDevices() {
       await description.fill(original);
       await description.evaluate(element => { element.setSelectionRange(20, 20); });
       await page.waitForFunction(text => document.querySelector('#description').value === text, corrected);
+      assert.equal(correctionSources.at(-1), 'typed');
       assert.equal(await description.evaluate(element => element.selectionStart), 19, 'Caret tracks a shorter corrected word.');
       assert.equal(await description.evaluate(element => element.spellcheck), true);
       await page.getByRole('button', { name: 'Undo correction' }).click();
@@ -246,6 +328,14 @@ function fakeDevices() {
       await toggle.check();
       await page.getByText('Please check “lead routing”', { exact: false }).waitFor();
       assert.equal(await description.inputValue(), 'we need lead routing for our store.', 'Uncertain wording is a suggestion, never silently applied.');
+      await description.fill('Testem one two three');
+      await page.getByRole('button', { name: 'Use suggested wording: Testing', exact: true }).waitFor();
+      assert.equal(await description.inputValue(), 'Testem one two three');
+      await page.getByRole('button', { name: 'Use suggested wording: Testing', exact: true }).click();
+      assert.equal(await description.inputValue(), 'Testing one two three');
+      await page.getByRole('button', { name: 'Undo correction' }).click();
+      assert.equal(await description.inputValue(), 'Testem one two three');
+      await toggle.check();
 
       const beforeComposition = correctionCalls;
       await description.dispatchEvent('compositionstart');
@@ -254,6 +344,10 @@ function fakeDevices() {
       assert.equal(correctionCalls, beforeComposition, 'IME composition is not interrupted.');
       await description.dispatchEvent('compositionend');
       await page.waitForFunction(() => document.querySelector('#description').value === 'we need advertising and reports.');
+      assert.equal(correctionSources.at(-1), 'typed');
+      await description.fill('we use Meta Shopify and Google Sheets');
+      await page.waitForFunction(() => document.querySelector('#description').value === 'we use Meta, Shopify, and Google Sheets.');
+      assert.equal(await description.evaluate(element => element.selectionStart), 'we use Meta, Shopify, and Google Sheets.'.length);
 
       correctionDelay = 2500;
       await description.fill('adverstising before more typing.');
@@ -284,6 +378,7 @@ function fakeDevices() {
         window.voiceFixture.emit({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'spoken', transcript: 'we need adverstising and reprots.' });
       });
       await page.waitForFunction(() => document.querySelector('#description').value === 'we need advertising and reports.');
+      assert.equal(correctionSources.at(-1), 'voice', 'Final speech must request voice-specific cleanup, not typed-name correction.');
 
       correctionDelay = 2500;
       await description.fill('adverstising before leaving this section.');

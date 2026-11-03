@@ -10,9 +10,17 @@ OpenAI's `gpt-live-transcribe` model transcribes speech and can revise the captu
 
 ## Description auto-correction
 
+Local improvements — 3 November 2026 (not yet published): cleanup now distinguishes voice transcripts from typed text, adds missing commas and a final period without rewriting the original words, and offers **Use suggestion** for uncertain wording. A voice-specific single-word check suggested **Testing** for **Testem**, requiring the client to confirm it. Undo remains available. Existing names, numeric formatting, identifiers and approval/negation instructions are protected; unclear amounts are not filled in.
+
+The clean synthetic recording preserved the opening word and commas. A quieter recording with synthetic noise misheard the opening word; increasing transcription delay did not recover it, so the normal `medium` delay was retained. These tests do not establish accuracy for the user's microphone or make inaudible speech reliably recoverable. Local tests also verified comma insertion and confirmation/Undo on desktop and mobile browser widths. No production settings or database records were changed for these checks.
+
+Additional local reliability checks on 3 November: Stop now waits for the final transcript belonging to its committed audio instead of ending on an earlier turn. A closed connection while sending is handled without an uncaught error; existing text remains editable. Missing or busy microphones have specific retry instructions, malformed messages are ignored, and an empty final transcript displays **No words were captured**. Microphone callbacks from a released session cannot stop a newer recording.
+
+The expanded desktop/mobile browser checks cover silence, out-of-order final messages, send failures, final-response timeouts, device removal, background-tab cleanup and the description limit. Two short real-provider checks also passed locally: six seconds of synthetic silence added no words and kept the typed description; clean synthetic speech preserved **Testing**, the spoken sentence and commas through the final transcript. These checks used no physical microphone, saved no database records and did not deploy the changes. Real-device, accent and background-noise checks still need representative recordings; unclear speech cannot be guaranteed correct.
+
 Obvious spelling errors in typed text or the finished transcript are checked after a 1.8-second pause, using the existing organizer's text model and OpenAI key. The check makes small edits, preserves quantities, names, unknowns and action/approval restrictions, and shows uncertain wording as a suggestion for the client to review. It cannot reliably recover words that were inaudible.
 
-Clients can edit the text, turn off **Auto-correct spelling**, or use **Undo correction**. Undo restores the previous text and pauses automatic corrections. Corrections never overwrite newer typing, interrupt an active voice/IME session, or block organizing and continuing when the spelling service is unavailable.
+Clients can edit the text, turn off auto-correction, or use **Undo correction**. Undo restores the previous text and pauses automatic corrections. Corrections never overwrite newer typing, interrupt an active voice/IME session, or block organizing and continuing when the spelling service is unavailable.
 
 `AOC_DESCRIPTION_CORRECTION_ENABLED=true` enables `/api/journey/correct` separately from voice and is enabled in the production server environment. Text checks use the existing `AOC_INTAKE_MODEL` setting, defaulting to `gpt-5.4`, with `store:false`. Each pause can make a paid text request. There is a process-local limit of 120 checks per hour, not a shared production quota.
 

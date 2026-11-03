@@ -13,7 +13,12 @@ if (!process.argv.includes('--live') || audioIndex < 0 || !process.argv[audioInd
 }
 const production = process.argv.includes('--production');
 const checkCorrection = process.argv.includes('--check-correction');
+const expectSilence = process.argv.includes('--expect-silence');
+assert.ok(!expectSilence || (!production && !checkCorrection), 'Silence checks run locally without text correction.');
 const width = process.argv.includes('--mobile') ? 390 : 1440;
+const delayIndex = process.argv.indexOf('--delay');
+const delayOverride = delayIndex < 0 ? '' : process.argv[delayIndex + 1];
+assert.ok(!delayOverride || (!production && ['low', 'medium', 'high'].includes(delayOverride)), '--delay is a localhost-only evaluation override.');
 if (!production && !process.env.OPENAI_API_KEY) throw new Error('Load the server API key first; never put it in browser code.');
 const audio = path.resolve(process.argv[audioIndex + 1]);
 const expectedIndex = process.argv.indexOf('--expect-first');
@@ -46,6 +51,11 @@ const server = http.createServer((request, response) => {
 const originalFetch = globalThis.fetch;
 let providerRequests = 0;
 globalThis.fetch = async (url, options) => {
+  if (delayOverride && typeof url === 'string' && url.endsWith('/v1/realtime/client_secrets')) {
+    const body = JSON.parse(options.body);
+    body.session.audio.input.transcription.delay = delayOverride;
+    options = { ...options, body: JSON.stringify(body) };
+  }
   const response = await originalFetch(url, options);
   if (typeof url === 'string' && url.startsWith('https://api.openai.com/')) {
     providerRequests++;
@@ -114,7 +124,7 @@ try {
   await page.getByRole('button', { name: 'Start live voice input' }).click();
   await page.getByRole('button', { name: 'Stop voice input' }).waitFor();
   await page.evaluate(() => window.voiceSample.play());
-  await page.waitForFunction(() => globalThis.AOCJourney.getState().description.slice('Existing typed detail.'.length).trim().length > 0, null, { timeout: 15000 });
+  if (!expectSilence) await page.waitForFunction(() => globalThis.AOCJourney.getState().description.slice('Existing typed detail.'.length).trim().length > 0, null, { timeout: 15000 });
   const partial = await page.locator('#description').inputValue();
   assert.equal(await page.getByRole('button', { name: 'Stop voice input' }).isVisible(), true, 'Words must arrive before stopping.');
   await page.waitForFunction(() => window.voiceSample.ended, null, { timeout: 20000 });
@@ -122,7 +132,11 @@ try {
   await page.getByRole('button', { name: 'Start live voice input' }).waitFor({ timeout: 15000 });
   const final = await page.locator('#description').inputValue();
   assert.ok(final.startsWith('Existing typed detail.'));
-  assert.ok(final.slice('Existing typed detail.'.length).trim().length > 0);
+  if (expectSilence) {
+    console.log('Silence result:', JSON.stringify({ final, status: await page.locator('.live-voice__status, .helper.error').allTextContents() }));
+    assert.equal(final, 'Existing typed detail.', 'Silent audio must not invent a work description.');
+    await page.getByRole('status').filter({ hasText: 'No words were captured' }).waitFor();
+  } else assert.ok(final.slice('Existing typed detail.'.length).trim().length > 0);
   assert.equal(await page.locator('#description').getAttribute('readonly'), null);
   assert.equal(await page.getByRole('alert').count(), 0);
   const firstWord = final.slice('Existing typed detail.'.length).trim().match(/[\p{L}]+/u)?.[0] || '';
@@ -147,12 +161,13 @@ try {
     await page.getByRole('button', { name: 'End session', exact: true }).click();
     await page.getByRole('button', { name: 'Continue to calculator', exact: true }).waitFor();
   }
-  const result = { passed: true, target: origin, width, submittedRecords: 0, voiceStarts, correctionRequests,
+  const result = { passed: true, target: origin, width, audioSample: path.basename(audio), delayOverride: delayOverride || null,
+    submittedRecords: 0, voiceStarts, correctionRequests,
     correctionAndUndoPassed: checkCorrection ? true : null, syntheticAudioOnly: true, speechStartedAfterListening: true,
     elapsedMs: Date.now() - started, providerRequests: production ? null : providerRequests,
-    partial, final, firstWord, expectedFirst, liveDeltasBeforeStop: true };
+    partial, final, firstWord, expectedFirst, silenceCheck: expectSilence, liveDeltasBeforeStop: !expectSilence };
   console.log(JSON.stringify(result));
-  await writeFile(`artifacts/live-voice-${production ? 'production' : 'local'}-${width}.json`, JSON.stringify(result, null, 2));
+  await writeFile(`artifacts/live-voice-${production ? 'production' : 'local'}-${width}-${path.basename(audio, '.wav')}${delayOverride ? '-' + delayOverride : ''}.json`, JSON.stringify(result, null, 2));
   await page.screenshot({ path: `artifacts/live-voice-${production ? 'production' : 'local'}-${width}.png`, fullPage: true });
 } catch (error) {
   console.error('Live voice check failed:', error.message);

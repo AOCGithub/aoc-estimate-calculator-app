@@ -27,6 +27,7 @@
     if (!area || typeof body.sdp !== 'string' || !/^v=0\r?\n/u.test(body.sdp) || !/^m=audio /mu.test(body.sdp)) {
       return json({ error: 'Choose a business area and use the microphone button.' }, 400);
     }
+    if (body.context !== undefined && (typeof body.context !== 'string' || body.context.length > 600)) return json({ error: 'Voice context is too long or invalid.' }, 400);
     // Process-local guard, not a distributed quota or a hard session-duration cap.
     if (Date.now() - windowStart > 3600000) { attempts = 0; windowStart = Date.now(); }
     if (++attempts > 12) return json({ error: 'Voice session limit reached. Please type or try again later.' }, 429);
@@ -37,7 +38,8 @@
         body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 60 }, session: {
           type: 'transcription', audio: { input: {
             transcription: { model: 'gpt-live-transcribe', delay: 'medium',
-              prompt: 'A prospective client describing their ' + area.label + ' work for an AI Commerce estimate.' },
+              prompt: 'A prospective client describing their ' + area.label + ' work for an AI Commerce estimate.'
+                + (body.context?.trim() ? ' Existing client description for context: ' + JSON.stringify(body.context.trim()) : '') },
             noise_reduction: { type: 'near_field' }, turn_detection: null,
           } },
         } }),

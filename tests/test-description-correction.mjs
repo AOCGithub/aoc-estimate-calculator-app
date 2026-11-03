@@ -6,16 +6,31 @@ import Correction from '../server/description-correction.cjs';
 import { handleDescriptionCorrection, handleAccessVerification } from '../server/api-handlers.mjs';
 
 const origin = 'https://correction.test';
-function request(text, cookie = '', method = text === undefined ? 'GET' : 'POST', source = origin) {
+function request(text, cookie = '', method = text === undefined ? 'GET' : 'POST', source = origin, inputSource) {
   return new Request(origin + '/api/journey/correct', { method,
     headers: { origin: source, cookie, 'content-type': 'application/json' },
-    ...(text === undefined ? {} : { body: JSON.stringify({ area: 'area10', text }) }),
+    ...(text === undefined ? {} : { body: JSON.stringify({ area: 'area10', text, ...(inputSource ? { source: inputSource } : {}) }) }),
   });
 }
 if (process.argv.includes('--live')) {
   assert.ok(process.env.OPENAI_API_KEY, 'Load the server key without printing it.');
   const settings = { ...process.env, AOC_ACCESS_GATE_ENABLED: 'false', AOC_MANUAL_ACCESS_ENABLED: 'false', AOC_DESCRIPTION_CORRECTION_ENABLED: 'true' };
-  const cases = [
+  const cases = process.argv.includes('--quality') ? [
+    { name: 'Missing commas with protected facts', text: 'Before we publish a campaign we review the budget check the audience and approve the final ad. We use Meta Ads Manager Shopify and Google Sheets. Our budget is $2,500.50 monthly and we only draft replies; we do not send them.',
+      check(result) {
+        assert.match(result.text, /campaign, we review/);
+        assert.match(result.text, /Manager, Shopify/);
+        assert.ok(result.text.includes('$2,500.50 monthly'));
+        assert.equal(result.text.replace(/[,.]/g, ''), this.text.replace(/[,.]/g, ''), 'Punctuation cannot change words or facts.');
+      } },
+    { name: 'Ambiguous first word and inaudible value', source: 'voice', text: 'Testem one two three I am checking my microphone. Our budget is [inaudible]. We only want drafts and do not approve sending.',
+      check(result) {
+        assert.ok(result.text.startsWith('Testem'), 'An uncertain first word must require confirmation.');
+        assert.ok(result.review.some(item => item.before === 'Testem' && /^testing$/i.test(item.after)), 'Offer a possible wording for review.');
+        assert.ok(result.text.includes('budget is [inaudible]'));
+        assert.ok(result.text.includes('only want drafts and do not approve sending'));
+      } },
+  ] : [
     { name: 'Typed misspellings and facts', text: 'we need adverstising and weekly reprots. our budget is $2500 monthly. only draft replies; do not send them. the additional cost is unknown.',
       check(result) { assert.match(result.text, /advertising and weekly reports/); assert.ok(result.text.includes('$2500 monthly')); assert.ok(result.text.includes('only draft replies; do not send them.')); assert.ok(result.text.includes('additional cost is unknown')); } },
     { name: 'Contextual speech wording', text: 'we need adds on meta and weekly reprots for our store. our ad spend is [inaudible]. do not increase it.',
@@ -24,18 +39,36 @@ if (process.argv.includes('--live')) {
       check(result) { assert.equal(result.text, this.text); } },
   ];
   const results = [];
+  const originalProviderFetch = globalThis.fetch;
+  let rawOutput = '';
+  if (process.argv.includes('--quality')) globalThis.fetch = async (...args) => {
+    const response = await originalProviderFetch(...args);
+    const payload = await response.clone().json().catch(() => ({}));
+    rawOutput = (payload.output || []).flatMap(item => item.content || []).filter(item => item.type === 'output_text').map(item => item.text).join('');
+    return response;
+  };
   for (const item of cases) {
     const started = Date.now();
-    const response = await handleDescriptionCorrection(request(item.text), settings);
+    const response = await handleDescriptionCorrection(request(item.text, '', 'POST', origin, item.source), settings);
     const result = await response.json();
-    assert.equal(response.status, 200, JSON.stringify(result));
-    item.check(result);
-    results.push({ name: item.name, passed: true, elapsedMs: Date.now() - started, ...result });
-    console.log('PASS:', item.name, JSON.stringify(result));
+    const record = { name: item.name, passed: false, elapsedMs: Date.now() - started, ...result,
+      ...(process.argv.includes('--quality') ? { rawOutput } : {}) };
+    results.push(record);
+    try {
+      assert.equal(response.status, 200, JSON.stringify(result));
+      item.check(result);
+      record.passed = true;
+      console.log('PASS:', item.name, JSON.stringify(result));
+    } catch (error) {
+      record.error = error.message;
+      process.exitCode = 1;
+      console.error('FAIL:', item.name, error.message);
+    }
   }
+  globalThis.fetch = originalProviderFetch;
   await mkdir('artifacts', { recursive: true });
-  await writeFile('artifacts/description-correction-live.json', JSON.stringify({ syntheticTextOnly: true, requests: cases.length, results }, null, 2));
-  console.log('PASS: Three short paid spelling checks; no audio capture, database writes or deployment.');
+  await writeFile('artifacts/description-correction-live' + (process.argv.includes('--quality') ? '-quality' : '') + '.json', JSON.stringify({ syntheticTextOnly: true, requests: cases.length, results }, null, 2));
+  console.log(`${results.every(result => result.passed) ? 'PASS' : 'FAIL'}: ${cases.length} short paid cleanup checks; no audio capture, database writes or deployment.`);
 } else {
   const edit = (before, after, kind = 'typo') => ({ before, after, kind });
   const source = 'we need adverstising and reprots. keep $2500 monthly, Qorvex, draft replies only; do not send them. budget unknown.';
@@ -52,6 +85,20 @@ if (process.argv.includes('--live')) {
   assert.equal(Correction.validate('lead routing', { edits: [edit('lead routing', 'lead scoring', 'unclear')] }).review.length, 1);
   assert.equal(Correction.validate('x'.repeat(17996) + ' ab', { edits: [edit('ab', 'abcd')] }).text.length, 17999, 'Corrections cannot exceed the description limit.');
   assert.throws(() => Correction.validate(source, {}));
+  const unpunctuated = 'Before publishing we check the budget audience and ad copy. We use Meta Shopify and Google Sheets';
+  const punctuated = 'Before publishing, we check the budget, audience, and ad copy. We use Meta, Shopify, and Google Sheets.';
+  const punctuation = Correction.validate(unpunctuated, { edits: [edit(unpunctuated, punctuated, 'punctuation')] });
+  assert.equal(punctuation.text, punctuated);
+  assert.ok(punctuation.edits.every(item => item.before === '' && /^[,.]$/.test(item.after)), 'Return minimal insertions so caret positions can be preserved.');
+  for (const [before, after] of [['Do not send ads', 'Do not, send ads'], ['Only prepare drafts', 'Only, prepare drafts'],
+    ['$2500 monthly', '$2,500 monthly'], ['client@example.com', 'client,@example.com'], ['https://example.com/path', 'https://example.com,/path'],
+    ['no, send drafts', 'no send drafts'], ['Budget unknown', 'Budget $500'], ['Send drafts only', 'Send. drafts only']]) {
+    assert.equal(Correction.validate(before, { edits: [edit(before, after, 'punctuation')] }).text, before, 'Reject unsafe punctuation: ' + after);
+  }
+  assert.equal(Correction.validate('https://reprots.example.com', { edits: [edit('reprots', 'reports')] }).text, 'https://reprots.example.com', 'A typo-sized substring cannot change an identifier.');
+  const mixed = 'we need reprots from Meta Shopify and Google Sheets';
+  assert.equal(Correction.validate(mixed, { edits: [edit('reprots', 'reports'), edit(mixed, mixed.replace('Meta Shopify', 'Meta, Shopify') + '.', 'punctuation')] }).text,
+    'we need reports from Meta, Shopify and Google Sheets.');
 
   const settings = { AOC_ACCESS_GATE_ENABLED: 'true', AOC_APPROVED_EMAILS: '["spelling@example.test"]',
     AOC_ACCESS_SESSION_SECRET: 'synthetic-correction-secret-at-least-32-characters',
@@ -67,6 +114,7 @@ if (process.argv.includes('--live')) {
     assert.equal(body.store, false);
     assert.equal(body.text.format.strict, true);
     assert.ok(body.instructions.includes('untrusted text'));
+    assert.ok(body.text.format.schema.properties.edits.items.properties.kind.enum.includes('punctuation'));
     if (mode === 'quota') return Response.json({ error: 'private-provider-details' }, { status: 429 });
     if (mode === 'failure') throw new Error('private-provider-details');
     return Response.json({ status: mode === 'incomplete' ? 'incomplete' : 'completed', output: [{ content: [{ type: 'output_text',
@@ -81,6 +129,7 @@ if (process.argv.includes('--live')) {
     assert.equal((await dispatch(request('a'.repeat(18001), cookie))).status, 400);
     assert.equal((await dispatch(request('a'.repeat(100001), cookie))).status, 413);
     assert.equal((await dispatch(request(undefined, cookie, 'DELETE'))).status, 405);
+    assert.equal((await dispatch(request(source, cookie, 'POST', origin, 'invalid'))).status, 400);
     assert.equal((await dispatch(request(source, cookie), { ...settings, OPENAI_API_KEY: '' })).status, 503);
     assert.deepEqual(await (await dispatch(request(undefined, cookie), { ...settings, AOC_DESCRIPTION_CORRECTION_ENABLED: 'false' })).json(), { configured: false });
     const prior = calls;

@@ -33,6 +33,7 @@ async function provider(url, options) {
     assert.equal(body.session.type, 'transcription');
     assert.equal(body.session.audio.input.transcription.model, 'gpt-live-transcribe');
     assert.equal(body.session.audio.input.transcription.delay, 'medium');
+    if (body.session.audio.input.transcription.prompt.includes('Existing client description')) assert.ok(body.session.audio.input.transcription.prompt.includes('Meta Ads Manager'));
     assert.equal(body.session.audio.input.turn_detection, null);
     assert.ok(!JSON.stringify(body).includes('client-model'));
     if (mode === 'secret_fail') return Response.json({ error: 'private-provider-details' }, { status: 401 });
@@ -65,9 +66,12 @@ async function exercise(dispatch, cookie) {
   assert.equal((await dispatch(request({ area: 'area10', sdp: offer + 'x'.repeat(65536) }, cookie))).status, 413);
   assert.equal((await dispatch(request(undefined, cookie, 'https://voice.test', 'DELETE'))).status, 405);
   assert.equal(calls, 0);
+  assert.equal((await dispatch(new Request('https://voice.test/api/voice/session', { method: 'POST',
+    headers: { origin: 'https://voice.test', cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ area: 'area10', sdp: offer, context: 'x'.repeat(601) }) }))).status, 400);
   for (const [scenario, expected] of [['secret_fail', 502], ['quota', 429], ['call_fail', 502], ['bad_sdp', 502], ['ok', 200]]) {
     mode = scenario;
-    result = await dispatch(request({ area: 'area10', sdp: offer, model: 'client-model', session: { type: 'realtime' } }, cookie));
+    result = await dispatch(request({ area: 'area10', sdp: offer, context: 'Meta Ads Manager and Shopify', model: 'client-model', session: { type: 'realtime' } }, cookie));
     assert.equal(result.status, expected, scenario);
     assert.equal(result.headers.get('cache-control'), 'no-store');
     const body = await result.text();
