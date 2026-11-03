@@ -1,7 +1,7 @@
 # Form UX Updates
 
 Last updated: 3 November 2026
-Status: Local UI redesign prepared for review; production deployment pending
+Status: Published to the AOC domain; live UI verification passed
 
 ## Purpose
 
@@ -20,7 +20,7 @@ This note records the recent prospect-facing form improvements so future work ca
 - Allowed the calculator header to wrap on narrow phones so the brand, session controls and live context fit without overflow.
 - Kept all existing editable and conditional questions, validation, AI prefill, voice/correction controls, calculations and downloads. No pricing or allowance rules changed.
 - Kept entry styling scoped in `src/styles/access.css`; `public/journey.css` and `src/styles.css` continue to style the calculator. No UI framework or npm dependency was added.
-- Local build, access/saving, pricing, voice/correction and complete desktop/mobile journey checks passed. The correction test now waits for the existing cursor-restoration animation frame. Production deployment remains pending.
+- Local build, access/saving, pricing, voice/correction and complete desktop/mobile journey checks passed. Published application commit `55d77ee` and verified the live entry and calculator at 1440px, 390px and 320px. Full desktop/mobile calculation journeys, recalculation, summary downloads and reset cancellation passed with saving off and no paid AI calls. See [production test results](PRODUCTION-TEST-RESULTS.md).
 
 ### Simplified prospect journey
 

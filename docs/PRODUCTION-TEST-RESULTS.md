@@ -6,6 +6,14 @@ Scope: Production verification required by the Phase 1 checklist
 
 Pricing scope: the active calculator uses the reviewed 21 October commercial rules. The live workbook was rechecked through its 24 October modification; unapproved hours, support prices, coverage, and allowances remain pending.
 
+## Entry design release — 3 November 2026
+
+Published application commit `55d77ee6b896b5e6b4bcebd96c718e9bf74ff3e9` to [the live AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel reported Ready for deployment `dpl_5XV2LMF8XBYJBbk6B5oF4fVzBZ1j`. The Aurora entry page is live, **How it works** is removed, and the calculator retains its original navigation, forms and estimate sidebar. Pricing and API behavior were unchanged. The production security policy permits the entry page's self-hosted font.
+
+Passed live Chromium checks at 1440px, 390px and 320px: required entry fields, unchecked optional saving, font loading, Aurora rendering, calculator entry, all twelve business areas, responsive navigation, no horizontal overflow and logout. Full desktop and mobile journeys also passed server calculation, edited-answer recalculation, downloaded-summary parity and reset cancellation. The deployed assets matched the local build using the production access-form flag, and no browser errors or security-policy violations were detected.
+
+Synthetic details only; saving stayed off. Calculation responses confirmed persistence was skipped. No database records were saved and no paid AI calls were made. The existing local pricing, access/saving, voice/correction and complete browser regression checks passed before publication. Browser viewports were used rather than physical phones.
+
 ## Voice reliability and correction release — 3 November 2026
 
 Published application commit `cf69d4ec4fd10cb5b30f50f57f45f1ea939e0de2` to [the live AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel reported Ready for deployment `dpl_NSNRJSHwMfTG3AmHBQSL7JZaUCBr` and confirmed the release commit on `main`.
