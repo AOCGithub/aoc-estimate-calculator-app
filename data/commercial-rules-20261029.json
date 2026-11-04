@@ -1,0 +1,21 @@
+{
+  "version": "2026-10-29-fixed-project-v1",
+  "sourceDocument": "https://docs.google.com/document/d/1ZR-7dAayjtmejgo6GQrtJeI3FSj3kGjNeq_7zIuEPMA/edit",
+  "sourceFramework": "https://docs.google.com/document/d/1okDUVm5wE4MrPiFANlvQIrCJ1sC8omfXCssy37WqCdw/edit",
+  "sourceAgreement": "https://docs.google.com/document/d/15BxB-yzw8U1oP_1B2cpJu2EUgh3P8rnqKT5_ZqdT3dA/edit",
+  "sourceWorkbook": "https://docs.google.com/spreadsheets/d/1vUDbKYWQPTaVIvJEYGzY5pVDCt0n369Ywel0tPk9M7s/edit",
+  "sourceSections": ["28 October fixed-price launch decision", "29 October client-owned Make accounts", "Workflow Automation!B20,B24:B25", "Audit & Project Quote", "Web Calculator Test!B63:B64"],
+  "monthlyBuildStatus": "deferred",
+  "monthlyPlans": { "level1": 4000, "level2": 7000, "level3": 10000 },
+  "includedTraining": { "one": 0, "group": 0, "multiple": 0 },
+  "auditCreditDays": 30,
+  "projectFirstPaymentFraction": 0.5,
+  "supportTiers": ["standard", "priority", "premier"],
+  "supportPrices": { "standard": null, "priority": null, "premier": null },
+  "auditFee": null,
+  "monthlyHourAllowances": { "level1": null, "level2": null, "level3": null },
+  "agencyBlend": null,
+  "postBuildMaintenance": "deferred",
+  "buildCoefficientsStatus": "provisional",
+  "notice": "Working estimate only. Entered quote details require AOC confirmation; this calculator does not approve a quote, apply an invoice credit, or accept payment. Fixed-price builds are the launch offer; monthly build subscriptions are deferred."
+}

@@ -1,6 +1,6 @@
 # Always Open Commerce AI Commerce Estimator
 
-Current local working version: React calculator with the reviewed 21 October commercial rules. Start with [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md) for active rules and release steps. The 18 October handoff remains historical context.
+Current local working version: React calculator with the reviewed 28?29 October fixed-price launch rules. Start with [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md) for active rules and release steps. The 18 October handoff remains historical context.
 
 For a plain-language guide to requesting, testing, and publishing changes, see [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md).
 
@@ -54,6 +54,8 @@ For a Git-connected Vercel staging deployment, follow `docs/VERCEL-DEPLOYMENT.md
 
 The Phase 2 five-field gate and server-side access foundation are available locally behind disabled-by-default environment flags. Email ownership verification and AOC's review workflow still require confirmation before Task #8 is complete or enabled for clients. Follow [Phase 2 gated entry](docs/PHASE-2-GATED-ENTRY.md) for the current scope, open decisions and tests. This step does not save a reusable client profile.
 
+Task #9 now has [production-ready optional profiles](docs/OPTIONAL-CLIENT-PROFILES.md) backed by the existing Supabase database. Profile saving and estimate recording use independent unchecked consent. Review company facts before reuse; manual corrections and cleared answers are protected. The schema and server settings are prepared; publication is separate. Use npm run dev:profiles:database for the real-database preview, or npm run dev:profiles for offline development.
+
 The pricing model and generated field banks remain framework-independent files under `public/` so the existing Node parity checks and Worker can use the same source of truth:
 
 ```sh
@@ -71,5 +73,5 @@ shows an explicitly labeled local preview; it is not presented as server-verifie
 
 The Sheet snapshot is internal configuration input, not an automatic live Sheet connection. Refresh it from the workbook, reconcile the mapping, version it, run parity tests and deploy. Do not manually edit compiled JavaScript and the Sheet independently. The new test scripts cover the current journey; older tests target historical DOM structures and may require migration.
 
-The deployed test preview is public and has no client qualification gate. Use synthetic data. Gated entry, saved profiles, payments and voice are not added by this Phase 1 pricing update. Keep keys server-side and verify the agreed-domain deployment before handoff. Current commercial rules are in `data/commercial-rules-20261021.json`; provisional build coefficients and earlier arithmetic remain preserved. Unknown project-support prices and agreed proposal details stay pending rather than defaulting to historical demo amounts. Publication is a separate step from local tests.
+The deployed test preview is public and has no client qualification gate. Use synthetic data. Gated entry, saved profiles, payments and voice are not added by this Phase 1 pricing update. Keep keys server-side and verify the agreed-domain deployment before handoff. Current commercial rules are in `data/commercial-rules-20261029.json`; provisional build coefficients and earlier arithmetic remain preserved. Monthly builds are deferred, reusable training is included, and Make is client-owned and paid directly. Unknown project-support prices stay pending rather than defaulting to historical demo amounts. Publication is a separate step from local tests.
 "# aoc-estimator-app" 

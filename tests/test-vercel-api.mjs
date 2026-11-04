@@ -13,7 +13,8 @@ const origin = 'https://aoc-estimate-calculator-app.vercel.app';
 
 try {
   for (const path of ['access/status', 'access/verify', 'access/logout', 'access/redeem',
-    'journey/calculate', 'journey/analyze', 'journey/correct', 'intake/status', 'intake/analyze', 'intake/transcribe', 'voice/session']) {
+    'journey/calculate', 'journey/analyze', 'journey/correct', 'intake/status', 'intake/analyze', 'intake/transcribe', 'voice/session',
+    'client-profile', 'client-profile/status', 'client-profile/cleanup']) {
     const route = await import('../api/' + path + '.mjs');
     assert.equal(typeof route.default.fetch, 'function', path + ' must use the Web Request/Response entry format.');
   }
@@ -55,17 +56,11 @@ try {
   assert.equal(result.result.build, 11500);
   assert.equal(result.result.audit, 1250);
   assert.equal(result.result.monthly, null,'unapproved project-support price stays pending');
-  assert.match(result.version, /^2026-10-21-commercial/);
+  assert.equal(result.version, '2026-10-29-fixed-project-v1');
   const monthlyRequest = { ...calculation, answers: { ...calculation.answers, implementation_route:'monthly', audit_accepted_route:'monthly', delivery_intent:'ongoing', monthly_plan:'level2', comparison_months:12, benefit_months:6 } };
   response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(monthlyRequest)}));
-  assert.equal(response.status,200);
-  const monthlyResult = (await response.json()).result;
-  assert.equal(monthlyResult.monthly,7000);
-  assert.equal(monthlyResult.build,null);
-  assert.equal(monthlyResult.firstProjectPayment,null);
-  assert.equal(monthlyResult.credit.amount,1250);
-  assert.equal(monthlyResult.comparisonInvestment,84000);
-  assert.equal(monthlyResult.comparisonGross,9600);
+  assert.equal(response.status,400, 'deferred monthly programs cannot be priced by the launch API');
+  assert.match((await response.json()).error, /Invalid choice/);
   for(const [key,value] of [['tier','critical'],['audit_sent_date','2026-02-30'],['audit_fee',false]]) {
     response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({...calculation,answers:{...calculation.answers,[key]:value}})}));
     assert.equal(response.status,400,'invalid commercial input is rejected');

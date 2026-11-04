@@ -26,8 +26,10 @@ export function useAccessGate() {
     manualApproval: false,
     intakeOnly: false,
     recordsEnabled: false,
+    profilesEnabled: false,
     savingAvailable: false,
     saveData: false,
+    currentProfile: null,
     invitationToken: initialInvitation,
   });
 
@@ -65,6 +67,7 @@ export function useAccessGate() {
           manualApproval: Boolean(data.manualApproval),
           intakeOnly: Boolean(data.intakeOnly),
           recordsEnabled: Boolean(data.recordsEnabled),
+          profilesEnabled: Boolean(data.profilesEnabled),
           savingAvailable: Boolean(data.savingAvailable),
           saveData: data.saveData === true,
           loading: false,
@@ -107,6 +110,7 @@ export function useAccessGate() {
         pending: false,
         invitationToken: '',
         saveData: data.saveData === true,
+        currentProfile: Object.fromEntries(['name', 'company', 'website', 'role', 'businessEmail'].map(key => [key, profile[key]])),
       }));
       return { ok: true };
     } catch (error) {
@@ -127,6 +131,7 @@ export function useAccessGate() {
         ...current,
         authenticated: false,
         saveData: false,
+        currentProfile: null,
         error: '',
         working: false,
         pending: false,

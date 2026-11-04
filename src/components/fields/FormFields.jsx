@@ -26,7 +26,6 @@ function requiredFields(state) {
   ]);
 
   if (state.answers.solution === 'agent') required.add('decision_band');
-  if (state.answers.implementation_route === 'monthly') required.add('monthly_plan');
   if (state.answers.action_mode && state.answers.action_mode !== 'draft') required.add('consequential');
 
   if (marketingAreas.has(state.area)) {
@@ -56,7 +55,7 @@ function FieldLabel({ id, label, filled, required, missing }) {
   return (
     <label htmlFor={`f_${id}`}>
       {label}
-      {filled && <span className="filled">From your description</span>}
+      {filled && <span className="filled">{filled === 'profile' ? 'From confirmed profile' : 'From your description'}</span>}
       {required && missing && (
         <span id={`f_${id}_requirement`} className="required-indicator">Required</span>
       )}
@@ -177,7 +176,7 @@ export function createFieldProps(state, mark) {
         help={help}
         type={type}
         value={state.answers[id]}
-        filled={Boolean(state.facts[id])}
+        filled={state.profileSources?.[id] ? 'profile' : Boolean(state.facts[id])}
         required={required.has(id)}
         onChange={mark}
         {...extra}
@@ -191,7 +190,7 @@ export function createFieldProps(state, mark) {
         options={options}
         help={help}
         value={state.answers[id]}
-        filled={Boolean(state.facts[id])}
+        filled={state.profileSources?.[id] ? 'profile' : Boolean(state.facts[id])}
         required={required.has(id)}
         onChange={mark}
       />
@@ -201,7 +200,7 @@ export function createFieldProps(state, mark) {
         key={field?.id}
         field={field}
         value={state.answers[field?.id]}
-        filled={Boolean(state.facts[field?.id])}
+        filled={state.profileSources?.[field?.id] ? 'profile' : Boolean(state.facts[field?.id])}
         required={required.has(field?.id)}
         onChange={mark}
         onRemove={typeof onRemove === 'function' ? onRemove : undefined}

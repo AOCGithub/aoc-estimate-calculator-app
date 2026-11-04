@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { ManualAccessGate } from './ManualAccessGate.jsx';
 import { AccessDetailsFields, emptyAccessProfile } from './fields/AccessDetailsFields.jsx';
 import Aurora from './visuals/Aurora.jsx';
+import { ClientProfileReview } from './ClientProfileReview.jsx';
 
 const auroraColors = ['#087E79', '#57C4A5', '#295C80'];
 
-export function AccessGate({ access }) {
+export function AccessGate({ access, profiles = { enabled: false, working: false } }) {
   const [profile, setProfile] = useState(emptyAccessProfile);
   const [saveData, setSaveData] = useState(false);
+  const [rememberProfile, setRememberProfile] = useState(false);
+  const [reuseConfirmed, setReuseConfirmed] = useState(false);
+  const busy = access.working || profiles.working;
 
   if (access.loading) {
     return (
@@ -24,7 +28,10 @@ export function AccessGate({ access }) {
 
   async function submit(event) {
     event.preventDefault();
-    await access.verify(access.intakeOnly ? { ...profile, saveData } : profile);
+    if (busy) return;
+    if (profiles.enabled && rememberProfile && !await profiles.save(profile, reuseConfirmed)) return;
+    const outcome = await access.verify(access.intakeOnly ? { ...profile, saveData } : profile);
+    if (outcome?.ok && profiles.enabled) profiles.cancelReview();
   }
 
   return (
@@ -73,7 +80,19 @@ export function AccessGate({ access }) {
                   <button type="button" onClick={access.resetRequest}>Back to form</button>
                 </div>
               ) : <form className="access-form" onSubmit={submit}>
-                <AccessDetailsFields profile={profile} onChange={setProfile} />
+                <ClientProfileReview profiles={profiles} onReuse={() => {
+                  const reused = profiles.reuse(profile);
+                  if (reused) { setProfile(reused); setReuseConfirmed(true); }
+                }} />
+                <AccessDetailsFields profile={profile} onChange={setProfile} disabled={busy} />
+                {profiles.enabled ? <div className="access-saving-choice">
+                  <label htmlFor="remember-client-profile"><input id="remember-client-profile" type="checkbox"
+                    checked={rememberProfile} disabled={busy || !profiles.available}
+                    aria-describedby="remember-profile-help" onChange={event => setRememberProfile(event.target.checked)} />
+                    Remember my business details for next time (optional)
+                  </label>
+                  <p id="remember-profile-help">Remember these details in this browser for {profiles.retentionDays} days after you save, and review them before reuse. Choose company facts separately inside the calculator. Leave unchecked for this session only. You can delete the profile at any time.</p>
+                </div> : null}
                 {access.intakeOnly && <div className="access-saving-choice">
                   <label htmlFor="access-save-data"><input id="access-save-data" name="saveData" type="checkbox"
                     checked={saveData} disabled={access.working || !access.savingAvailable}
@@ -84,9 +103,9 @@ export function AccessGate({ access }) {
                     {!access.savingAvailable && ' Saving is currently unavailable; you can continue without it.'}</p>
                 </div>}
                 {access.error && <p className="access-error" role="alert">{access.error}</p>}
-                <button type="submit" className="primary access-submit" disabled={access.working || !access.configured}>
-                  <span>{access.working ? (access.intakeOnly ? saveData ? 'Saving details…' : 'Opening calculator…' : access.requestsEnabled ? 'Submitting request…' : 'Checking access…') : (access.intakeOnly ? 'Continue to calculator' : access.requestsEnabled ? 'Request access / continue' : 'Continue to estimator')}</span>
-                  {!access.working && <i aria-hidden="true">→</i>}
+                <button type="submit" className="primary access-submit" disabled={busy || !access.configured}>
+                  <span>{profiles.working ? 'Please wait…' : access.working ? (access.intakeOnly ? saveData ? 'Saving details…' : 'Opening calculator…' : access.requestsEnabled ? 'Submitting request…' : 'Checking access…') : (access.intakeOnly ? 'Continue to calculator' : access.requestsEnabled ? 'Request access / continue' : 'Continue to estimator')}</span>
+                  {!busy && <i aria-hidden="true">→</i>}
                 </button>
               </form>}
               <div className="access-privacy">
@@ -98,8 +117,8 @@ export function AccessGate({ access }) {
                 <div>
                   <strong>Access and privacy</strong>
                   <p>
-                    {access.intakeOnly ? 'You choose whether AOC saves your business details and estimates. Without saving, the calculator still works for your session. AI features still process descriptions you submit. Verification and approval remain on hold. ' : access.requestsEnabled ? 'Your name, company, website, role and business email are saved privately for access review. ' : 'These details are used to confirm access to the calculator. '}We do not request
-                    LinkedIn access or email-inbox access, save a reusable profile, enroll you in
+                    {profiles.enabled ? 'Profile saving and estimate recording are separate optional choices. Profiles are stored privately with AOC and accessed using a private browser cookie. Clearing that cookie removes access from this browser. AI features still process descriptions you submit. Identity verification and approval remain on hold. ' : access.intakeOnly ? 'You choose whether AOC saves your business details and estimates. Without saving, the calculator still works for your session. AI features still process descriptions you submit. Verification and approval remain on hold. ' : access.requestsEnabled ? 'Your name, company, website, role and business email are saved privately for access review. ' : 'These details are used to confirm access to the calculator. '}We do not request
+                    LinkedIn access or email-inbox access, {profiles.enabled ? '' : 'save a reusable profile, '}enroll you in
                     marketing or send unsolicited follow-up.
                   </p>
                 </div>

@@ -51,6 +51,9 @@ try {
     headers: { origin, cookie, 'content-type': 'application/json', ...extraHeaders }, body: JSON.stringify(body) });
   let response = await originalFetch(origin + '/');
   assert.equal(response.status, 404, 'Non-API requests pass through to Vite.');
+  response = await originalFetch(origin + '/api/client-profile/status');
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).available, false, 'Optional profiles remain unavailable until deliberately configured.');
   response = await originalFetch(origin + '/api/access/status?check=1');
   assert.deepEqual(await response.json(), { enabled: true, configured: true, authenticated: false, requestsEnabled: true, intakeOnly: true, recordsEnabled: true, savingAvailable: true, saveData: false });
   assert.equal(response.headers.get('cache-control'), 'no-store');

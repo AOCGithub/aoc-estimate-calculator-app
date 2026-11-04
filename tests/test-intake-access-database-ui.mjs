@@ -101,7 +101,7 @@ try {
     assert.deepEqual(records[0].answers, payload.answers);
     assert.deepEqual(records[0].result, engine.calculate(payload).result);
     assert.equal(records[0].business_area, payload.area);
-    assert.equal(records[0].pricing_version, '2026-10-21-commercial-v1');
+    assert.equal(records[0].pricing_version, engine.calculate(payload).version);
     const changed = { ...payload, answers: { ...payload.answers, team_time: 90 } };
     const changedResponse = await context.request.post(baseURL + '/api/journey/calculate', { headers: { origin: baseURL }, data: changed });
     assert.equal((await changedResponse.json()).record.saved, true);
@@ -176,7 +176,7 @@ try {
     for (const [field, value] of Object.entries({ ...profile, businessEmail: privateEmail })) await page.locator('#access-' + field).fill(value);
     assert.equal(await consent.isChecked(), false, 'Saving must default off again after logout.');
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
-    await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
+    await page.getByRole('note').filter({ hasText: /Data saving is off\.|Estimate recording is off\./ }).waitFor();
     const privateState = await page.evaluate(() => globalThis.AOCJourney.getState());
     assert.equal(privateState.description, '');
     assert.deepEqual(privateState.answers, {}, 'Ending the previous session must clear private answers held on the page.');
@@ -193,7 +193,7 @@ try {
     assert.equal(privateToken.requestId, undefined);
     assert.equal(privateToken.saveData, false);
     await page.reload({ waitUntil: 'networkidle' });
-    await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
+    await page.getByRole('note').filter({ hasText: /Data saving is off\.|Estimate recording is off\./ }).waitFor();
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`PASS: Real Supabase + ${width}px optional saving, no-save entry/calculation, linked snapshots when selected, edited/cleared answers, Calculate button, pricing version, reload and logout.`);

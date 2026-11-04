@@ -17,9 +17,6 @@ function createTestPricing() {
   for (const [tier, price] of Object.entries(fixture.supportPrices)) {
     if (!pricing.commercial.supportTiers.includes(tier) || !Number.isFinite(price) || price <= 0) throw Error('Invalid synthetic support fixture.');
   }
-  for (const [plan, proposal] of Object.entries(fixture.monthlyProposals)) {
-    if (!(proposal.hours > 0 && proposal.blend > 0) || proposal.hours * proposal.blend !== pricing.commercial.monthlyPlans[plan]) throw Error('Synthetic proposal must reconcile with its program fee.');
-  }
   const context = vm.createContext({ structuredClone, AOCPricing: pricing });
   for (const filename of ['engine.js', 'approved-bank.js', 'commercial.js', 'journey-engine.js', 'journey-contract.js', 'journey-calculation.js']) {
     vm.runInContext(fs.readFileSync(path.join(projectRoot, 'public', filename), 'utf8'), context, { filename });
@@ -30,8 +27,7 @@ function createTestPricing() {
 
 function banner() {
   const tiers = Object.entries(fixture.supportPrices).map(([tier, fee]) => `${tier}: $${fee}/month`).join(' | ');
-  const plans = Object.entries(fixture.monthlyProposals).map(([plan, proposal]) => `<li>${plan}: ${proposal.hours} sample hours/month at $${proposal.blend}/hour</li>`).join('');
-  return `<aside class="test-pricing-banner" role="note" aria-label="Synthetic local pricing"><strong>${fixture.label}</strong><p>Production is unchanged. Support fees in this preview: ${tiers}.</p><details><summary>Sample allowances to enter for a monthly program</summary><ul>${plans}</ul><p>Enter these in section 7, under Agreed monthly proposal details. They are examples, not real agreed hours or a universal agency rate. Blank answers stay unknown; nothing is automatically agreed. Audit and project quotes still need explicit entries. AI uses free local organization here; no key is loaded and no paid AI calls are made.</p></details></aside>`;
+  return `<aside class="test-pricing-banner" role="note" aria-label="Synthetic local pricing"><strong>${fixture.label}</strong><p>Production is unchanged. Support fees in this preview: ${tiers}.</p><p>Example support fees only; not approved client prices. Fixed-price builds remain the launch offer. AI uses free local organization here; no paid AI calls are made.</p></aside>`;
 }
 
 function createPreviewServer() {

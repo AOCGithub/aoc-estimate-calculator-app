@@ -8,13 +8,16 @@ if (!process.argv.includes('--live')) {
 }
 if (!process.env.OPENAI_API_KEY) throw Error('Configure the server key before the opt-in test.');
 process.env.AOC_AI_ORGANIZER_ENABLED = 'true';
+// Isolate these synthetic provider checks from access and persistence configuration.
+process.env.AOC_ACCESS_GATE_ENABLED = 'false';
+process.env.AOC_ESTIMATE_RECORDS_ENABLED = 'false';
 const report = { testedAt:new Date().toISOString(), target:'local current API code with live OpenAI provider; not the deployed pricing version', syntheticDataOnly:true, providerRequests:0, cases:[] };
 const cases = [
   {
-    name:'Support agent with explicitly selected monthly program', area:'area2',
+    name:'Support agent with a deferred monthly-program request', area:'area2',
     text:"We need an AI agent to draft replies in Help Scout using approved policies. A person must approve every reply. We want an ongoing development program toward a broader connected system and have chosen AOC's Level 1 monthly build program. AOC quoted a fixed initial audit fee of $1,250. We have not agreed any combined monthly hours or an agency rate. Our team manages it. This is our first AOC agreement.",
-    expected:{action_mode:'draft',implementation_route:'monthly',monthly_plan:'level1',audit_fee:'1250'},
-    unknown:['agreed_monthly_hours','agreed_agency_blend','audit_sent_date','implementation_acceptance_date','first_implementation_payment_date','audit_credit_used','audit_accepted_route'],
+    expected:{action_mode:'draft',audit_fee:'1250'},
+    unknown:['monthly_plan','agreed_monthly_hours','agreed_agency_blend','audit_sent_date','implementation_acceptance_date','first_implementation_payment_date','audit_credit_used','audit_accepted_route'],
   },
   {
     name:'Fixed project; budget and staff cost do not select a program or agency rate', area:'area0',

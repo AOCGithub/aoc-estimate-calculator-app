@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "npm run dev:access",
+    "dev:profiles": "node scripts/dev-profiles.mjs",
     "dev:access": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-access.mjs",
     "dev:access:previous": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-access.mjs --previous",
     "dev:access:review": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-access.mjs --review",
@@ -19,7 +20,7 @@
     "build": "vite build",
     "build:worker": "npm run build && node scripts/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",
-    "test:domain": "node tests/test-journey.cjs && node tests/test-commercial.cjs",
+    "test:domain": "node tests/test-journey.cjs && node tests/test-commercial.cjs && node tests/test-document-rules.cjs",
     "test:local-pricing": "node tests/test-local-pricing.cjs && node tests/test-local-pricing-ui.cjs",
     "test:worker": "node tests/test-journey-worker.cjs",
     "test:intake": "node tests/test-voice-server.cjs",
@@ -30,9 +31,16 @@
     "test:manual-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-manual-access-database-ui.mjs",
     "test:intake-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-intake-access-database-ui.mjs",
     "test:access-ui": "node tests/test-access-ui.cjs",
+    "test:profiles": "node tests/test-client-profiles.mjs && node tests/test-production-profiles.mjs",
+    "test:profiles:ui": "node tests/test-client-profiles-ui.cjs && node tests/test-company-profile-ui.cjs",
     "test:ui": "node tests/test-react-ui.cjs",
     "test:ui:capture": "node tests/test-react-ui.cjs --capture",
-    "test": "npm run build:worker && npm run test:access && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:live-voice && npm run test:ui && node scripts/validate-artifact.mjs"
+    "test": "npm run build:worker && npm run test:access && npm run test:profiles && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:live-voice && npm run test:ui && node scripts/validate-artifact.mjs",
+    "profiles:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/client-profile-database.mjs setup",
+    "profiles:db:check": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/client-profile-database.mjs check",
+    "test:profiles:database": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-client-profiles-database.mjs --database",
+    "test:profiles:cloud-ui": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-client-profiles-cloud-ui.mjs --database",
+    "dev:profiles:database": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev-profiles.mjs --database"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",

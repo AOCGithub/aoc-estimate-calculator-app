@@ -3,12 +3,16 @@
 The maintained React-era regression suite is:
 
 - `test-journey.cjs` — retained 18 October arithmetic regression, field banks, and extraction validation. Historical arithmetic is explicitly tested with the current commercial overlay disabled; it is not current pricing sign-off.
-- `test-commercial.cjs` — active 21 October fixed-project/monthly-program rules, audit-credit boundaries and reuse, quoted support-source protection, existing agreements, applicable provider savings, unknowns, benefit timing, and changed/cleared answers.
+- `test-commercial.cjs` — active fixed-project rules, audit-credit boundaries, quoted support-source protection, existing agreements, eligible provider savings, unknowns and changed/cleared answers; earlier monthly calculations are explicitly historical.
+- `test-document-rules.cjs` — 28–29 October source corrections: fixed-price launch, included training, ROI eligibility across all 12 areas, missing replacement totals, 10,000 exact-cent payment splits and excluded question/AI/API boundaries.
 - `test-journey-worker.cjs` — packaged assets, API guards, and mocked AI extraction.
 - `test-voice-server.cjs` — retained intake/transcription API contract, provider error handling, request limits, and same-origin guards. This is separate from the new live-voice path.
 - `test-live-voice.mjs` and `test-live-voice-ui.cjs` — transcription reconciliation, private server handshake, access guards and desktop/mobile browser journeys with synthetic providers. These run in `npm test` without paid AI calls.
 - `test-description-correction.mjs` — protected spelling edits, uncertain suggestions, access/configuration guards, provider failures and Node/Worker parity. It runs without paid calls in the normal suite. Opt in to three short real-provider checks with `node --env-file=.env.local tests/test-description-correction.mjs --live`; only synthetic text is sent, with no audio, database writes or deployment. Results go to the ignored `artifacts/` directory. The live-voice browser suite also tests typed and post-voice auto-correction, undo, cursor preservation, IME and delayed-response protection.
 - `test-react-ui.cjs` — real Chromium journey, conditional form behavior, manual scope preservation, local/server calculation paths, validation rejection, fixture totals, stale results, protected area changes, and mobile overflow.
+- `test-client-profiles.mjs` and `test-production-profiles.mjs` — shared consent/reuse protocol, offline persistence, production Supabase adapter, HTTPS cookies, ownership, revision races, deletion, request limits, expiry and protected cleanup. Included in `npm test` without real database writes.
+
+Real profile persistence is opt-in: `npm run test:profiles:database` checks Supabase and removes only its synthetic rows. `npm run test:profiles:cloud-ui` serves the production-built React app with real Node handlers and Supabase, then checks desktop/mobile profile and company-fact journeys with independent saving choices. These do not deploy or call paid AI. Build first. See [optional profiles](../docs/OPTIONAL-CLIENT-PROFILES.md).
 
 `npm test` builds the current client and packaged Worker before running tests that inspect generated artifacts.
 

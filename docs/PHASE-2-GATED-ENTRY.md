@@ -57,6 +57,8 @@ Task #8 covers access entry, verification, AOC review, privacy boundaries and ca
 
 Optional reusable profile saving, an unchecked consent choice, returning-client prefill and client-separation tests remain Task #9. WordPress linking and the full client-release journey remain Task #10.
 
+Task #9 now has a [Supabase-backed production implementation](OPTIONAL-CLIENT-PROFILES.md): optional business details and selected company facts, independent unchecked consent, review before reuse, provenance, protected manual/cleared answers, database revision checks and private browser ownership. Schema and Vercel settings are prepared; it is not deployed yet. Verification and AOC approval remain paused.
+
 ## Verification
 
 Run `npm test`. Automated checks cover the five required fields, provisional allowlist matching, pending requests without access, save-failure handling, signed sessions, revocation, API enforcement, logout, absence of reusable profile storage and desktop/mobile layouts. The separate database test verifies actual Supabase persistence and anonymous access denial without retaining synthetic records.

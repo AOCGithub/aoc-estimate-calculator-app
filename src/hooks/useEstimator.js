@@ -3,6 +3,7 @@ import { calculateEstimate, estimatorBank } from '../lib/domain.js';
 import { normalizeAnswers } from '../lib/format.js';
 import { numericFields } from '../constants.js';
 import { scopeQuestions } from '../lib/scopeQuestions.js';
+import { mergeCompanyFacts } from '../../shared/client-profile.mjs';
 
 const createInitialState = (request = 0) => ({
   step: 1,
@@ -10,6 +11,7 @@ const createInitialState = (request = 0) => ({
   description: '',
   answers: {},
   facts: {},
+  profileSources: {},
   routes: [],
   routeOverrides: {},
   visible: [],
@@ -399,11 +401,22 @@ export function useEstimator() {
         if (answers.management !== 'yes') answers.tier = null;
       }
       const facts = { ...current.facts };
+      const profileSources = { ...current.profileSources };
       delete facts[key];
+      delete profileSources[key];
       if (key === 'responsibility_split') delete facts.management;
-      return markDirty({ ...current, answers, facts });
+      return markDirty({ ...current, answers, facts, profileSources });
     });
     return true;
+  }, []);
+
+  const applyProfileFacts = useCallback((selected, revision, area) => {
+    requestRef.current += 1;
+    setState(current => {
+      if (current.area !== area) return current;
+      const merged = mergeCompanyFacts(current, selected, revision);
+      return merged.count ? markDirty({ ...current, answers: merged.answers, profileSources: merged.profileSources, working: false }) : current;
+    });
   }, []);
 
   const toggleRoute = useCallback((route) => {
@@ -465,12 +478,15 @@ export function useEstimator() {
       if (!current.visible.includes(fieldId) || !scopeQuestions(area).some((field) => field.id === fieldId)) return current;
       const answers = { ...current.answers };
       const facts = { ...current.facts };
+      const profileSources = { ...current.profileSources };
       delete answers[fieldId];
       delete facts[fieldId];
+      delete profileSources[fieldId];
       return markDirty({
         ...current,
         answers,
         facts,
+        profileSources,
         visible: current.visible.filter((id) => id !== fieldId),
         manualVisible: current.manualVisible.filter((id) => id !== fieldId),
         removedScopeFields: [...new Set([...current.removedScopeFields, fieldId])],
@@ -699,6 +715,7 @@ export function useEstimator() {
       goTo,
       mark,
       organize,
+      applyProfileFacts,
       removeVisibleField,
       restart,
       setConfirmed,

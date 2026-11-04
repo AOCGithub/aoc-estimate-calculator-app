@@ -127,7 +127,7 @@ function normalizedText(value, maximumLength) {
   return typeof value === 'string' ? value.trim().slice(0, maximumLength) : '';
 }
 
-function validateAccessProfile(body) {
+export function validateAccessProfile(body) {
   const profile = {
     name: normalizedText(body?.name, 100),
     company: normalizedText(body?.company, 120),
@@ -180,6 +180,8 @@ export function handleAccessStatus(request, environment = process.env) {
       savingAvailable: configuration.requests.enabled && configuration.requests.configured,
       saveData: Boolean(authenticated && session.saveData === true) } : {}),
     ...(EstimateRecords.enabled(environment) ? { recordsEnabled: true } : {}),
+    ...(configuration.intakeOnly && ((!environment.VERCEL && environment.AOC_LOCAL_CLIENT_PROFILES_ENABLED === 'true')
+      || (environment.AOC_CLIENT_PROFILES_ENABLED === 'true' && configuration.requests.configured)) ? { profilesEnabled: true } : {}),
   });
 }
 

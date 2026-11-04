@@ -16,6 +16,8 @@ import { ServiceSection } from './components/sections/ServiceSection.jsx';
 import { LiveContext } from './components/LiveContext.jsx';
 import { RestartDialog } from './components/RestartDialog.jsx';
 import { AccessGate } from './components/AccessGate.jsx';
+import { useClientProfile } from './hooks/useClientProfile.js';
+import { CompanyProfilePanel } from './components/CompanyProfilePanel.jsx';
 
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
@@ -77,6 +79,7 @@ function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) 
 
 export default function App() {
   const access = useAccessGate();
+  const profiles = useClientProfile(access.intakeOnly, access.profilesEnabled);
   const { state, selectedArea, actions } = useEstimator();
   const [toast, setToast] = useState('');
   const [restartOpen, setRestartOpen] = useState(false);
@@ -120,7 +123,7 @@ export default function App() {
   }
 
   if (access.enabled && !access.authenticated) {
-    return <AccessGate access={access} />;
+    return <AccessGate access={access} profiles={profiles} />;
   }
 
   return (
@@ -143,7 +146,8 @@ export default function App() {
       <main>
         {access.intakeOnly && <p className="session-saving-note" role="note">{access.saveData
           ? `Data saving is on. Your details${access.recordsEnabled ? ' and calculated estimates' : ''} are saved privately with AOC.`
-          : 'Data saving is off. Your details and estimate records are not saved to AOC’s database for this session.'}</p>}
+          : profiles.enabled ? 'Estimate recording is off. Company profile details are saved separately only when you choose to remember them.'
+            : 'Data saving is off. Your details and estimate records are not saved to AOC’s database for this session.'}</p>}
         {state.step === 1 ? (
           <>
             <div className="intro">
@@ -190,6 +194,8 @@ export default function App() {
                   notify={notify}
                   onChooseArea={chooseArea}
                 />
+                {[4, 5].includes(state.step) && <CompanyProfilePanel key={`${state.area}-${state.step}`}
+                  profiles={profiles} identity={access.currentProfile} state={state} onApply={actions.applyProfileFacts} />}
                 {state.step !== 2 && (
                   <StepActions
                     step={state.step}

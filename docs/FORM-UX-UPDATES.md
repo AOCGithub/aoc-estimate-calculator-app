@@ -1,13 +1,53 @@
 # Form UX Updates
 
-Last updated: 3 November 2026
-Status: Published to the AOC domain; live UI verification passed
+Last updated: 4 November 2026
+Status: Earlier UI release published; document-alignment corrections and production profile implementation await deployment. Supabase schema and Vercel settings are prepared.
 
 ## Purpose
 
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Entry form scrolling — 4 November 2026 (local)
+
+- The desktop form now scrolls within the right panel while the AOC branding and left visual remain visible. Short forms center safely; longer or expanded profile content remains reachable from top to bottom.
+- Mobile/tablet layouts retain normal page scrolling with a fixed, readable brand header. Focused fields stay clear of the header, and calculator page scrolling is restored after entry.
+- Checked eight viewport sizes, including short desktop windows and mobile landscape, with expanded profile review, keyboard focus, unchecked consent and successful calculator entry. No form content or calculation rules were changed. Not deployed.
+
+### Production preparation for optional profiles — 4 November 2026
+
+- Added Supabase-backed profile endpoints using the same tested consent/reuse protocol as the offline adapter. The private profile table and restricted expiry-cleanup function are created; existing submissions and estimates are preserved.
+- Profiles and estimate recording have independent, unchecked saving choices. Returning clients review saved details/facts before reuse; current and deliberately cleared answers remain protected.
+- Profile ownership uses a private browser credential with only its digest stored. Email lookup is unavailable; conflicting revisions and cross-client overwrites are rejected. Selected removals and full profile deletion are supported.
+- Prepared server-only Vercel flags and a sensitive cleanup secret. Profiles expire after the displayed configurable duration (30 days by default); daily protected cleanup is configured. Production does not use the offline file adapter.
+- Passed protocol/security tests, real Supabase persistence/race/deletion/expiry tests, production-built desktop/mobile profile journeys and the full application regression suite. Synthetic profiles were removed after tests; no paid AI calls were made for this work.
+- Verification/AOC approval remains paused. Review in the Supabase-backed local preview on port 5180. Code has not been pushed or deployed. Details: [optional client profiles](OPTIONAL-CLIENT-PROFILES.md).
+
+### Calculator output and editable marketing counts — 4 November 2026 (local)
+
+- Tested workflow, agent and paid-advertising estimates on desktop/mobile against independent expected outputs. Draft builds, quoted totals, audit credits, payments, ROI, edits/clearing and unknown fees passed.
+- Fixed supplied marketing channel/format counts being hidden outside Content & Social even though they could affect price. Existing fields now appear when supplied and remain editable after clearing. No pricing rules or new required questions were added.
+- Evidence and sample outputs: [calculator output journeys](SYSTEM-AUDIT-2026-11-04.md#calculator-output-journeys--4-november-2026). Not deployed.
+
+### Document alignment — 4 November 2026 (local)
+
+- Applied the 28–29 October fixed-price launch decision; monthly build programs remain deferred historical references.
+- Included reusable training without a separate surcharge; preserved quoted project totals and separately purchased live training.
+- Matched provider-savings eligibility, partial replacement unknowns and 50/50 payment rounding to the workbook.
+- Corrected question-bank filtering; all 982 detailed questions match the reviewed source. Excluded payroll is unavailable to the form, AI and calculation API.
+- Added the documented client-owned Make/direct-billing explanation and refreshed the short maintenance instructions.
+- Passed the full regression suite, local profile tests, 10,000 payment splits, 144 independent quote/ROI cases and two synthetic real-provider AI tests. Details: [system audit and retest](SYSTEM-AUDIT-2026-11-04.md).
+- No new prices or features were introduced by these corrections. Not deployed.
+
+### Optional client-profile trial — 4 November 2026
+
+- Added a separate local trial for Task #9 with an unchecked **Remember my business details for next time** choice, review before reuse and a **Forget saved details** action.
+- Expanded reuse beyond the entry details: clients can select existing app, access, connection and information-location facts to save, then review their source/date and confirm relevance before reusing them in a new estimate. Unknowns, prices and process-specific decisions are excluded.
+- Manual and explicitly cleared answers are preserved; conflicting clients and stale profile updates are blocked. Contact updates preserve company facts, and fact updates preserve contact details. Selected old facts or the entire profile can be removed explicitly.
+- Reused answers show **From confirmed profile**. Applying new facts marks previous results stale; arithmetic and pricing rules remain unchanged. Saving updates requires renewed unchecked consent.
+- Uses an isolated local database and a private browser credential, with consent and field provenance recorded. Email alone cannot retrieve a profile. Production and Supabase storage were not changed. See [local trial instructions](OPTIONAL-CLIENT-PROFILES.md).
+- Passed profile API and desktop/mobile browser checks, including opt-out, identity conflicts, preserved edits, separate clients, save-failure recovery, expiry, forgetting and calculation. The existing full regression suite also passed. Tests used synthetic details without paid AI or Supabase writes.
 
 ### Minimal interface redesign — 3 November 2026
 
@@ -229,14 +269,14 @@ This section records the completed correction pass against the current calculato
 
 These are planning estimates for Gino to review, not fixed deadlines. Later phases must not delay the working calculator. Numbered Hubstaff checklist evidence must be attached to the relevant future update before checklist completion is claimed.
 
-### Remaining Phase 1 operational work
+### Remaining Phase 1 operational work recorded on 28 October (historical)
 
 - Run the current fixed-project and monthly-program browser journeys on the AOC hostname.
 - Capture final deployed desktop/mobile evidence for commercial configuration version `2026-10-21-commercial-v1`.
 - Complete broader production AI-prefill scenarios and resolve any findings.
 - Keep draft coefficients, monthly service amounts, SLA terms, and incomplete field mappings marked provisional until their business review is complete.
 
-## Commercial and deployment reconciliation - 28 October 2026
+## Commercial and deployment reconciliation - 28 October 2026 (historical, before the latest source reconciliation)
 
 - The AOC hostname now loads successfully over HTTPS; the earlier invalid-domain status above is historical.
 - Production AI prefill is enabled and returned validated structured output using commercial configuration version `2026-10-21-commercial-v1`; the earlier local-only status above is historical.

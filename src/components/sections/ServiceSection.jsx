@@ -36,7 +36,6 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
         are different parts of the scope.
       </p>
       <CommercialFields answers={answers} fields={fields} />
-      {answers.implementation_route === 'monthly' && <p className="subtle">The selected program includes agreed implementation support. The management choice below describes the eventual operating/handover preference; it does not add another service charge to the program.</p>}
       {fields.select('responsibility_split', 'After launch, how would you like this managed?', [
         ['aoc', 'AOC manages it'],
         ['client', 'Our team manages it'],
@@ -87,7 +86,7 @@ export function ServiceSection({ answers, confirmed, fields, onConfirm, onMark }
       {answers.management === 'no' && (
         <div className="subtle">
           <strong>Self-managed</strong>
-          <p>No optional post-project management fee. A selected monthly build program remains payable for its agreed implementation scope. Ad hoc support: $150/hour, with a $150 minimum per ticket, subject to availability.</p>
+          <p>No optional post-project management fee. Ad hoc support: $150/hour, with a $150 minimum per ticket, subject to availability.</p>
         </div>
       )}
       <details className="field-bank compact-details">

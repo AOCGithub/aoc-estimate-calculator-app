@@ -2,7 +2,7 @@
   'use strict';
   const choices = {
     delivery_intent: ['limited', 'ongoing', 'unsure'],
-    implementation_route: ['project', 'monthly', 'help'],
+    implementation_route: ['project', 'help'],
     monthly_plan: ['level1', 'level2', 'level3'],
     live_training: ['yes', 'no'],
     audit_credit_used: ['yes', 'no', 'unknown'],
@@ -43,7 +43,9 @@
     existing_replaced_scope: 'Existing agreed work replaced or removed (explicit None is allowed)',
     existing_plan_reconciled: 'Has AOC confirmed the retained/replaced scope and checked for overlap?',
   };
-  const fields = Object.entries(questions).map(([id, question]) => ({
+  // Retain future-program calculations below as history, outside the launch form/API.
+  const deferredFields = new Set(['monthly_plan', 'agreed_monthly_hours', 'agreed_agency_blend', 'comparison_months', 'benefit_months']);
+  const fields = Object.entries(questions).filter(([id]) => !deferredFields.has(id)).map(([id, question]) => ({
     id, question, options: choices[id]?.join(' / ') || (dateIds.includes(id) ? 'YYYY-MM-DD' : numericIds.includes(id) ? 'Explicit nonnegative number; unknown stays blank' : 'Explicit description'),
   }));
   const number = value => value === null || value === undefined || value === '' ? null
@@ -55,7 +57,7 @@
     return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? parsed : null;
   }
   function recommendRoute(intent) {
-    return intent === 'limited' ? 'project' : intent === 'ongoing' ? 'monthly' : null;
+    return ['limited', 'ongoing'].includes(intent) ? 'project' : null;
   }
   function auditCredit(input, rules, asOf = new Date()) {
     const fee = number(input.audit_fee), paid = number(input.audit_paid);
@@ -76,11 +78,12 @@
   }
   function apply(input, draft, rules, options = {}) {
     const errors = [...draft.errors], review = [], warnings = [...draft.warnings].filter(message => !/Agent upkeep|Ongoing delivery volumes|Requested urgent coverage/.test(message));
-    const route = ['project', 'monthly'].includes(input.implementation_route) ? input.implementation_route : null;
+    const deferredMonthly = rules.monthlyBuildStatus === 'deferred' && input.implementation_route === 'monthly';
+    const route = !deferredMonthly && ['project', 'monthly'].includes(input.implementation_route) ? input.implementation_route : null;
     const credit = auditCredit(input, rules, options.asOf || new Date());
     const audit = number(input.audit_fee);
     if (!audit) review.push('Initial audit: AOC must quote and agree a positive fixed fee; it is not a build percentage.');
-    if (!route) review.push('Choose a fixed-price project or monthly build program, or ask AOC to recommend a route.');
+    if (!route) review.push(deferredMonthly ? 'Monthly build subscriptions are deferred; review a fixed-price project with AOC.' : 'Choose a fixed-price project or ask AOC to help define the scope.');
     if (!['limited', 'ongoing'].includes(input.delivery_intent)) review.push('Confirm the delivery goal so AOC can explain the appropriate project/program recommendation.');
     if (['area6','area7','area8','area9','area10'].includes(input.area)) {
       if (!['maintenance','managed'].includes(input.delivery_mode)) review.push('Confirm whether recurring marketing production is included or only operation of the agreed system.');
@@ -112,8 +115,9 @@
     if (currentFee !== null && retainedFee !== null && retainedFee > currentFee && input.existing_client === 'yes') review.push('The retained existing fee exceeds the current fee; confirm separately accepted changes.');
     const combinedMonthlyCommitment = existingReady && monthly !== null
       ? round(monthly + (input.existing_client === 'yes' ? retainedFee : 0)) : null;
-    const replacement = (current, portion, part) => portion === 'none' ? 0 : portion === 'all' ? number(current) : portion === 'part' ? number(part) : null;
-    const provider = replacement(input.replacement_provider_cost, input.provider_replaced_portion, input.provider_removed_amount);
+    const replacement = (current, portion, part) => portion === 'none' ? 0 : number(current) === null ? null : portion === 'all' ? number(current) : portion === 'part' ? number(part) : null;
+    const provider = ['area6','area7','area8','area9','area10'].includes(input.area)
+      ? replacement(input.replacement_provider_cost, input.provider_replaced_portion, input.provider_removed_amount) : 0;
     const software = replacement(input.software_replaced_cost, input.software_replaced_portion, input.software_removed_amount);
     for (const [total, saved, label] of [[number(input.replacement_provider_cost), provider, 'Provider'], [number(input.software_replaced_cost), software, 'Software']]) {
       if (total !== null && saved !== null && saved > total && !errors.includes(`${label} savings cannot exceed current cost.`)) errors.push(`${label} savings cannot exceed current cost.`);
@@ -128,8 +132,10 @@
       if (credit.amount > quotedBuild) review.push('Audit credit exceeds the project price; AOC must resolve this without a negative invoice or invented refund rule.');
       else {
         projectBalance = round(quotedBuild - credit.amount);
-        firstProjectPayment = round(projectBalance * rules.projectFirstPaymentFraction);
-        secondProjectPayment = round(projectBalance - firstProjectPayment);
+        const balanceCents = Math.round(projectBalance * 100);
+        const firstCents = Math.round(balanceCents * rules.projectFirstPaymentFraction);
+        firstProjectPayment = firstCents / 100;
+        secondProjectPayment = (balanceCents - firstCents) / 100;
         if (audit) initialSpend = round(quotedBuild + audit - credit.amount);
       }
     }
@@ -148,7 +154,7 @@
     const periodGross = gross === null || months === null || benefitMonths === null || benefitMonths > months ? null : round(benefitMonths * gross);
     const periodNet = investment === null || periodGross === null || errors.length ? null : round(periodGross - investment);
     const blockers = [...draft.pending, ...review];
-    const unsafe = draft.build === null || errors.length > 0 || draft.feasibility === 'Potential blocker' || draft.feasibility === 'Needs connection review';
+    const unsafe = deferredMonthly || draft.build === null || errors.length > 0 || draft.feasibility === 'Potential blocker' || draft.feasibility === 'Needs connection review';
     if (unsafe) { projectBalance = firstProjectPayment = secondProjectPayment = monthlyInvoiceAfterCredit = initialSpend = null; }
     return {
       ...draft, errors, warnings: [...new Set(warnings)], pending: [...new Set(blockers)], route, coverage: null,

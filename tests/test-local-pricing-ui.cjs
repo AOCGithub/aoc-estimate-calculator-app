@@ -43,7 +43,7 @@ if (!executablePath) throw Error('Set CHROME_PATH to run the local pricing brows
     await page.getByRole('button',{name:/Continue/}).click();
     await page.getByText('Calculate potential value',{exact:true}).click();
     await page.locator('#f_team_time').fill('40'); await page.locator('#f_blended_hourly_cost').fill('50');
-    await page.locator('#f_provider_replaced_portion').selectOption('none'); await page.locator('#f_software_replaced_portion').selectOption('none'); await page.locator('#f_incremental_software_cost').fill('0');
+await page.locator('#f_software_replaced_portion').selectOption('none'); await page.locator('#f_incremental_software_cost').fill('0');
     await page.getByRole('button',{name:/Continue/}).click();
     for (const [id,value] of Object.entries({delivery_intent:'limited',implementation_route:'project',existing_client:'no',responsibility_split:'aoc',action_mode:'approved',consequential:'yes'})) await page.locator(`#f_${id}`).selectOption(value);
     await page.locator('#quote-details > summary').click();
@@ -57,20 +57,14 @@ if (!executablePath) throw Error('Set CHROME_PATH to run the local pricing brows
       const result=await calculate(); assert.equal(result.monthly,fee); assert.equal(result.net,1600-fee); assert.ok(result.commercialReady);
       assert.match(result.commercialNotice,/SYNTHETIC LOCAL TEST DATA/);
     }
-    await page.locator('#f_delivery_intent').selectOption('ongoing'); await page.locator('#f_implementation_route').selectOption('monthly'); await page.locator('#f_audit_accepted_route').selectOption('monthly');
-    await page.getByText('Agreed monthly proposal details (if provided by AOC)',{exact:true}).click();
-    assert.equal(await page.locator('#f_agreed_monthly_hours').inputValue(),'','allowances are not automatically agreed');
-    for(const [plan,proposal] of Object.entries(fixture.monthlyProposals)) {
-      await page.locator('#f_monthly_plan').selectOption(plan);
-      await page.locator('#f_agreed_monthly_hours').fill(String(proposal.hours)); await page.locator('#f_agreed_agency_blend').fill(String(proposal.blend));
-      const result=await calculate(); assert.ok(result.commercialReady); assert.equal(result.monthly,proposal.hours*proposal.blend); assert.equal(result.build,null);
-    }
-    await page.locator('#f_agreed_monthly_hours').fill('');
-    const cleared=await calculate(); assert.equal(cleared.agreedMonthlyHours,null); assert.equal(cleared.commercialReady,false);
+    assert.equal(await page.locator('#f_implementation_route option[value=monthly]').count(),0);
+    await page.locator('#f_responsibility_split').selectOption('client');
+    const selfManaged=await calculate(); assert.equal(selfManaged.monthly,0);
+    await page.locator('#f_implementation_fee').fill('');
+    const cleared=await calculate(); assert.equal(cleared.buildQuoted,false); assert.equal(cleared.payback,null);
     await page.setViewportSize({width:390,height:844});
-    await page.getByText('Sample allowances to enter for a monthly program',{exact:true}).click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'local warning and form fit on mobile');
     assert.deepEqual(errors,[]); assert.deepEqual(providerRequests,[]);
-    console.log('PASS: local browser project support at all tiers, all three explicit monthly allowances, clearing, synthetic notice, mobile overflow and no paid AI.');
+    console.log('PASS: local browser project support at all tiers, fixed-price launch, quote clearing, synthetic notice, mobile overflow and no paid AI.');
   } finally { if(browser) await browser.close(); await new Promise(resolve=>server.close(resolve)); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -148,7 +148,7 @@ vm.runInContext(code, context);
   assert.equal(response.status, 200);
   const calculated = await response.json();
   assert.equal(calculated.source, 'server');
-  assert.equal(calculated.result.build, 11500);
+  assert.equal(calculated.result.build, 11500, 'the supplied fixed quote is preserved');
   assert.equal(calculated.result.audit, 1250);
   assert.equal(calculated.result.monthly, 0);
 

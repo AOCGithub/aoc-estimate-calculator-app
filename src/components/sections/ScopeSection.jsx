@@ -122,8 +122,8 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, o
         {fields.select('handover', 'Who needs training and handover?', [
           ['one', 'One person'],
           ['group', 'One team'],
-          ['multiple', 'Several teams / sessions'],
-        ])}
+          ['multiple', 'Several teams'],
+        ], 'Reusable training videos and operating instructions are included. Additional hands-on/live training is quoted separately.')}
       </details>
       {marketingAreas.has(state.area) && (
         <details

@@ -29,7 +29,7 @@ function Result({ state, area }) {
   if (!result) return <>
     <h2>A clear picture,<br />one process at a time.</h2>
     <p>Your estimate appears here after you review the details and calculate.</p>
-    <div className="empty-stat">Fixed project or monthly build program</div>
+    <div className="empty-stat">Fixed-price project</div>
     <div className="empty-stat">Separately quoted initial audit</div>
     <div className="empty-stat">Time and potential value</div>
   </>;
@@ -108,6 +108,7 @@ function Result({ state, area }) {
       <p><strong>{result.feasibility}</strong></p>
       {result.warnings.map(warning => <p key={warning}>{warning}</p>)}
       <p>{result.commercialNotice}</p>
+      <p>If Make is needed, you own its account and billing and pay Make directly for subscriptions and usage. AOC receives authorized access for the agreed work and does not rebill Make credits.</p>
       <p>You provide business rules, required access and timely reviews. AOC checks blockers before recommending paid discovery. Download this review and send it to your AOC contact. No audit purchase is enabled in this test version.</p>
     </details>
     <button type="button" onClick={() => downloadSummary(state, area)}>Download estimate summary</button>

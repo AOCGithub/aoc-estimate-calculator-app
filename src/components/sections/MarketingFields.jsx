@@ -1,5 +1,6 @@
 export function MarketingFields({ areaId, answers, fields }) {
   const { input, select } = fields;
+  const supplied = (id) => Object.hasOwn(answers, id);
   return (
     <>
       <h3>Connected marketing scope</h3>
@@ -9,8 +10,8 @@ export function MarketingFields({ areaId, answers, fields }) {
       </p>
       <div className="grid">
         {input('capability_count', 'Capabilities in this connected system', 'E.g. intake, drafting, repurposing, publishing. Approximate count.', 'number')}
-        {areaId === 'area7' && input('channel_count', 'Destination channels', '', 'number')}
-        {areaId === 'area7' && input('format_count', 'Output formats', 'E.g. articles, text posts, images.', 'number')}
+        {(areaId === 'area7' || supplied('channel_count')) && input('channel_count', 'Destination channels', '', 'number')}
+        {(areaId === 'area7' || supplied('format_count')) && input('format_count', 'Output formats', 'E.g. articles, text posts, images.', 'number')}
         {input('brand_count', areaId === 'area8' ? 'Websites in scope' : 'Brands in scope', '', 'number')}
         {input('language_count', 'Languages', '', 'number')}
         {areaId === 'area8' && input('market_count', 'Target markets', '', 'number')}

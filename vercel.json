@@ -3,7 +3,11 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
+  "crons": [{ "path": "/api/client-profile/cleanup", "schedule": "0 3 * * *" }],
   "functions": {
+    "api/client-profile.mjs": { "maxDuration": 30 },
+    "api/client-profile/status.mjs": { "maxDuration": 20 },
+    "api/client-profile/cleanup.mjs": { "maxDuration": 20 },
     "api/journey/analyze.mjs": { "maxDuration": 60 },
     "api/voice/session.mjs": { "maxDuration": 60 },
     "api/journey/correct.mjs": { "maxDuration": 60 },

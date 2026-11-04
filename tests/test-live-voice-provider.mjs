@@ -112,7 +112,7 @@ try {
     const saving = page.getByRole('checkbox', { name: /Save my details and estimates/ });
     assert.equal(await saving.isChecked(), false, 'Production tests must not save contact details or estimates.');
     await page.getByRole('button', { name: 'Continue to calculator', exact: true }).click();
-    await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
+    await page.getByRole('note').filter({ hasText: /Data saving is off\.|Estimate recording is off\./ }).waitFor();
   }
   await page.getByRole('button', { name: 'Paid advertising', exact: true }).click();
   await page.getByRole('button', { name: /^Describe the work/ }).click();

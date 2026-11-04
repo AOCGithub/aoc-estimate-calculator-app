@@ -8,7 +8,7 @@ const fields = [
   ['businessEmail', 'Business email', 'email', 'you@company.com'],
 ];
 
-export function AccessDetailsFields({ profile, onChange, review = false }) {
+export function AccessDetailsFields({ profile, onChange, review = false, disabled = false }) {
   return (
     <div className="grid">
       {fields.map(([id, label, type, placeholder]) => (
@@ -21,6 +21,7 @@ export function AccessDetailsFields({ profile, onChange, review = false }) {
             value={profile[id]}
             placeholder={placeholder}
             required
+            disabled={disabled}
             inputMode={id === 'businessEmail' ? 'email' : id === 'website' ? 'url' : undefined}
             autoComplete={id === 'businessEmail' ? 'email' : id === 'name' ? 'name'
               : review && id === 'website' ? 'url' : review && id === 'role' ? 'organization-title' : 'organization'}

@@ -1,0 +1,15 @@
+.profile-company-panel { margin-top: 24px; }
+.profile-company-panel p { font-size: 13px; }
+.profile-company-panel h3 { margin: 22px 0 12px; font-size: 16px; }
+.profile-company-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.profile-company-panel .profile-company-choice { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; font-size: 13px; font-weight: 400; }
+.profile-company-choice input { width: 16px; height: 16px; flex: 0 0 16px; margin: 4px 0 0; }
+.profile-company-choice strong { font-weight: 500; overflow-wrap: anywhere; }
+.profile-company-choice small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.profile-company-choice:has(input:disabled) { color: var(--muted); }
+.profile-company-warning { padding: 12px; border-left: 2px solid #b88a40; background: #fff8e8; font-size: 13px; }
+.profile-company-panel [role='status'] { margin-top: 14px; color: var(--teal); }
+@media (max-width: 700px) {
+  .profile-company-panel button { min-height: 44px; }
+  .profile-company-panel .profile-company-choice { min-height: 44px; }
+}

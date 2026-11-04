@@ -322,49 +322,25 @@ const server = http.createServer((request, response) => {
     );
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().dirty), true);
 
-    // Current commercial routes: inactive project prices must not become monthly startup fees.
+    // The fixed-price launch supersedes the deferred monthly-build offer.
     calculationMode = 'server';
     await page.locator('#f_delivery_intent').selectOption('ongoing');
-    await page.locator('#f_implementation_route').selectOption('monthly');
-    assert.equal(await page.locator('#f_implementation_fee').count(),0,'project-only quote fields are hidden for monthly programs');
-    await page.locator('#f_monthly_plan').selectOption('level1');
+    assert.equal(await page.locator('#f_implementation_route option[value=monthly]').count(),0);
+    assert.equal(await page.locator('#f_monthly_plan').count(),0);
+    await page.locator('#f_responsibility_split').selectOption('client');
+    await page.locator('#f_implementation_fee').fill('11250.05');
     await page.locator('.check input').check();
     await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.route==='monthly');
-    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).credit.status,'review','switching route cannot silently transfer old audit-credit records');
-    if(!await page.getByText('Check an existing audit credit',{exact:true}).isVisible()) await page.locator('#quote-details > summary').click();
-    if(!await page.locator('#f_audit_accepted_route').isVisible()) await page.getByText('Check an existing audit credit',{exact:true}).click();
-    await page.locator('#f_audit_accepted_route').selectOption('monthly');
-    await page.getByText('Optional program value comparison',{exact:true}).click();
-    await page.locator('#f_comparison_months').fill('12');
-    await page.locator('#f_benefit_months').fill('6');
-    await page.getByRole('navigation').getByText('Time, costs and value',{exact:true}).click();
-    if(!await page.locator('#f_provider_replaced_portion').isVisible()) await page.getByText('Calculate potential value',{exact:true}).click();
-    await page.locator('#f_provider_replaced_portion').selectOption('none');
-    await page.getByRole('navigation').getByText('Responsibilities and service',{exact:true}).click();
+    await page.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.build===11250.05;});
+    let project = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
+    assert.equal(project.firstProjectPayment,5000.03);
+    assert.equal(project.secondProjectPayment,5000.02);
+    await page.locator('#f_implementation_fee').fill('');
     await page.locator('.check input').check();
     await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.monthly===4000;});
-    let program = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
-    assert.equal(program.build,null);
-    assert.equal(program.projectBalance,null);
-    assert.equal(program.comparisonInvestment,48000);
-    assert.equal(program.comparisonGross,9600);
-    assert.equal(program.monthlyInvoiceAfterCredit,2750);
-    assert.equal(await page.getByText('Fixed-project quote and payment illustration',{exact:true}).count(),0);
-    assert.equal(await page.locator('#estimateStatus').textContent(),'SERVER VERIFIED · PARTIAL','unknown program hours/blend remain review-needed');
-    await page.locator('#f_monthly_plan').selectOption('level2');
-    assert.match(await page.locator('#estimateStatus').textContent(),/RECALCULATE/);
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===7000);
-    await page.locator('#f_monthly_plan').selectOption('');
-    assert.equal(await page.locator('#f_monthly_plan').getAttribute('aria-invalid'),'true');
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===null);
-    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).comparisonInvestment,null);
-    await page.locator('#f_monthly_plan').selectOption('level1');
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.buildQuoted===false);
+    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).payback,null);
+    await page.locator('#f_implementation_fee').fill('11500');
     await page.locator('#f_existing_client').selectOption('yes');
     assert.equal(await page.locator('#f_existing_plan_name').isVisible(),true);
     await page.locator('#f_existing_plan_name').fill('Synthetic retained agreement');
@@ -375,7 +351,7 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_existing_plan_reconciled').selectOption('yes');
     await page.locator('.check input').check();
     await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.combinedMonthlyCommitment===6000);
+    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.combinedMonthlyCommitment===2000);
     assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).cash,0,'agreement fee reduction is not counted again as cash savings');
     await page.locator('#f_retained_existing_fee').fill('');
     await page.locator('.check input').check();
@@ -605,13 +581,13 @@ const server = http.createServer((request, response) => {
     );
     if (capture) await mobilePage.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile-journey.png'), fullPage: true });
     await mobilePage.locator('#f_delivery_intent').selectOption('ongoing');
-    await mobilePage.locator('#f_implementation_route').selectOption('monthly');
-    await mobilePage.locator('#f_monthly_plan').selectOption('level3');
+    assert.equal(await mobilePage.locator('#f_implementation_route option[value=monthly]').count(),0);
+    assert.equal(await mobilePage.locator('#f_monthly_plan').count(),0);
     await mobilePage.locator('.check input').check();
     await mobilePage.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await mobilePage.waitForFunction(()=>globalThis.AOCJourney.getState().result?.monthly===10000);
-    assert.equal((await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result)).audit,null,'mobile program does not invent an audit fee');
-    assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'monthly program has no mobile overflow');
+    await mobilePage.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.route==='project';});
+    assert.equal((await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result)).audit,null,'mobile project does not invent an audit fee');
+    assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'fixed-project form has no mobile overflow');
     await assertRestart(mobilePage, false);
     await assertRestart(mobilePage, true);
     await mobilePage.close();
@@ -632,8 +608,8 @@ const server = http.createServer((request, response) => {
     await prefillPage.getByRole('button',{name:/Organize my description/}).click();
     await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
     await prefillPage.locator('#section-picker').selectOption('7');
-    assert.equal(await prefillPage.locator('#f_implementation_route').inputValue(),'monthly');
-    assert.equal(await prefillPage.locator('#f_monthly_plan').inputValue(),'level1');
+    assert.equal(await prefillPage.locator('#f_implementation_route').inputValue(),'','deferred requests do not confirm a launch route');
+    assert.equal(await prefillPage.locator('#f_monthly_plan').count(),0);
     await prefillPage.locator('#f_implementation_route').selectOption('project');
     await prefillPage.locator('#quote-details > summary').click();
     await prefillPage.locator('#f_audit_fee').fill('1250');
@@ -645,6 +621,44 @@ const server = http.createServer((request, response) => {
     assert.equal(correctedCommercial.audit_fee,1250,'AI reorganization keeps a manually corrected quote reference');
     assert.equal(correctedCommercial.agreed_monthly_hours,undefined,'unknown agreement hours stay blank');
     await prefillPage.close();
+
+    // Price-affecting prefilled counts remain editable outside Content & Social.
+    for (const width of [1440, 390]) {
+      const countsPage = await browser.newPage({ viewport: { width, height: 1000 } });
+      countsPage.on('pageerror', error => errors.push(error.message));
+      try {
+        const text = 'We need paid advertising across 4 destination channels and 3 output formats.';
+        const analysis = JourneyContract.validate({ title: 'Advertising counts', summary: text, solution: 'workflow', recommendationReason: 'Fixture',
+          classification: { steps: null, variations: null, decisions: null, reason: 'Review' }, routes: [],
+          facts: [{ id: 'channel_count', value: '4', quote: '4 destination channels' }, { id: 'format_count', value: '3', quote: '3 output formats' }],
+          relevantFields: [], uncertainties: [] }, text, 'area10');
+        await countsPage.route('**/api/journey/analyze', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ analysis }) }));
+        await countsPage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
+        await countsPage.getByRole('button', { name: 'Paid advertising', exact: true }).click();
+        if (width < 950) await countsPage.locator('#section-picker').selectOption('3');
+        else await countsPage.locator('#sections > button').nth(2).click();
+        assert.equal(await countsPage.locator('#f_channel_count').count(), 0, 'unsupplied optional counts do not add questions');
+        if (width < 950) await countsPage.locator('#section-picker').selectOption('2');
+        else await countsPage.locator('#sections > button').nth(1).click();
+        await countsPage.locator('#description').fill(text);
+        await countsPage.getByRole('button', { name: /Organize my description/ }).click();
+        await countsPage.waitForFunction(() => AOCJourney.getState().step === 3 && !AOCJourney.getState().working);
+        if (!await countsPage.locator('#f_channel_count').isVisible()) await countsPage.getByText('3. Marketing scope', { exact: true }).click();
+        assert.equal(await countsPage.locator('#f_channel_count').inputValue(), '4');
+        assert.equal(await countsPage.locator('#f_format_count').inputValue(), '3');
+        await countsPage.locator('#f_channel_count').fill('2');
+        await countsPage.locator('#f_format_count').fill('');
+        assert.equal(await countsPage.locator('#f_format_count').isVisible(), true, 'cleared supplied counts remain editable');
+        assert.equal(await countsPage.locator('#f_format_count').getAttribute('required'), null, 'optional counts do not become new required questions');
+        if (width < 950) await countsPage.locator('#section-picker').selectOption('2');
+        else await countsPage.locator('#sections > button').nth(1).click();
+        await countsPage.getByRole('button', { name: /Organize my description/ }).click();
+        await countsPage.waitForFunction(() => AOCJourney.getState().step === 3 && !AOCJourney.getState().working);
+        const answers = await countsPage.evaluate(() => AOCJourney.getState().answers);
+        assert.equal(answers.channel_count, 2, 'manual count correction survives reorganization');
+        assert.equal(answers.format_count, null, 'manual clearing survives reorganization');
+      } finally { await countsPage.close(); }
+    }
 
     // Optional scope questions can be added, removed and explicitly added again.
     const questionPage = await browser.newPage({viewport:{width:390,height:844}});

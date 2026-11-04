@@ -59,7 +59,7 @@ function calculate(input,pricing=Price,options={}){
  }
  const hours=n(s.team_time),rate=n(s.blended_hourly_cost),vendor=n(s.incremental_software_cost);
  const freed=hours===null?null:hours*(1-r.retained),retained=hours===null?null:hours*r.retained,capacity=freed===null||rate===null?null:freed*rate;
- const replacement=(current,mode,part)=>mode==='none'?0:mode==='all'?n(current):mode==='part'?n(part):null;
+ const replacement=(current,mode,part)=>mode==='none'?0:n(current)===null?null:mode==='all'?n(current):mode==='part'?n(part):null;
  const provider=marketing?replacement(s.replacement_provider_cost,s.provider_replaced_portion,s.provider_removed_amount):0;
  const software=replacement(s.software_replaced_cost,s.software_replaced_portion,s.software_removed_amount);
  for(const [current,removed,label]of [[n(s.replacement_provider_cost),provider,'Provider'],[n(s.software_replaced_cost),software,'Software']])if(current!==null&&removed!==null&&removed>current)errors.push(label+' savings cannot exceed current cost.');
