@@ -3,7 +3,7 @@
 Date: 4 November 2026 (Asia/Manila)
 Initial audit result: **Functional checks passed; document/pricing alignment failed.**
 
-Follow-up result: **All six identified document-alignment defects are corrected locally and the regression checks passed.** Current local rules: `2026-10-29-fixed-project-v1`. Optional profiles also have a tested production implementation with Supabase schema and Vercel settings prepared. Production still serves the earlier version; the application changes have not been deployed. This is evidence for the tested scope, not a guarantee of every AI response, device or input combination.
+Follow-up result: **All six identified document-alignment defects are corrected locally and the regression checks passed.** Current local rules: `2026-10-29-fixed-project-v1`. Optional profiles also have a tested production implementation with Supabase schema and Vercel settings prepared. The application changes were deployed on 4 November; current live verification is recorded in PRODUCTION-TEST-RESULTS.md. This is evidence for the tested scope, not a guarantee of every AI response, device or input combination.
 
 Local state: application commit `29070dc` plus the uncommitted optional-profile implementation. Production serves bundle `index-BEYg14WH.js`. The live and local pricing assets matched during this audit. Profile changes remain local.
 
@@ -124,4 +124,4 @@ Validation passed:
 - npm run test:profiles:cloud-ui: production React build with real Node handlers and Supabase, desktop/mobile business details and company-fact journeys, independent consent, failure recovery and fresh calculator results. No paid AI calls or deployment.
 - Production environment metadata and compiled-asset credential checks passed.
 
-Supabase-backed local review: http://127.0.0.1:5180/. [Profile maintenance and release instructions](OPTIONAL-CLIENT-PROFILES.md). The current AOC website has not been redeployed; live endpoint/cookie/cleanup checks follow publication.
+Supabase-backed local review: http://127.0.0.1:5180/. [Profile maintenance and release instructions](OPTIONAL-CLIENT-PROFILES.md). The AOC website has now been deployed and live profile/saving/endpoint checks passed. The cleanup schedule is registered; its first scheduled execution is an operational follow-up.

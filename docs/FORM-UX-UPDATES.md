@@ -1,7 +1,7 @@
 # Form UX Updates
 
 Last updated: 4 November 2026
-Status: Earlier UI release published; document-alignment corrections and production profile implementation await deployment. Supabase schema and Vercel settings are prepared.
+Status: The documented rule corrections, optional Supabase profiles and scrolling fix are live as of 4 November 2026. Live checks passed.
 
 ## Purpose
 
@@ -14,11 +14,11 @@ This note records the recent prospect-facing form improvements so future work ca
 - A live test showed an intermittent omission of an explicitly requested fixed-price project. Added a limited recovery rule for a complete affirmative choice sentence, retaining the exact source quote.
 - Negated, undecided, conflicting or deferred monthly requests remain unanswered; existing explicit choices and manually edited answers remain protected. No prices or new business choices were added.
 
-### Entry form scrolling — 4 November 2026 (local)
+### Entry form scrolling — 4 November 2026 (deployed 4 November)
 
 - The desktop form now scrolls within the right panel while the AOC branding and left visual remain visible. Short forms center safely; longer or expanded profile content remains reachable from top to bottom.
 - Mobile/tablet layouts retain normal page scrolling with a fixed, readable brand header. Focused fields stay clear of the header, and calculator page scrolling is restored after entry.
-- Checked eight viewport sizes, including short desktop windows and mobile landscape, with expanded profile review, keyboard focus, unchecked consent and successful calculator entry. No form content or calculation rules were changed. Not deployed.
+- Checked eight viewport sizes, including short desktop windows and mobile landscape, with expanded profile review, keyboard focus, unchecked consent and successful calculator entry. No form content or calculation rules were changed. Deployed and checked on the AOC domain.
 
 ### Production preparation for optional profiles — 4 November 2026
 
@@ -27,15 +27,15 @@ This note records the recent prospect-facing form improvements so future work ca
 - Profile ownership uses a private browser credential with only its digest stored. Email lookup is unavailable; conflicting revisions and cross-client overwrites are rejected. Selected removals and full profile deletion are supported.
 - Prepared server-only Vercel flags and a sensitive cleanup secret. Profiles expire after the displayed configurable duration (30 days by default); daily protected cleanup is configured. Production does not use the offline file adapter.
 - Passed protocol/security tests, real Supabase persistence/race/deletion/expiry tests, production-built desktop/mobile profile journeys and the full application regression suite. Synthetic profiles were removed after tests; no paid AI calls were made for this work.
-- Verification/AOC approval remains paused. Review in the Supabase-backed local preview on port 5180. Code has not been pushed or deployed. Details: [optional client profiles](OPTIONAL-CLIENT-PROFILES.md).
+- Verification/AOC approval remains paused. The Supabase-backed implementation is live and verified; port 5180 remains available for development. Details: [optional client profiles](OPTIONAL-CLIENT-PROFILES.md).
 
-### Calculator output and editable marketing counts — 4 November 2026 (local)
+### Calculator output and editable marketing counts — 4 November 2026 (deployed 4 November)
 
 - Tested workflow, agent and paid-advertising estimates on desktop/mobile against independent expected outputs. Draft builds, quoted totals, audit credits, payments, ROI, edits/clearing and unknown fees passed.
 - Fixed supplied marketing channel/format counts being hidden outside Content & Social even though they could affect price. Existing fields now appear when supplied and remain editable after clearing. No pricing rules or new required questions were added.
-- Evidence and sample outputs: [calculator output journeys](SYSTEM-AUDIT-2026-11-04.md#calculator-output-journeys--4-november-2026). Not deployed.
+- Evidence and sample outputs: [calculator output journeys](SYSTEM-AUDIT-2026-11-04.md#calculator-output-journeys--4-november-2026). Deployed and checked on the AOC domain.
 
-### Document alignment — 4 November 2026 (local)
+### Document alignment — 4 November 2026 (deployed 4 November)
 
 - Applied the 28–29 October fixed-price launch decision; monthly build programs remain deferred historical references.
 - Included reusable training without a separate surcharge; preserved quoted project totals and separately purchased live training.
@@ -43,9 +43,9 @@ This note records the recent prospect-facing form improvements so future work ca
 - Corrected question-bank filtering; all 982 detailed questions match the reviewed source. Excluded payroll is unavailable to the form, AI and calculation API.
 - Added the documented client-owned Make/direct-billing explanation and refreshed the short maintenance instructions.
 - Passed the full regression suite, local profile tests, 10,000 payment splits, 144 independent quote/ROI cases and two synthetic real-provider AI tests. Details: [system audit and retest](SYSTEM-AUDIT-2026-11-04.md).
-- No new prices or features were introduced by these corrections. Not deployed.
+- No new prices or features were introduced by these corrections. Deployed and checked on the AOC domain.
 
-### Optional client-profile trial — 4 November 2026
+### Historical optional client-profile trial — 4 November 2026
 
 - Added a separate local trial for Task #9 with an unchecked **Remember my business details for next time** choice, review before reuse and a **Forget saved details** action.
 - Expanded reuse beyond the entry details: clients can select existing app, access, connection and information-location facts to save, then review their source/date and confirm relevance before reusing them in a new estimate. Unknowns, prices and process-specific decisions are excluded.

@@ -1,7 +1,7 @@
 # Optional client profiles
 
 Updated: 4 November 2026
-Status: Production implementation, Supabase schema and Vercel settings prepared. Not deployed.
+Status: Live on the AOC domain, 4 November 2026. Supabase storage, settings and cleanup are configured; live desktop/mobile profile checks passed.
 
 Implements Task #9: optional saving, an unchecked consent checkbox, confirmed reuse of relevant company facts, source records and protection for manual corrections. Verification/AOC approval remains paused.
 
@@ -36,7 +36,7 @@ Existing Supabase server credentials are reused. No new subscription or email pr
 
 The [migration](../supabase/migrations/20261104000100_client_profiles.sql) creates only the new profile table/index and restricted cleanup function. Existing submissions, estimates, approvals and pricing are not changed. The revision UUID changes on an update; it is not a verified person ID.
 
-Run npm run profiles:db:setup once, then npm run profiles:db:check. The production settings have been prepared for the next deployment. Setup preserves existing cleanup secrets, including sensitive values that the CLI cannot download. Saving is optional and fails safely if storage is unavailable; it never falls back to a local file in production.
+Run npm run profiles:db:setup once, then npm run profiles:db:check. The production settings are active on the published deployment. Setup preserves existing cleanup secrets, including sensitive values that the CLI cannot download. Saving is optional and fails safely if storage is unavailable; it never falls back to a local file in production.
 
 Production API routes: /api/client-profile, /api/client-profile/status, /api/client-profile/cleanup. These use the active Vercel Node deployment. The retained Worker calculator does not advertise profiles. The browser discovers availability from the server; development build flags are not required.
 
@@ -49,7 +49,7 @@ Production API routes: /api/client-profile, /api/client-profile/status, /api/cli
 
 For an offline preview, npm run dev:profiles uses the same handlers with a local SQLite adapter at http://127.0.0.1:5174/. For a real-database preview, npm run dev:profiles:database uses http://127.0.0.1:5180/. Saving requires explicit consent. Offline trial records are not copied to Supabase automatically.
 
-Publishing is separate: push/redeploy the tested version, check the three profile endpoints on the AOC domain, perform one consent/reuse/forget journey and inspect the cleanup job in Vercel. A failed purge returns a failure status for the job logs. Sensitive CRON_SECRET values need not be downloaded for local tests.
+For later releases, push/redeploy the tested version, check the three profile endpoints on the AOC domain, perform one consent/reuse/forget journey and inspect the cleanup job in Vercel. A failed purge returns a failure status for the job logs. Sensitive CRON_SECRET values need not be downloaded for local tests.
 
 Source scope: [Task #9](https://docs.google.com/document/d/1ZR-7dAayjtmejgo6GQrtJeI3FSj3kGjNeq_7zIuEPMA/edit).
 Technical references: [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [PostgREST conditional updates](https://docs.postgrest.org/en/stable/references/api/tables_views.html), [Vercel protected cron jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs).

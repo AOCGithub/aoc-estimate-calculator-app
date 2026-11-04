@@ -1,10 +1,32 @@
 # Production Test Results
 
 Date: 21 October 2026
-Last updated: 3 November 2026
+Last updated: 4 November 2026
 Scope: Production verification required by the Phase 1 checklist
 
-Pricing scope: the active calculator uses the reviewed 21 October commercial rules. The live workbook was rechecked through its 24 October modification; unapproved hours, support prices, coverage, and allowances remain pending.
+Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
+
+## Calculator, profiles and scrolling release - 4 November 2026
+
+Published application commit [7e68911](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/7e68911640639fc967f563ecc4b62cfcbecb12a6), followed by the tested AI-prefill safeguard [c13b734](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/c13b734ab78af284c99edb6ce99d944eb985be57). [The live AOC estimator](https://estimate.alwaysopencommerce.com/) was verified Ready on Vercel deployment dpl_G5TBaT1WStWhHMjy1GDS51Zv86uY. Subsequent documentation commits contain the same application source.
+
+Active rules: 2026-10-29-fixed-project-v1. Source metadata was rechecked before release: framework, agreement and workbook remain modified on 29 October. Fixed-price launch builds are active; monthly builds are deferred, reusable training is included, live training is separately quoted and unspecified support fees stay unknown.
+
+Passed on the deployed AOC domain:
+
+- Desktop/mobile profiles: independent unchecked consent, opt-out, reviewed details/facts, provenance, protected manual/cleared answers, same-email isolation, stale updates, selective removal, deletion and fresh calculation. Only synthetic profiles were used and removed.
+- Real Supabase intake/estimate journeys at 1440px and 390px: required fields, save failure/retry, linked snapshots, edited/cleared answers, Calculate button, version, no-save mode, reload and logout. Removed only the tests' two intake rows and eight estimate snapshots.
+- Seventeen calculation cases: fixed quotes/audit/credit, included and purchased training, provider-savings eligibility, unknown replacement costs, exact-cent 50/50 payments, changed/cleared hours, negative ROI, missing scope, unspecified management fees, deferred-program rejection and excluded-payroll rejection. Saving was off.
+- Entry validation/scrolling at 1440x900, 1366x640, 390x700 and 320x568: each blank required field blocked submission, corrected fields became valid, both saving choices stayed unchecked, pinned branding and end-of-form reachability passed without horizontal overflow.
+- AI prefill: paid advertising and invoice-agent scenarios passed with exact evidence, explicit project choice, draft versus approved execution, management intent and unknown prices. An initial intermittent project-choice omission prompted the narrow exact-quote safeguard. The repeat and both final live cases passed; negative/uncertain/conflicting choices have regression coverage. This does not guarantee every possible AI response.
+- Voice: one short synthetic Testing sample produced live/final text, retained existing typing and recognized the opening word. One spelling/list-punctuation correction and Undo check passed. No physical microphone or customer recording was used.
+- Live pricing, bank and AI-contract files matched source. Security headers, protected cleanup (401 without authorization), denied profile email lookup and unauthorized-calculation protection passed.
+
+Before publication, npm test passed, including 10,000 exact-cent balances and 144 independent quote/ROI cases. Production-build/Supabase profile journeys and RLS/anonymous-denial checks passed. Configured private server credentials were absent from the checked release/browser files. Production assets: index-tQ-RsQGn.js and index-pUz7e7tp.css.
+
+The daily profile cleanup job is registered at 03:00 UTC. Its SQL function and authorization were tested; its first scheduled execution has not yet been observed. Disclosed profile expiry defaults to 30 days and is configurable. Verification/AOC approval remains paused. Physical-phone/microphone coverage remains separate from browser viewport and synthetic-audio testing.
+
+Release provider checks used four short prefill requests (including the initial omission/retry), one short realtime session and one text-correction check. Other checks used no paid AI. Maintenance: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md), [profiles](OPTIONAL-CLIENT-PROFILES.md), [voice](LIVE-VOICE-INPUT.md).
 
 ## Entry design release — 3 November 2026
 
@@ -84,9 +106,9 @@ All amounts entered for these checks were synthetic fixtures. They are test evid
 
 These earlier browser checks do not replace a final browser pass after the current commercial deployment.
 
-## Additional acceptance coverage outside the 30 October smoke test
+## Historical follow-up list from the 30 October smoke test
 
-- Run the full current fixed-project and monthly-program journeys in the deployed browser UI.
+- Fixed-project journeys and deferred-monthly rejection were completed in the 4 November checks above.
 - Save final deployed desktop and mobile evidence for the current commercial version.
 - Complete broader live AI-prefill scenarios and resolve any findings before final handoff.
 - Complete physical-device sign-off on iPhone Safari and Android Chrome if required for formal acceptance.

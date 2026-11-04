@@ -6,7 +6,7 @@ The current release is still a testing preview. Use synthetic information only. 
 
 ## Current deployment status - 30 October 2026
 
-Release candidate — 4 November 2026: fixed-price launch rules reviewed through 29 October, optional Supabase profiles, and the entry scrolling fix are ready for publication. The 30 October status below records the previous deployment. Use [current pricing/form maintenance](PRICING-AND-FORM-MAINTENANCE.md) and [profile operations](OPTIONAL-CLIENT-PROFILES.md) for the current release; test results are recorded after publication.
+Current release — 4 November 2026: fixed-price launch rules reviewed through 29 October, optional Supabase profiles, and the entry scrolling fix were deployed and verified on the AOC domain. The 30 October status below records the previous deployment. Use [current pricing/form maintenance](PRICING-AND-FORM-MAINTENANCE.md) and [profile operations](OPTIONAL-CLIENT-PROFILES.md) for the current release; [production test results](PRODUCTION-TEST-RESULTS.md) record the deployed checks.
 
 The five-field entry form and linked calculation storage are now live in submit-and-enter mode. Production has `VITE_AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_REQUESTS_ENABLED`, `AOC_INTAKE_ONLY_ENABLED` and `AOC_ESTIMATE_RECORDS_ENABLED` set to `true`; `AOC_MANUAL_ACCESS_ENABLED=false`. The session secret and database/OpenAI credentials are server-only. Desktop/mobile live saving and one paid-advertising AI-prefill check passed; see [production test results](PRODUCTION-TEST-RESULTS.md).
 

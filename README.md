@@ -54,7 +54,7 @@ For a Git-connected Vercel staging deployment, follow `docs/VERCEL-DEPLOYMENT.md
 
 The Phase 2 five-field gate and server-side access foundation are available locally behind disabled-by-default environment flags. Email ownership verification and AOC's review workflow still require confirmation before Task #8 is complete or enabled for clients. Follow [Phase 2 gated entry](docs/PHASE-2-GATED-ENTRY.md) for the current scope, open decisions and tests. This step does not save a reusable client profile.
 
-Task #9 now has [production-ready optional profiles](docs/OPTIONAL-CLIENT-PROFILES.md) backed by the existing Supabase database. Profile saving and estimate recording use independent unchecked consent. Review company facts before reuse; manual corrections and cleared answers are protected. The schema and server settings are prepared; publication is separate. Use npm run dev:profiles:database for the real-database preview, or npm run dev:profiles for offline development.
+Task #9 now has [production-ready optional profiles](docs/OPTIONAL-CLIENT-PROFILES.md) backed by the existing Supabase database. Profile saving and estimate recording use independent unchecked consent. Review company facts before reuse; manual corrections and cleared answers are protected. Deployed on 4 November 2026; see the [live test results](docs/PRODUCTION-TEST-RESULTS.md). Use npm run dev:profiles:database for the real-database preview, or npm run dev:profiles for offline development.
 
 The pricing model and generated field banks remain framework-independent files under `public/` so the existing Node parity checks and Worker can use the same source of truth:
 
