@@ -128,6 +128,23 @@ assert.equal(Commercial.recommendRoute('limited'), 'project');
 assert.equal(Commercial.recommendRoute('ongoing'), 'project');
 assert.equal(Commercial.recommendRoute('unsure'), null);
 const analysis = { title:'Test', summary:'Synthetic', solution:'workflow', classification:{steps:null,variations:null,decisions:null}, routes:[], facts:[], relevantFields:[], uncertainties:[] };
+for(const text of ['We want one fixed-price project.','We want a fixed-price project.','We have selected a fixed-price project.']){
+ const result=Contract.validate(analysis,text,'area10');
+ assert.deepEqual(result.facts.find(f=>f.id==='implementation_route'),{id:'implementation_route',value:'project',quote:text},'explicit choice survives provider omission');
+}
+for(const text of [
+ 'We do not want a fixed-price project.', 'We might want a fixed-price project.',
+ 'Would a fixed-price project suit us?', 'We want a fixed-price project or a monthly program.',
+ 'We want a fixed-price project. We have not decided which route to choose.',
+ 'We want a fixed-price project. The implementation route is undecided.',
+ 'We want a fixed-price project. We now want a monthly build program.',
+ 'We want a fixed-price project. We are not sure about implementation.',
+ 'We want a fixed-price project. Help me decide the implementation route.',
+ 'Our budget is $4000. We want a bounded improvement.',
+])assert.ok(!Contract.validate(analysis,text,'area10').facts.some(f=>f.id==='implementation_route'),'uncertain/negated/conflicting choices stay blank');
+assert.ok(!Contract.validate({...analysis,uncertainties:['Confirm the implementation route.']},'We want a fixed-price project.','area10').facts.some(f=>f.id==='implementation_route'));
+const helpText='We want a fixed-price project. Help me decide the implementation route.';
+assert.equal(Contract.validate({...analysis,facts:[{id:'implementation_route',value:'help',quote:'Help me decide the implementation route.'}]},helpText,'area10').facts.find(f=>f.id==='implementation_route').value,'help','an existing explicit choice is preserved');
 const description = 'Our budget is $4000. Our internal hourly cost is $50. We want a monthly build program. AOC quoted an audit fee of $1250.';
 const prefill = Contract.validate({ ...analysis, facts:[
   {id:'monthly_plan',value:'level1',quote:'Our budget is $4000.'},

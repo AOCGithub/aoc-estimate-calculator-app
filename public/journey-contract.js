@@ -59,6 +59,19 @@ function explicitDraftOnlyFact(text) {
   && !/\b(?:not|never|no|don't|doesn't|didn't|haven't|hasn't|hadn't|won't|wouldn't|shouldn't|mustn't|cannot|can't|unsure|undecided|unknown|whether)\b/i.test(sentence.replace(/[’‘]/g,"'")));
  return quote?{id:'action_mode',value:'draft',quote:quote.trim()}:null;
 }
+function explicitProjectFact(text,uncertainties){
+ // Recover only a complete, affirmative choice sentence. No route inference
+ // from budgets, limited scope, launch policy, or an undecided/contradictory request.
+ const clean=text.replace(/[’‘]/g,"'");
+ if(/\bmonthly\s+(?:build|program|subscription|partnership)\b/i.test(clean)
+  || /\b(?:help\s+(?:me|us)\s+(?:decide|choose)|still\s+decid\w*)\b[^.!?;\n]*\b(?:project|route|implementation)\b/i.test(clean)
+  || /\b(?:not|never|haven't|hasn't|didn't|don't|unsure|undecided|whether)\b[^.!?;\n]*\b(?:project|route|implementation)\b/i.test(clean)
+  || /\b(?:project|route|implementation)\b[^.!?;\n]*\b(?:unsure|undecided|whether|not)\b/i.test(clean)
+  || uncertainties.some(value=>/\b(?:route|project choice|implementation choice)\b/i.test(String(value))))return null;
+ const quote=(text.match(/[^.!?;\n]+[.!?;]?/g)||[]).map(sentence=>sentence.trim()).find(sentence=>
+  /^We (?:want|prefer|would like|have chosen|have selected) (?:a|one|the) fixed[- ]price(?:d)? project[.!;]?$/i.test(sentence));
+ return quote?{id:'implementation_route',value:'project',quote}:null;
+}
 function validate(x,text,area){if(!x||typeof x.title!=='string'||x.title.length>250||typeof x.summary!=='string'||x.summary.length>5000||!['workflow','agent'].includes(x.solution))throw Error('Invalid analysis.');const allowed=new Set(fields(area).map(f=>f.id)),knownRoutes=new Set(Bank.areas.find(a=>a.id===area).fields.map(f=>f.route));if(!Array.isArray(x.facts)||x.facts.length>180||!Array.isArray(x.relevantFields)||x.relevantFields.length>180||!Array.isArray(x.routes)||!Array.isArray(x.uncertainties))throw Error('Invalid analysis lists.');const facts=[],seen=new Set();for(const f of x.facts){if(!allowed.has(f.id)||typeof f.value!=='string'||f.value.length>4000||typeof f.quote!=='string'||!f.quote.trim()||!text.includes(f.quote)||seen.has(f.id))continue;if(/^(unknown|not sure|not provided|null|n\/a)$/i.test(f.value.trim()))continue;
 if(f.id==='responsibility_split'&&/\b(?:help|decid\w*)\b/i.test(f.value)&&!requestsManagementHelp(f.quote))continue;
 if(f.id==='action_mode'&&/\bapproved\b|after approval/i.test(f.value)&&!hasApprovedActionEvidence(f.quote))continue;
@@ -90,6 +103,7 @@ if(numericIds.has(f.id)){
 seen.add(f.id);facts.push(normalized);}
 const draftOnly=explicitDraftOnlyFact(text);
 if(draftOnly){const index=facts.findIndex(f=>f.id==='action_mode');if(index<0)facts.push(draftOnly);else facts[index]=draftOnly;}
+if(!facts.some(f=>f.id==='implementation_route')){const project=explicitProjectFact(text,x.uncertainties);if(project)facts.push(project);}
 const selectedProgram=facts.find(f=>f.id==='monthly_plan');
 if(selectedProgram&&!facts.some(f=>f.id==='implementation_route'))facts.push({id:'implementation_route',value:'monthly',quote:selectedProgram.quote});
 for(const k of ['steps','variations','decisions'])if(x.classification?.[k]!==null&&(!Number.isInteger(x.classification?.[k])||x.classification[k]<1||x.classification[k]>4))throw Error('Invalid classification.');return {...x,facts,routes:x.routes.filter(r=>knownRoutes.has(r)),relevantFields:[...new Set(x.relevantFields.filter(f=>allowed.has(f)))],uncertainties:x.uncertainties.filter(t=>typeof t==='string').map(t=>t.slice(0,1000)).slice(0,15)};}

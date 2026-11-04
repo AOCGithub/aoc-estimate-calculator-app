@@ -9,6 +9,11 @@ This note records the recent prospect-facing form improvements so future work ca
 
 ## Completed changes
 
+### Explicit project choice in AI prefill — 4 November 2026
+
+- A live test showed an intermittent omission of an explicitly requested fixed-price project. Added a limited recovery rule for a complete affirmative choice sentence, retaining the exact source quote.
+- Negated, undecided, conflicting or deferred monthly requests remain unanswered; existing explicit choices and manually edited answers remain protected. No prices or new business choices were added.
+
 ### Entry form scrolling — 4 November 2026 (local)
 
 - The desktop form now scrolls within the right panel while the AOC branding and left visual remain visible. Short forms center safely; longer or expanded profile content remains reachable from top to bottom.
