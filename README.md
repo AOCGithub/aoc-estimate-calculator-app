@@ -4,6 +4,8 @@ Current local working version: React calculator with the reviewed 28?29 October 
 
 For a plain-language guide to requesting, testing, and publishing changes, see [Pricing and Form Maintenance](docs/PRICING-AND-FORM-MAINTENANCE.md).
 
+For entry, optional saving, finding a client's estimates and repeatable live checks, see [Entry and Saved-data Maintenance](docs/GATE-AND-SAVED-DATA-MAINTENANCE.md).
+
 The default page is the seven-section estimate journey. Previous interfaces are retained under `legacy/` for reconciliation and are excluded from production builds.
 
 ## Project layout

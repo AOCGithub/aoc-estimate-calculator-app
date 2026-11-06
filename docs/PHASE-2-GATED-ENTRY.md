@@ -59,6 +59,8 @@ Optional reusable profile saving, an unchecked consent choice, returning-client 
 
 Task #9 now has a [Supabase-backed production implementation](OPTIONAL-CLIENT-PROFILES.md): optional business details and selected company facts, independent unchecked consent, review before reuse, provenance, protected manual/cleared answers, database revision checks and private browser ownership. Deployed on 4 November 2026; live desktop/mobile profile and saving checks passed. Verification and AOC approval remain paused.
 
+Task #10 maintenance and record-lookup instructions are in [entry and saved-data maintenance](GATE-AND-SAVED-DATA-MAINTENANCE.md). The WordPress link/button and website-to-calculator journey are deferred at the user's request. These entry/saving tests do not complete the paused verification or review requirements.
+
 ## Verification
 
 Run `npm test`. Automated checks cover the five required fields, provisional allowlist matching, pending requests without access, save-failure handling, signed sessions, revocation, API enforcement, logout, absence of reusable profile storage and desktop/mobile layouts. The separate database test verifies actual Supabase persistence and anonymous access denial without retaining synthetic records.

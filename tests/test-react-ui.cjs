@@ -149,9 +149,9 @@ const server = http.createServer((request, response) => {
     }
     assert.equal(await page.locator('.area').count(), 12, 'all business areas render');
     assert.equal(
-      await page.getByRole('button', { name: 'Orders, inventory, and fulfillment' }).locator('.icon').textContent(),
-      '▦',
-      'orders and fulfillment uses the requested icon glyph',
+      await page.getByRole('button', { name: 'Orders, inventory, and fulfillment' }).locator('.icon svg').count(),
+      1,
+      'orders and fulfillment retains its labelled choice with a decorative line icon',
     );
     await page.getByRole('button', { name: 'Finance and billing' }).click();
     await page.getByRole('button', { name: 'Describe the work →', exact: true }).click();
@@ -290,11 +290,16 @@ const server = http.createServer((request, response) => {
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
 
     await page.locator('.money').filter({hasText:'$11,500'}).waitFor();
+    assert.equal(await page.locator('.result-group[open]').count(), 0, 'supporting results start collapsed');
+    assert.equal(await page.locator('.result-highlight').count(), 2, 'the overview keeps the main value and payback visible');
+    if (capture) await page.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'estimator-result-compact.png') });
+    await page.getByText('Project & ongoing costs', { exact: true }).click();
     await page.getByText('Needs scope / quoted fee', {exact:true}).waitFor();
     assert.equal(await page.locator('#estimateStatus').textContent(), 'LOCAL PREVIEW · VERIFY');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'local-preview');
     assert.ok(await page.getByText('AOC monthly service scope', { exact: true }).isVisible());
     assert.ok(await page.getByText('Recommended solution and connected scope', { exact: true }).isVisible());
+    await page.getByText('Recommended solution and connected scope', { exact: true }).click();
     assert.ok(await page.getByText('Create and send invoices', { exact: true }).last().isVisible());
     if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-result.png'), fullPage: true });
 

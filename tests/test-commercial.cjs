@@ -142,7 +142,23 @@ for(const text of [
  'We want a fixed-price project. Help me decide the implementation route.',
  'Our budget is $4000. We want a bounded improvement.',
 ])assert.ok(!Contract.validate(analysis,text,'area10').facts.some(f=>f.id==='implementation_route'),'uncertain/negated/conflicting choices stay blank');
-assert.ok(!Contract.validate({...analysis,uncertainties:['Confirm the implementation route.']},'We want a fixed-price project.','area10').facts.some(f=>f.id==='implementation_route'));
+assert.equal(Contract.validate({...analysis,uncertainties:['Confirm the implementation route.']},'We want a fixed-price project.','area10').facts.find(f=>f.id==='implementation_route')?.value,'project','an unsupported model question cannot erase an explicit client choice');
+const adSpendText='Our monthly ad spend is $3000.';
+for(const id of ['replacement_provider_cost','provider_removed_amount','provider_replaced_portion']) {
+ const result=Contract.validate({...analysis,facts:[{id,value:id==='provider_replaced_portion'?'all':'3000',quote:adSpendText}]},adSpendText,'area10');
+ assert.ok(!result.facts.some(f=>f.id===id),'ad spend is not an external provider fee or its removal: '+id);
+}
+assert.equal(Contract.validate({...analysis,facts:[{id:'ads_012',value:'3000',quote:adSpendText}]},adSpendText,'area10').facts.find(f=>f.id==='ads_012')?.value,'3000','the stated advertising budget remains available in its own field');
+const agencyFeeText='We pay our agency $900 per month for reporting.';
+assert.equal(Contract.validate({...analysis,facts:[{id:'replacement_provider_cost',value:'900',quote:agencyFeeText}]},agencyFeeText,'area10').facts.find(f=>f.id==='replacement_provider_cost')?.value,'900','an actual quoted provider fee is retained');
+for(const area of require('../public/approved-bank.js').areas) {
+ for(const field of area.fields.filter(field=>/responsibilit/i.test(field.question)&&/help decide/i.test(field.options))) {
+  const unknown='We have not decided who will manage the finished workflow.';
+  const known='Please help us decide who should manage the work.';
+  assert.ok(!Contract.validate({...analysis,facts:[{id:field.id,value:'Help decide',quote:unknown}]},unknown,area.id).facts.some(f=>f.id===field.id),'unknown detailed responsibility stays unanswered: '+field.id);
+  assert.equal(Contract.validate({...analysis,facts:[{id:field.id,value:'Help decide',quote:known}]},known,area.id).facts.find(f=>f.id===field.id)?.value,'Help decide','an explicit request for management help stays supported: '+field.id);
+ }
+}
 const helpText='We want a fixed-price project. Help me decide the implementation route.';
 assert.equal(Contract.validate({...analysis,facts:[{id:'implementation_route',value:'help',quote:'Help me decide the implementation route.'}]},helpText,'area10').facts.find(f=>f.id==='implementation_route').value,'help','an existing explicit choice is preserved');
 const description = 'Our budget is $4000. Our internal hourly cost is $50. We want a monthly build program. AOC quoted an audit fee of $1250.';

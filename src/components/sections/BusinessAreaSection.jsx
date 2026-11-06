@@ -1,5 +1,7 @@
-import { areaIcons } from '../../constants.js';
+import { Icon } from '../Icon.jsx';
 import { estimatorBank } from '../../lib/domain.js';
+
+const areaIcons = ['finance', 'operations', 'support', 'people', 'people', 'content', 'store', 'design', 'search', 'email', 'ads', 'other'];
 
 export function BusinessAreaSection({ selectedArea, onChoose }) {
   return (
@@ -21,8 +23,9 @@ export function BusinessAreaSection({ selectedArea, onChoose }) {
             aria-pressed={area.id === selectedArea}
             onClick={() => onChoose(area.id)}
           >
-            <span className="icon" aria-hidden="true">{areaIcons[index]}</span>
-            {area.label}
+            <span className="icon" aria-hidden="true"><Icon name={areaIcons[index]} /></span>
+            <span>{area.label}</span>
+            <Icon name="chevron" className="area-arrow" />
           </button>
         ))}
       </div>

@@ -35,7 +35,7 @@ try {
     page.setDefaultTimeout(15000);
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(baseURL, { waitUntil: 'networkidle' });
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Continue to calculator' }).waitFor();
     assert.equal(await page.locator('input:not([type="checkbox"])').count(), 5);
     const consent = page.getByRole('checkbox', { name: /Save my details and estimates/ });
@@ -161,7 +161,7 @@ try {
     await page.getByText('Your estimate was calculated, but could not be saved. Please calculate again to retry.', { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => globalThis.AOCJourney.getState().result), state.result);
     await page.unroute('**/api/journey/calculate');
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.locator('.area').first().waitFor();
     assert.equal(await page.locator('input[name="businessEmail"]').count(), 0, 'Active sessions do not repeat the entry form.');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -192,7 +192,7 @@ try {
     const privateToken = JSON.parse(Buffer.from(privateCookies.find(cookie => cookie.name === 'aoc_estimator_access').value.split('.')[0], 'base64url').toString());
     assert.equal(privateToken.requestId, undefined);
     assert.equal(privateToken.saveData, false);
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByRole('note').filter({ hasText: /Data saving is off\.|Estimate recording is off\./ }).waitFor();
     assert.deepEqual(errors, []);
     await context.close();

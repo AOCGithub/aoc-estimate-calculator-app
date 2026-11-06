@@ -33,6 +33,8 @@ Use the implementation notes, [current framework](https://docs.google.com/docume
 
 Keep AI keys in Vercel's server settings.
 
+For entry fields, the two independent saving choices, Supabase record lookup and repeatable live checks, see [entry and saved-data maintenance](GATE-AND-SAVED-DATA-MAINTENANCE.md).
+
 ## Current pricing status
 
 The local implementation uses a separately quoted fixed audit, one eligible credit under the existing 30-day conditions, and fixed-project balance/payments. The credit is deducted once before splitting the balance into two payments; the first rounds to cents and the second reconciles the remainder. An explicitly entered project quote is preserved. Standard/Priority/Premier support prices stay unknown because the sources do not supply them. The calculator does not approve quotes, redeem credits or take payments.

@@ -30,6 +30,7 @@
     "test:access": "node tests/test-access.mjs && node tests/test-access-requests.mjs && node tests/test-manual-access.mjs && node tests/test-intake-access.mjs && node tests/test-estimate-records.mjs",
     "test:manual-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-manual-access-database-ui.mjs",
     "test:intake-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-intake-access-database-ui.mjs",
+    "test:gate-saving:live": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/test-gate-saving-choices.mjs --live",
     "test:access-ui": "node tests/test-access-ui.cjs",
     "test:profiles": "node tests/test-client-profiles.mjs && node tests/test-production-profiles.mjs",
     "test:profiles:ui": "node tests/test-client-profiles-ui.cjs && node tests/test-company-profile-ui.cjs",

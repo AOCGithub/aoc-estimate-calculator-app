@@ -162,6 +162,13 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         await page.waitForFunction(() => AOCJourney.getState().calculationSource === 'server' && !AOCJourney.getState().dirty);
         assert.equal(await page.evaluate(() => AOCJourney.getState().result.build), 11500);
         assert.equal(await page.evaluate(() => AOCJourney.getState().result.audit), 1250);
+        await page.locator('.result-download').scrollIntoViewIfNeeded();
+        assert.equal(await page.locator('.result-download').evaluate(element => {
+          const button = element.getBoundingClientRect();
+          const card = element.closest('.estimate-card').getBoundingClientRect();
+          return button.top >= card.top && button.bottom <= card.bottom;
+        }), true, 'The download action is not clipped by the result details.');
+        if (process.argv.includes('--capture')) await page.locator('.estimate-aside').screenshot({ path: `artifacts/redesign-result-${width}.png` });
         // Applying another confirmed fact marks the old result stale.
         snapshot = await saved(page);
         const updated = await page.request.post(target + '/api/client-profile', { headers: { origin: target }, data: {

@@ -1,13 +1,29 @@
 # Form UX Updates
 
-Last updated: 4 November 2026
-Status: The documented rule corrections, optional Supabase profiles and scrolling fix are live as of 4 November 2026. Live checks passed.
+Last updated: 6 November 2026
+Status: The earlier rule corrections, optional Supabase profiles and scrolling fix are live as of 4 November. The new entry/calculator redesign and pre-push AI-prefill corrections below are local only; they have not been pushed or deployed.
 
 ## Purpose
 
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Pre-push AI-prefill corrections - 6 November 2026
+
+- A real-provider test exposed an omitted fixed-price choice and an advertising budget incorrectly mapped to current provider fees. An explicit client choice now survives an unsupported model uncertainty; negated, conflicting and genuinely undecided choices retain their existing safeguards. Advertising/media budget evidence is rejected for provider fees and eliminated-provider costs, while the advertising-budget answer remains available.
+- Applied the existing unknown-responsibility protection to the detailed advertising responsibility question too. An unknown manager stays unanswered; **Help decide** requires an explicit request for help. Actual agency fees and explicitly requested management help remain supported.
+- Added regression coverage and passed the two real AI-prefill retests, including draft-only versus approved execution, explicit project choice, grounded quotes and 15 unknown-field assertions. The full local regression suite passed after these changes. Pricing formulas, coefficients, question choices and database rules were not changed.
+- Refreshed the existing localhost:5173 preview with the current server settings; both remembered profiles and estimate recording now match production availability. No Vercel settings were changed. Results are in [production test results, local pre-push section](PRODUCTION-TEST-RESULTS.md#local-pre-push-verification---6-november-2026).
+
+### Local entry and calculator redesign - 6 November 2026
+
+- Redesigned the entry page with a shared AOC wordmark, self-hosted Inter typography, a muted green palette and a cleaner split layout. The desktop form scrolls independently; mobile keeps normal page scrolling and visible branding. Privacy information is expandable. The five required fields and independent unchecked saving choices are retained.
+- Updated the shared entry/calculator header logo to use the existing AOC tab icon (`public/favicon.png`), keeping the company name alongside it.
+- Replaced the desktop side navigation with a horizontal seven-section navigation above a wider form workspace. Smaller screens retain the accessible section selector and a link to the estimate, without sideways navigation scrolling.
+- The result leads with build price, audit, new ongoing costs, monthly economic benefit and illustrative payback. Costs, assumptions, value, connected scope and readiness are expandable. All 25 original named metrics, conditional outputs, warnings, terms and summary-download data remain available. The download action stays outside the scrolling result details.
+- Unknown inputs remain unknown; changed answers show a recalculation notice. Calculation/pricing modules, API handlers, database rules, saving consent and voice behavior were not changed. The historical stylesheet is retained for legacy pages; active React styles are organized into shared, calculator and access stylesheets.
+- Passed the full local `npm test` regression suite and final build. Separate local profile browser journeys and entry scrolling/focus checks passed at 1440x900, 1366x640, 390x844 and 320x568. The primary localhost:5173 entry, no-save server calculation and logout also passed. No production records or paid AI calls were used for these redesign checks.
 
 ### Explicit project choice in AI prefill — 4 November 2026
 

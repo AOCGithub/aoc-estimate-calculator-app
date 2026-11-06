@@ -29,9 +29,9 @@ localApi(environment).configureServer({httpServer:server,middlewares:{use(handle
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 try{
-  for(const filename of ['test-client-profiles-ui.cjs','test-company-profile-ui.cjs']){
+  for(const [filename,args] of [['test-client-profiles-ui.cjs',[]],['test-company-profile-ui.cjs',[]],['test-gate-saving-choices.mjs',['--database']]]){
     await new Promise((resolve,reject)=>{
-      const child=spawn(process.execPath,['tests/'+filename],{stdio:'inherit',env:{...process.env,AOC_PROFILE_TEST_URL:origin,AOC_PROFILE_STORAGE_KIND:'supabase'}});
+      const child=spawn(process.execPath,['tests/'+filename,...args],{stdio:'inherit',env:{...process.env,AOC_PROFILE_TEST_URL:origin,AOC_GATE_TEST_URL:origin,AOC_PROFILE_STORAGE_KIND:'supabase'}});
       child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(new Error(filename+' failed ('+code+')')));
     });
   }

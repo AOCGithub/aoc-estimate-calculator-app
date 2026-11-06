@@ -1,10 +1,51 @@
 # Production Test Results
 
 Date: 21 October 2026
-Last updated: 4 November 2026
-Scope: Production verification required by the Phase 1 checklist
+Last updated: 6 November 2026
+Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
+
+## Local pre-push verification - 6 November 2026
+
+The redesigned form, calculator, compact result layout and AOC favicon logo were checked locally before publication. This section is **not** a deployment confirmation; the new UI and AI-prefill corrections have not been pushed or deployed.
+
+Passed:
+
+- Fresh full `npm test`: production build/Worker package, form validation, conditional questions, manual edits, seven-section desktop/mobile journeys, changed/cleared answers, stale-result indication, downloads, reset confirmation, access, profiles, AI/voice contracts and error recovery. Pricing checks cover 144 independent quote/ROI cases and 10,000 payment-rounding cases against the checked-in 28-29 October rules.
+- `npm run test:profiles:cloud-ui`: the current production build served locally through the real Node handlers with Supabase. Profile review/reuse, manual and cleared-answer protection, concurrent changes, selective removal, full deletion and all four saving-checkbox combinations passed at 1440px and 390px (eight combination cases). Four synthetic submissions and four estimate snapshots were removed; synthetic profiles were also removed.
+- `npm run test:profiles:database`: real profile ownership, concurrent-update rejection, selective removal, deletion and expiry passed. The global cleanup function was checked inside a rolled-back transaction. Only this test's synthetic profiles were removed.
+- The full local form-to-Calculate Supabase journey passed at 1440px and 390px, including stored answers/results/versions, edited/cleared snapshots, opt-out, save-error recovery, refresh and logout. Its two synthetic submissions and eight snapshots were removed. An initial navigation timeout occurred while waiting for network-idle; the form was visible. The test now waits for the document and visible form. A separate readiness probe showed the form ready in 733ms and also reaching network-idle; that single local observation is not a production performance benchmark.
+- Real AI-prefill retests: paid advertising and an invoice agent passed with exact source quotes, explicit project selection, draft versus approved actions and 15 unknown-field checks. The first paid-advertising check exposed an omitted explicit project choice, ad spend mapped to provider fees and a detailed **Help decide** answer inferred from unknown responsibility. The validation fixes and regression tests passed; actual provider fees and explicit management-help requests remain supported.
+- One real short voice session using synthetic **Testing** audio: live text appeared before Stop, the final text retained existing typing, and the opening word was correct. One real spelling/list-punctuation correction preserved `$2500 monthly` and draft-only instructions; Undo restored the exact original. No physical microphone or customer recording was used.
+- The local preview was refreshed to match production's available profile/estimate-saving settings. Browser-asset checks found no configured private server credentials. Built AI-validation, pricing, question-bank and favicon assets matched source. No pricing formulas, coefficients, database schema or live settings were changed.
+
+Provider use for this pre-push run: three organizer requests (the initial failing acceptance check and two passing retests), one short realtime session, and one text-correction request. Other checks used mocks or no paid AI. Existing client records were preserved.
+
+These checks cover the current submit-and-enter setup; verification/AOC approval and the WordPress link remain on hold. Physical iPhone/Android coverage and every possible AI response are outside this run. Unspecified fees remain pending rather than invented. Repeat a live smoke test after the new deployment is published.
+
+## Gate and saved-data recheck - 6 November 2026
+
+Rechecked the existing [live AOC estimator](https://estimate.alwaysopencommerce.com/) using synthetic records. No application behavior, pricing rules, database schema or WordPress content was changed. No paid AI requests were made.
+
+Passed on desktop (1440px) and mobile (390px) Chromium viewports:
+
+- All four combinations of **Remember my business details** and **Save my details and estimates with AOC**. Both choices began unchecked, remained independent and reset after logout. Direct Supabase checks confirmed that profiles, submissions and estimate snapshots were created only for the selected choices.
+- Each of the five blank required entry fields blocked submission; correcting the field restored validity. Calculation was blocked before entry and after logout. Valid entry opened all twelve business areas with a fresh set of answers.
+- Server-calculated answers/results matched the fixture in each saving combination. Profile-only sessions did not record estimates. Deleting a remembered profile preserved separately saved estimates.
+- Explicit review/reuse, same-email isolation between browsers, preserved manual/cleared answers, company-fact provenance, stale-update rejection, selective removal and full profile deletion.
+- Form save-failure/retry and calculation save-failure messages, with entered details/results retained. The longer live form journey also passed the Calculate button, changed/cleared answer snapshots, refresh, session clearing and no horizontal overflow.
+
+Repeatable checks run:
+
+- `npm run build:worker`, `npm run test:access` and `npm run test:profiles` passed locally. These include signed-session protection, tampered requests, consent enforcement and storage failures.
+- Live `npm run test:profiles:ui`, using `AOC_PROFILE_TEST_URL=https://estimate.alwaysopencommerce.com` and `AOC_PROFILE_STORAGE_KIND=supabase`, passed.
+- `npm run test:intake-access:db -- --live --skip-ai` passed; it removed its two synthetic submissions and eight estimate snapshots.
+- New `npm run test:gate-saving:live` passed all eight viewport/choice cases; it removed its four synthetic submissions and four estimate snapshots. All synthetic profiles from these checks were also removed. Existing client records were preserved.
+
+Maintenance and client-record lookup: [entry and saved-data guide](GATE-AND-SAVED-DATA-MAINTENANCE.md). The repeatable four-choice check is [test-gate-saving-choices.mjs](../tests/test-gate-saving-choices.mjs).
+
+The WordPress link/button and website-to-calculator journey are deferred at the user's request. Verification and AOC approval remain paused; the tested behavior is valid submission followed by calculator access. These results do not certify that paused workflow, physical phones or a new client release. This update contains tests and documentation only and has not been pushed or redeployed.
 
 ## Calculator, profiles and scrolling release - 4 November 2026
 

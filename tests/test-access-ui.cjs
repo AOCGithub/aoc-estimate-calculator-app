@@ -119,7 +119,7 @@ const server = http.createServer((request, response) => {
 
   try {
     await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
-    await page.getByRole('heading', { name: 'Always Open Commerce Estimator.' }).waitFor();
+    await page.getByRole('heading', { name: /A clearer picture/ }).waitFor();
     for (const label of ['Your name', 'Company', 'Company website', 'Your role', 'Business email']) {
       assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, label + ' is present');
     }
@@ -148,7 +148,7 @@ const server = http.createServer((request, response) => {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'gate and calculator fit mobile width');
 
     await page.getByRole('button', { name: 'End session' }).click();
-    await page.getByRole('heading', { name: 'Always Open Commerce Estimator.' }).waitFor();
+    await page.getByRole('heading', { name: /A clearer picture/ }).waitFor();
     assert.equal(await page.getByLabel('Business email').inputValue(), '', 'gate details are not reused after logout');
     assert.equal(await page.getByLabel('Your name').inputValue(), '');
     requestsEnabled = true;

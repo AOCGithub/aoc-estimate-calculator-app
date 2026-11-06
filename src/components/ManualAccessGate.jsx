@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessDetailsFields, emptyAccessProfile } from './fields/AccessDetailsFields.jsx';
+import { Brand } from './Brand.jsx';
 
 export function ManualAccessGate({ access }) {
   const [profile, setProfile] = useState(emptyAccessProfile);
@@ -15,7 +16,7 @@ export function ManualAccessGate({ access }) {
   return (
     <div className="access-page">
       <header className="access-header">
-        <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
+        <Brand />
         <span className="access-header-badge"><i /> AOC reviewed access</span>
       </header>
       <main className="access-shell">

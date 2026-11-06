@@ -18,6 +18,7 @@ import { RestartDialog } from './components/RestartDialog.jsx';
 import { AccessGate } from './components/AccessGate.jsx';
 import { useClientProfile } from './hooks/useClientProfile.js';
 import { CompanyProfilePanel } from './components/CompanyProfilePanel.jsx';
+import { Brand } from './components/Brand.jsx';
 
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
@@ -128,8 +129,8 @@ export default function App() {
 
   return (
     <>
-      <header>
-        <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
+      <header className="app-header">
+        <Brand />
         <LiveContext />
         <button id="restart" type="button" className="quiet" onClick={() => setRestartOpen(true)}>Start over</button>
         {access.enabled && (
@@ -143,41 +144,31 @@ export default function App() {
           }}>End session</button>
         )}
       </header>
-      <main>
+      <main className="calculator-main">
         {access.intakeOnly && <p className="session-saving-note" role="note">{access.saveData
           ? `Data saving is on. Your details${access.recordsEnabled ? ' and calculated estimates' : ''} are saved privately with AOC.`
           : profiles.enabled ? 'Estimate recording is off. Company profile details are saved separately only when you choose to remember them.'
             : 'Data saving is off. Your details and estimate records are not saved to AOC’s database for this session.'}</p>}
-        {state.step === 1 ? (
-          <>
-            <div className="intro">
-          <div className="eyebrow">A BETTER WAY TO WORK</div>
-          <h1>Start with the work.<br /><span>We’ll help connect the pieces.</span></h1>
+        <div className="workspace-heading">
+          <div>
+            <div className="eyebrow">YOUR WORKSPACE</div>
+            <h1>{selectedArea?.label || 'Scope your next improvement.'}</h1>
+            <p>{state.step === 1 ? 'Start with one process. Shape the scope. See what’s possible.' : 'Your scope, your answers. Refine the details as you go.'}</p>
+          </div>
+          <a className="estimate-jump" href="#estimate">View your estimate <span aria-hidden="true">↗</span></a>
+        </div>
+        <details className="journey-context">
+          <summary>About this estimate</summary>
           <p>
             Tell us what you want to improve. Review the details we collect, then explore the build,
-            support and potential value—without needing to know the technology.
+            support and potential value without needing to know the technology.
           </p>
-        </div>
-            <div className="preview-note">
-          <strong>About your estimate.</strong> Prices are indicative calculations and are not an
-          approved quote. {access.enabled && !access.intakeOnly ? 'Access is limited to AOC-approved participants. ' : ''}
-          Don’t enter passwords or private customer records.
-        </div>
-          </>
-        ) : (
-          <details className="journey-context">
-            <summary>About this estimate</summary>
-            <p>
-              Tell us what you want to improve. Review the details we collect, then explore the build,
-              support and potential value without needing to know the technology.
-            </p>
-            <p>
-              <strong>Estimate notice.</strong> Prices are indicative calculations and are not an
-              approved quote. {access.enabled && !access.intakeOnly ? 'Access is limited to AOC-approved participants. ' : ''}
-              Do not enter passwords or private customer records.
-            </p>
-          </details>
-        )}
+          <p>
+            <strong>Estimate notice.</strong> Prices are indicative calculations and are not an
+            approved quote. {access.enabled && !access.intakeOnly ? 'Access is limited to AOC-approved participants. ' : ''}
+            Do not enter passwords or private customer records.
+          </p>
+        </details>
         <div className="workspace">
           <StepNavigation currentStep={state.step} hasArea={Boolean(state.area)} onNavigate={actions.goTo} />
           <div id="mainPanel">

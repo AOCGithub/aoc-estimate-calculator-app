@@ -1,7 +1,7 @@
 const labels = { name: 'Name', company: 'Company', website: 'Website', role: 'Role', businessEmail: 'Business email' };
 
 export function ClientProfileReview({ profiles, onReuse }) {
-  if (!profiles.enabled) return null;
+  if (!profiles.enabled || (!profiles.saved && !profiles.preview && !profiles.message && !profiles.error)) return null;
   return <div className="client-profile-review">
     <p className="client-profile-trial">Optional company profile · this browser</p>
     {profiles.saved && !profiles.preview && <div className="client-profile-actions">

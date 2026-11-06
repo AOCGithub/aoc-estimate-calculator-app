@@ -3,6 +3,7 @@ import { ManualAccessGate } from './ManualAccessGate.jsx';
 import { AccessDetailsFields, emptyAccessProfile } from './fields/AccessDetailsFields.jsx';
 import Aurora from './visuals/Aurora.jsx';
 import { ClientProfileReview } from './ClientProfileReview.jsx';
+import { Brand } from './Brand.jsx';
 
 const auroraColors = ['#087E79', '#57C4A5', '#295C80'];
 
@@ -17,7 +18,7 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
     return (
       <div className="access-page">
         <header className="access-header">
-          <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
+          <Brand />
         </header>
         <main className="access-shell" aria-busy="true" aria-label="Loading calculator" />
       </div>
@@ -37,7 +38,7 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
   return (
     <div className="access-page access-page--aurora">
       <header className="access-header">
-        <a className="brand" href="/">Always Open Commerce<span>AI COMMERCE</span></a>
+        <Brand />
       </header>
       <main className="access-shell">
         <section className="access-card">
@@ -48,13 +49,14 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
             <div className="access-intro">
               <div className="access-intro__content">
                 <div className="access-eyebrow"><span /> {access.intakeOnly ? 'AI COMMERCE ESTIMATOR' : 'AOC APPROVED ACCESS'}</div>
-                <h1>Always Open Commerce <span>Estimator.</span></h1>
+                <h1>A clearer picture<br />of <span>what’s next.</span></h1>
                 <p>
                   Turn a business process into a clear, editable scope and explore the right delivery
                   route with Always Open Commerce.
                 </p>
               </div>
             </div>
+            <div className="access-visual-caption"><span>Always Open Commerce</span><span>Built around your business.</span></div>
           </div>
 
           <div className="access-entry">
@@ -108,21 +110,21 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
                   {!busy && <i aria-hidden="true">→</i>}
                 </button>
               </form>}
-              <div className="access-privacy">
+              <details className="access-privacy">
+                <summary>Access and privacy</summary>
                 <span className="access-privacy__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6l8-3Z" /><path d="m8 12 3 3 5-5" />
                   </svg>
                 </span>
                 <div>
-                  <strong>Access and privacy</strong>
                   <p>
                     {profiles.enabled ? 'Profile saving and estimate recording are separate optional choices. Profiles are stored privately with AOC and accessed using a private browser cookie. Clearing that cookie removes access from this browser. AI features still process descriptions you submit. Identity verification and approval remain on hold. ' : access.intakeOnly ? 'You choose whether AOC saves your business details and estimates. Without saving, the calculator still works for your session. AI features still process descriptions you submit. Verification and approval remain on hold. ' : access.requestsEnabled ? 'Your name, company, website, role and business email are saved privately for access review. ' : 'These details are used to confirm access to the calculator. '}We do not request
                     LinkedIn access or email-inbox access, {profiles.enabled ? '' : 'save a reusable profile, '}enroll you in
                     marketing or send unsolicited follow-up.
                   </p>
                 </div>
-              </div>
+              </details>
             </div>
             <div className="access-trust" aria-label="Access assurances">
               <span><i>✓</i> {access.intakeOnly ? 'Private details' : access.requestsEnabled ? 'Private access review' : 'Session only'}</span>
