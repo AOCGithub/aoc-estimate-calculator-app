@@ -1,7 +1,7 @@
 # Form UX Updates
 
 Last updated: 6 November 2026
-Status: The earlier rule corrections, optional Supabase profiles and scrolling fix are live as of 4 November. The new entry/calculator redesign and pre-push AI-prefill corrections below are local only; they have not been pushed or deployed.
+Status: The redesigned entry/calculator, AOC favicon logo and AI-prefill corrections were deployed on 6 November 2026. Live desktop/mobile, saving, calculation, download and AI checks passed. The earlier rule corrections and optional Supabase profiles remain active.
 
 ## Purpose
 
@@ -9,14 +9,14 @@ This note records the recent prospect-facing form improvements so future work ca
 
 ## Completed changes
 
-### Pre-push AI-prefill corrections - 6 November 2026
+### AI-prefill corrections - 6 November 2026 (deployed 6 November)
 
 - A real-provider test exposed an omitted fixed-price choice and an advertising budget incorrectly mapped to current provider fees. An explicit client choice now survives an unsupported model uncertainty; negated, conflicting and genuinely undecided choices retain their existing safeguards. Advertising/media budget evidence is rejected for provider fees and eliminated-provider costs, while the advertising-budget answer remains available.
 - Applied the existing unknown-responsibility protection to the detailed advertising responsibility question too. An unknown manager stays unanswered; **Help decide** requires an explicit request for help. Actual agency fees and explicitly requested management help remain supported.
 - Added regression coverage and passed the two real AI-prefill retests, including draft-only versus approved execution, explicit project choice, grounded quotes and 15 unknown-field assertions. The full local regression suite passed after these changes. Pricing formulas, coefficients, question choices and database rules were not changed.
 - Refreshed the existing localhost:5173 preview with the current server settings; both remembered profiles and estimate recording now match production availability. No Vercel settings were changed. Results are in [production test results, local pre-push section](PRODUCTION-TEST-RESULTS.md#local-pre-push-verification---6-november-2026).
 
-### Local entry and calculator redesign - 6 November 2026
+### Entry and calculator redesign - 6 November 2026 (deployed 6 November)
 
 - Redesigned the entry page with a shared AOC wordmark, self-hosted Inter typography, a muted green palette and a cleaner split layout. The desktop form scrolls independently; mobile keeps normal page scrolling and visible branding. Privacy information is expandable. The five required fields and independent unchecked saving choices are retained.
 - Updated the shared entry/calculator header logo to use the existing AOC tab icon (`public/favicon.png`), keeping the company name alongside it.

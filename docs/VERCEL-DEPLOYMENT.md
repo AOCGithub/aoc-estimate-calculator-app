@@ -4,9 +4,9 @@ This repository is connected to Vercel. The Vite client is built into `dist/clie
 
 The current release is still a testing preview. Use synthetic information only. Do not present it as the qualified client calculator until the access gate, remaining commercial approvals, hosting-account review, and final launch checks are complete.
 
-## Current deployment status - 30 October 2026
+## Current deployment status
 
-Current release — 4 November 2026: fixed-price launch rules reviewed through 29 October, optional Supabase profiles, and the entry scrolling fix were deployed and verified on the AOC domain. The 30 October status below records the previous deployment. Use [current pricing/form maintenance](PRICING-AND-FORM-MAINTENANCE.md) and [profile operations](OPTIONAL-CLIENT-PROFILES.md) for the current release; [production test results](PRODUCTION-TEST-RESULTS.md) record the deployed checks.
+Current release — 6 November 2026: the redesigned entry/calculator, compact results, AOC favicon logo and AI-prefill validation fixes were deployed and verified on the AOC domain. The fixed-price rules reviewed through 29 October and optional Supabase profiles remain active. Use [current pricing/form maintenance](PRICING-AND-FORM-MAINTENANCE.md), [entry/saved-data maintenance](GATE-AND-SAVED-DATA-MAINTENANCE.md) and [profile operations](OPTIONAL-CLIENT-PROFILES.md) for upkeep; [production test results](PRODUCTION-TEST-RESULTS.md) record the deployed checks. The dated 28-30 October observations below are historical.
 
 The five-field entry form and linked calculation storage are now live in submit-and-enter mode. Production has `VITE_AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_REQUESTS_ENABLED`, `AOC_INTAKE_ONLY_ENABLED` and `AOC_ESTIMATE_RECORDS_ENABLED` set to `true`; `AOC_MANUAL_ACCESS_ENABLED=false`. The session secret and database/OpenAI credentials are server-only. Desktop/mobile live saving and one paid-advertising AI-prefill check passed; see [production test results](PRODUCTION-TEST-RESULTS.md).
 

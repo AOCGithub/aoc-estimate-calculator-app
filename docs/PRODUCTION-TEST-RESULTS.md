@@ -6,9 +6,26 @@ Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
 
+## Redesigned calculator release - 6 November 2026
+
+Published application commit [353e2eb](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/353e2ebd097a700e0d72ea000f80a76c3b12d42a) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel reported **Ready** for `dpl_EzuhvekFSp2wCj3rMcG4WKV9wctn` and confirmed that the AOC domain points to this commit. The release includes the redesigned entry and workspace, compact expandable results, original AOC favicon as the header logo, AI-prefill validation fixes, tests and maintenance guide. Subsequent documentation commits contain the same application source.
+
+Passed on the deployed AOC domain:
+
+- Entry validation, unchecked saving choices, logo/font loading, scrolling and visible branding at 1440x900, 1366x640, 390x844 and 320x568.
+- All four profile/estimate-saving combinations on desktop/mobile: eight cases with actual Supabase rows, correct linked calculation results, logout and profile deletion that preserves separately saved estimates.
+- Profile review/reuse, preservation of current and cleared answers, browser/client separation, concurrent-update protection, selective removal and full deletion.
+- Full form-to-Calculate journeys at 1440px and 390px, including saved snapshots, changed/cleared answers, save-failure recovery, refresh and logout. Two additional no-save journeys passed calculation/recalculation, JSON-download parity, reset cancellation, responsive layout, font loading and CSP checks.
+- One real paid-advertising AI-prefill request retained the explicit fixed-price project and quoted audit, left ten unknown fields blank, kept the $3000 ad budget in its advertising field, and did not treat it as a provider fee or infer management help.
+- Live pricing, question-bank, AI-validation and favicon files matched source. Checked browser assets contained none of the configured private server credentials. Access settings, session protection, blocked email lookup and protected profile cleanup passed.
+
+The database checks removed only their six synthetic submissions, twelve estimate snapshots and synthetic profiles. Existing client records were preserved. Post-deployment checks used one short AI-prefill request; no live audio/correction requests were made in this release check. The real voice/correction pre-push results below cover those unchanged integrations.
+
+Live assets: `index-jpKAXHrx.js` and `index-DFog-4VO.css`. The complete local regression suite passed before publication, including the pricing/ROI and rounding checks below. Pricing formulas, coefficients, database schema and server settings were unchanged. Verification/AOC approval and the WordPress link remain on hold. These browser checks do not replace physical-phone testing or guarantee every possible AI response.
+
 ## Local pre-push verification - 6 November 2026
 
-The redesigned form, calculator, compact result layout and AOC favicon logo were checked locally before publication. This section is **not** a deployment confirmation; the new UI and AI-prefill corrections have not been pushed or deployed.
+The redesigned form, calculator, compact result layout and AOC favicon logo were checked locally before publication. These are the pre-push results; the subsequent deployment and live checks are recorded above.
 
 Passed:
 
@@ -45,7 +62,7 @@ Repeatable checks run:
 
 Maintenance and client-record lookup: [entry and saved-data guide](GATE-AND-SAVED-DATA-MAINTENANCE.md). The repeatable four-choice check is [test-gate-saving-choices.mjs](../tests/test-gate-saving-choices.mjs).
 
-The WordPress link/button and website-to-calculator journey are deferred at the user's request. Verification and AOC approval remain paused; the tested behavior is valid submission followed by calculator access. These results do not certify that paused workflow, physical phones or a new client release. This update contains tests and documentation only and has not been pushed or redeployed.
+The WordPress link/button and website-to-calculator journey are deferred at the user's request. Verification and AOC approval remain paused; the tested behavior is valid submission followed by calculator access. These results do not certify that paused workflow or physical phones. This earlier gate/saving check made no application changes; its tests and maintenance notes are included in the release above.
 
 ## Calculator, profiles and scrolling release - 4 November 2026
 
