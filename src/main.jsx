@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import App from './App.jsx';
 import { performanceOrigin, sanitizePerformanceEvent } from './lib/speedInsights.js';
-import './styles.css';
+import './styles/base.css';
 import './styles/calculator.css';
 import './styles/access.css';
 

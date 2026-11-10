@@ -1,13 +1,20 @@
 # Form UX Updates
 
-Last updated: 6 November 2026
-Status: The redesigned entry/calculator, AOC favicon logo and AI-prefill corrections were deployed on 6 November 2026. Live desktop/mobile, saving, calculation, download and AI checks passed. The earlier rule corrections and optional Supabase profiles remain active.
+Last updated: 10 November 2026
+Status: Local folder reorganization is complete and tested; it has not been published. The latest deployed changes remain the 6 November entry/calculator redesign and AI-prefill corrections. The earlier rule corrections and optional Supabase profiles remain active.
 
 ## Purpose
 
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Project organization - 10 November 2026 (local only)
+
+- Grouped React components and hooks by access, calculator, description/voice and profiles. Shared components and styles have dedicated folders.
+- Grouped server helpers by feature, scripts by purpose, and tests into unit, integration, browser, database, provider and historical folders. Updated imports, packaging paths and existing npm commands.
+- Added a [documentation index](README.md) and updated the [project guide](../README.md). Current maintenance and production-result links keep their existing paths; feature references and historical reports are grouped separately.
+- The full local regression suite and additional desktop/mobile profile journeys passed. Source comparison confirmed path-only application changes; pricing runtime/data, shared profile rules, schema migrations and CSS are unchanged. Public API routes and existing npm command names are preserved. No production settings or records were changed.
 
 ### AI-prefill corrections - 6 November 2026 (deployed 6 November)
 
@@ -43,13 +50,13 @@ This note records the recent prospect-facing form improvements so future work ca
 - Profile ownership uses a private browser credential with only its digest stored. Email lookup is unavailable; conflicting revisions and cross-client overwrites are rejected. Selected removals and full profile deletion are supported.
 - Prepared server-only Vercel flags and a sensitive cleanup secret. Profiles expire after the displayed configurable duration (30 days by default); daily protected cleanup is configured. Production does not use the offline file adapter.
 - Passed protocol/security tests, real Supabase persistence/race/deletion/expiry tests, production-built desktop/mobile profile journeys and the full application regression suite. Synthetic profiles were removed after tests; no paid AI calls were made for this work.
-- Verification/AOC approval remains paused. The Supabase-backed implementation is live and verified; port 5180 remains available for development. Details: [optional client profiles](OPTIONAL-CLIENT-PROFILES.md).
+- Verification/AOC approval remains paused. The Supabase-backed implementation is live and verified; port 5180 remains available for development. Details: [optional client profiles](features/OPTIONAL-CLIENT-PROFILES.md).
 
 ### Calculator output and editable marketing counts — 4 November 2026 (deployed 4 November)
 
 - Tested workflow, agent and paid-advertising estimates on desktop/mobile against independent expected outputs. Draft builds, quoted totals, audit credits, payments, ROI, edits/clearing and unknown fees passed.
 - Fixed supplied marketing channel/format counts being hidden outside Content & Social even though they could affect price. Existing fields now appear when supplied and remain editable after clearing. No pricing rules or new required questions were added.
-- Evidence and sample outputs: [calculator output journeys](SYSTEM-AUDIT-2026-11-04.md#calculator-output-journeys--4-november-2026). Deployed and checked on the AOC domain.
+- Evidence and sample outputs: [calculator output journeys](history/SYSTEM-AUDIT-2026-11-04.md#calculator-output-journeys--4-november-2026). Deployed and checked on the AOC domain.
 
 ### Document alignment — 4 November 2026 (deployed 4 November)
 
@@ -58,7 +65,7 @@ This note records the recent prospect-facing form improvements so future work ca
 - Matched provider-savings eligibility, partial replacement unknowns and 50/50 payment rounding to the workbook.
 - Corrected question-bank filtering; all 982 detailed questions match the reviewed source. Excluded payroll is unavailable to the form, AI and calculation API.
 - Added the documented client-owned Make/direct-billing explanation and refreshed the short maintenance instructions.
-- Passed the full regression suite, local profile tests, 10,000 payment splits, 144 independent quote/ROI cases and two synthetic real-provider AI tests. Details: [system audit and retest](SYSTEM-AUDIT-2026-11-04.md).
+- Passed the full regression suite, local profile tests, 10,000 payment splits, 144 independent quote/ROI cases and two synthetic real-provider AI tests. Details: [system audit and retest](history/SYSTEM-AUDIT-2026-11-04.md).
 - No new prices or features were introduced by these corrections. Deployed and checked on the AOC domain.
 
 ### Historical optional client-profile trial — 4 November 2026
@@ -67,7 +74,7 @@ This note records the recent prospect-facing form improvements so future work ca
 - Expanded reuse beyond the entry details: clients can select existing app, access, connection and information-location facts to save, then review their source/date and confirm relevance before reusing them in a new estimate. Unknowns, prices and process-specific decisions are excluded.
 - Manual and explicitly cleared answers are preserved; conflicting clients and stale profile updates are blocked. Contact updates preserve company facts, and fact updates preserve contact details. Selected old facts or the entire profile can be removed explicitly.
 - Reused answers show **From confirmed profile**. Applying new facts marks previous results stale; arithmetic and pricing rules remain unchanged. Saving updates requires renewed unchecked consent.
-- Uses an isolated local database and a private browser credential, with consent and field provenance recorded. Email alone cannot retrieve a profile. Production and Supabase storage were not changed. See [local trial instructions](OPTIONAL-CLIENT-PROFILES.md).
+- Uses an isolated local database and a private browser credential, with consent and field provenance recorded. Email alone cannot retrieve a profile. Production and Supabase storage were not changed. See [local trial instructions](features/OPTIONAL-CLIENT-PROFILES.md).
 - Passed profile API and desktop/mobile browser checks, including opt-out, identity conflicts, preserved edits, separate clients, save-failure recovery, expiry, forgetting and calculation. The existing full regression suite also passed. Tests used synthetic details without paid AI or Supabase writes.
 
 ### Minimal interface redesign — 3 November 2026
@@ -80,7 +87,7 @@ This note records the recent prospect-facing form improvements so future work ca
 - Restored the calculator's previous design: original typography, business-area choices, vertical desktop navigation, central form and estimate sidebar. Mobile retains its section selector and responsive layout.
 - Allowed the calculator header to wrap on narrow phones so the brand, session controls and live context fit without overflow.
 - Kept all existing editable and conditional questions, validation, AI prefill, voice/correction controls, calculations and downloads. No pricing or allowance rules changed.
-- Kept entry styling scoped in `src/styles/access.css`; `public/journey.css` and `src/styles.css` continue to style the calculator. No UI framework or npm dependency was added.
+- Kept entry styling scoped in `src/styles/access.css`; `public/journey.css` and `src/styles/base.css` continue to style the calculator. No UI framework or npm dependency was added.
 - Local build, access/saving, pricing, voice/correction and complete desktop/mobile journey checks passed. Published application commit `55d77ee` and verified the live entry and calculator at 1440px, 390px and 320px. Full desktop/mobile calculation journeys, recalculation, summary downloads and reset cancellation passed with saving off and no paid AI calls. See [production test results](PRODUCTION-TEST-RESULTS.md).
 
 ### Simplified prospect journey
@@ -136,15 +143,15 @@ The seven-section estimator flow is retained, but each step now presents only th
 
 ## Implementation locations
 
-- `src/components/sections/ScopeSection.jsx`
-- `src/components/sections/AppsSection.jsx`
-- `src/components/sections/DataSection.jsx`
-- `src/components/sections/MarketingFields.jsx`
-- `src/components/sections/ValueSection.jsx`
-- `src/components/sections/ServiceSection.jsx`
+- `src/features/calculator/sections/ScopeSection.jsx`
+- `src/features/calculator/sections/AppsSection.jsx`
+- `src/features/calculator/sections/DataSection.jsx`
+- `src/features/calculator/sections/MarketingFields.jsx`
+- `src/features/calculator/sections/ValueSection.jsx`
+- `src/features/calculator/sections/ServiceSection.jsx`
 - `src/components/LiveContext.jsx`
-- `src/styles.css`
-- `tests/test-react-ui.cjs`
+- `src/styles/base.css`
+- `tests/browser/test-react-ui.cjs`
 
 ## Behavior that must remain unchanged
 
@@ -211,7 +218,7 @@ Before shipping another form reduction or reorganization:
 - The estimate gives a concrete next step: download the review summary and send it to the prospect's existing AOC contact. No contact address, payment, or checkout behavior was invented.
 - The current React interface uses the journey analysis and calculation routes. Historical intake and transcription routes remain packaged for reconciliation, while voice stays disabled in the interface until its documented later phase.
 - Release checks cover the documented $11,500 synthetic fixture; representative Finance, Content, SEO, and Other scenarios; approved complexity drivers; volume-only behavior; and availability of the retained intake routes without enabling voice in the React interface.
-- Relevant implementation files: `src/components/sections/DescriptionSection.jsx`, `src/components/EstimateReport.jsx`, `worker/index.js`, `worker/intake-api.js`, `scripts/build-worker.cjs`, `tests/test-journey.cjs`, `tests/test-journey-worker.cjs`, and `scripts/validate-artifact.mjs`.
+- Relevant implementation files: `src/features/calculator/sections/DescriptionSection.jsx`, `src/components/EstimateReport.jsx`, `worker/index.js`, `worker/intake-api.js`, `scripts/build/build-worker.cjs`, `tests/unit/test-journey.cjs`, `tests/integration/test-journey-worker.cjs`, and `scripts/build/validate-artifact.mjs`.
 
 ## Four-hour task update - 20 October 2026
 

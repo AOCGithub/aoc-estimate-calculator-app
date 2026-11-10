@@ -20,9 +20,9 @@ Use the implementation notes, [current framework](https://docs.google.com/docume
 
 ## 2. Apply the change
 
-**Form changes:** update the relevant [form components](../src/components/sections/) or the question bank in the [reviewed workbook snapshot](../data/sheet-snapshot-20261018.json). Preserve existing field identifiers and check conditional questions, required fields, editable answers, and AI prefill.
+**Form changes:** update the relevant [form components](../src/features/calculator/sections) or the question bank in the [reviewed workbook snapshot](../data/sheet-snapshot-20261018.json). Preserve existing field identifiers and check conditional questions, required fields, editable answers, and AI prefill.
 
-**Pricing changes:** update the reviewed [current rules](../data/commercial-rules-20261029.json) and [commercial calculations](../public/commercial.js). The older snapshot retains the provisional build model and question bank; the current rules override included-training amounts. The compiler uses detailed question rows, excluding route-overview and excluded rows. Regenerate with `node scripts/compile-approved.cjs`, update the version and test expectations, and compare with the workbook. Do not edit generated pricing alone. Keep deferred planning values inactive.
+**Pricing changes:** update the reviewed [current rules](../data/commercial-rules-20261029.json) and [commercial calculations](../public/commercial.js). The older snapshot retains the provisional build model and question bank; the current rules override included-training amounts. The compiler uses detailed question rows, excluding route-overview and excluded rows. Regenerate with `node scripts/build/compile-approved.cjs`, update the version and test expectations, and compare with the workbook. Do not edit generated pricing alone. Keep deferred planning values inactive.
 
 ## 3. Test and publish
 

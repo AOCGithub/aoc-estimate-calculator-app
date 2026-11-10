@@ -1,37 +1,60 @@
 # Tests
 
-The maintained React-era regression suite is:
+Run `npm test` from the repository root. It builds the current React client and retained Worker, then runs the maintained local regression suite. It uses synthetic providers and isolated or mocked persistence, with no paid AI requests or production database writes. Chromium must be installed for browser checks.
 
-- `test-journey.cjs` — retained 18 October arithmetic regression, field banks, and extraction validation. Historical arithmetic is explicitly tested with the current commercial overlay disabled; it is not current pricing sign-off.
-- `test-commercial.cjs` — active fixed-project rules, audit-credit boundaries, quoted support-source protection, existing agreements, eligible provider savings, unknowns and changed/cleared answers; earlier monthly calculations are explicitly historical.
-- `test-document-rules.cjs` — 28–29 October source corrections: fixed-price launch, included training, ROI eligibility across all 12 areas, missing replacement totals, 10,000 exact-cent payment splits and excluded question/AI/API boundaries.
-- `test-journey-worker.cjs` — packaged assets, API guards, and mocked AI extraction.
-- `test-voice-server.cjs` — retained intake/transcription API contract, provider error handling, request limits, and same-origin guards. This is separate from the new live-voice path.
-- `test-live-voice.mjs` and `test-live-voice-ui.cjs` — transcription reconciliation, private server handshake, access guards and desktop/mobile browser journeys with synthetic providers. These run in `npm test` without paid AI calls.
-- `test-description-correction.mjs` — protected spelling edits, uncertain suggestions, access/configuration guards, provider failures and Node/Worker parity. It runs without paid calls in the normal suite. Opt in to three short real-provider checks with `node --env-file=.env.local tests/test-description-correction.mjs --live`; only synthetic text is sent, with no audio, database writes or deployment. Results go to the ignored `artifacts/` directory. The live-voice browser suite also tests typed and post-voice auto-correction, undo, cursor preservation, IME and delayed-response protection.
-- `test-react-ui.cjs` — real Chromium journey, conditional form behavior, manual scope preservation, local/server calculation paths, validation rejection, fixture totals, stale results, protected area changes, and mobile overflow.
-- `test-client-profiles.mjs` and `test-production-profiles.mjs` — shared consent/reuse protocol, offline persistence, production Supabase adapter, HTTPS cookies, ownership, revision races, deletion, request limits, expiry and protected cleanup. Included in `npm test` without real database writes.
+## Layout
 
-Real profile persistence is opt-in: `npm run test:profiles:database` checks Supabase and removes only its synthetic rows. `npm run test:profiles:cloud-ui` serves the production-built React app with real Node handlers and Supabase, then checks desktop/mobile profile and company-fact journeys with independent saving choices. These do not deploy or call paid AI. Build first. See [optional profiles](../docs/OPTIONAL-CLIENT-PROFILES.md).
+| Folder | Purpose |
+| --- | --- |
+| `unit/` | Pricing, document rules, access, profile protocol and description/voice logic |
+| `integration/` | Worker, Vercel API exports and local HTTP adapter |
+| `browser/` | Current React desktop/mobile journeys |
+| `fixtures/` | Shared synthetic quotes and scenarios |
+| `database/` | Explicit real-Supabase and deployed saving checks |
+| `provider/` | Explicit paid AI/voice checks |
+| `legacy/` | Previous interfaces and pre-gate production AI checks; excluded from `npm test` |
 
-`npm test` builds the current client and packaged Worker before running tests that inspect generated artifacts.
+The current pricing checks preserve historical arithmetic as explicit regressions. They also verify the fixed-project overlay, audit/credit boundaries, optional quoted support, existing agreements, changed/cleared answers, 12-area ROI eligibility, 10,000 exact-cent payment splits and unknown-price handling. Fixture amounts are synthetic, not approved customer prices.
 
-For an explicit paid live-voice check, run `node --env-file=.env.local tests/test-live-voice-provider.mjs --live --audio path/to/synthetic.wav` after building. It supplies a synthetic audio stream, never the physical microphone, and starts playback only after **Listening**. Add `--expect-first Testing` to check the opening word without repeating it. The test disables text auto-correction to measure transcription itself and uses a local server without database writes. Use only synthetic speech and keep audio/artifacts outside version control. This does not test or deploy production. See [live voice input](../docs/LIVE-VOICE-INPUT.md) for configuration and current testing limits.
+## Focused local checks
 
-It also runs `test-local-api.mjs` against a real local HTTP listener with synthetic providers, covering the thin Vite adapter and shared Node handlers without paid AI calls. `test-vercel-api.mjs` checks the Web Request/Response export format of every API entry. Real Supabase/browser journeys remain explicit opt-in tests (`test:intake-access:db` and `test:manual-access:db`); the latter accepts a localhost-only `AOC_TEST_BASE_URL` for an isolated review-mode preview.
+Build first with `npm run build:worker` when running focused checks against generated assets.
 
-For an explicitly authorized production voice check, add `--production` to the live-voice command above. This targets only the AOC domain, submits synthetic entry details with database saving off, and transcribes one synthetic audio sample. Add `--mobile` for a 390px browser viewport and `--check-correction` for one additional paid text-correction/Undo check. No local OpenAI key is required in production mode; the deployed server uses its own key. Physical-device and real microphone checks remain separate.
+- `npm run test:domain`: calculation and document-rule checks.
+- `npm run test:access`: entry, session and estimate-record checks.
+- `npm run test:profiles`: offline profile protocol and mocked production storage.
+- `npm run test:access-ui`: current entry form and consent journeys.
+- `npm run test:ui`: calculator journeys, editable/relevant fields, validation, calculation, stale results, download and desktop/mobile layouts.
+- `npm run test:live-voice`: voice/correction logic and simulated browser journeys, including Undo, punctuation, ambiguous words, silence, device errors and delayed responses.
+- `npm run test:worker`, `test:intake`, `test:vercel`, `test:local-api`: server/deployment adapter checks.
+- `npm run test:local-pricing`: isolated sample support-pricing checks; never publishes sample prices.
 
-For local speech-quality comparisons, `--delay low|medium|high` overrides only the synthetic test's session configuration; it cannot change production. Reports include the sample filename and delay override. Use `node --env-file=.env.local tests/test-description-correction.mjs --live --quality` for two short paid punctuation/uncertainty checks, with synthetic raw output retained for diagnosis. No database writes or deployment are performed. A noisy sample that produces text is a transport pass, not an accuracy pass: compare its actual words with the known recording before drawing conclusions.
+For the additional profile/company-fact browser journeys, start `npm run dev:profiles` and run `npm run test:profiles:ui` in another terminal. Set `AOC_PROFILE_TEST_URL` to use another local port. `npm run test:ui:capture` saves screenshots in ignored `artifacts/`.
 
-For a local paid silence check, use `tests/test-live-voice-provider.mjs --live --audio path/to/synthetic-silence.wav --expect-silence` with the server environment loaded. It requires the typed description to remain unchanged and the no-words notice to appear. This mode cannot target production or enable text correction. The normal browser suite simulates silence, delayed/out-of-order finals, failed sends, missing/busy microphones, device removal, backgrounding, final timeouts and the description limit without paid calls.
+## Database and deployed checks
 
-For the deployed submit-and-enter flow, `npm run test:intake-access:db -- --live` explicitly tests the AOC production domain. It saves and removes only its synthetic database rows and makes one paid advertising AI-prefill request in total. Omitting `--live` keeps the test on localhost with no paid AI calls. The older `test-production-ai.cjs` suite below predates gated entry; use the gated smoke test for this release.
+These are separate opt-in checks. They require authorized server credentials and may write synthetic rows, which the tests remove.
 
-The browser suite includes fixed-project and monthly-program desktop/mobile journeys, conditional agreement/quote fields, plan switching/removal and stale results. Fixture quote amounts and agreed hours/rates are synthetic test data, not newly approved prices.
+- `npm run test:profiles:database`: actual Supabase persistence, ownership, concurrency, expiry and deletion.
+- `npm run test:profiles:cloud-ui`: production-built React with local Node handlers and real Supabase, including independent saving choices. Build first; no paid AI.
+- `npm run test:intake-access:db`: local submit-and-enter database journey. Adding `-- --live` targets the AOC domain and makes one paid AI-prefill request.
+- `npm run test:manual-access:db`: the retained review-mode journey, separate from the current intake-only mode.
+- `npm run test:gate-saving:live`: deployed consent and estimate-record checks.
 
-For two opt-in live-provider checks against the current local API code, run `node --env-file=.env.local tests/test-commercial-ai.mjs --live`. This uses synthetic text and saves `artifacts/commercial-ai-results.json`. It does not deploy or certify the live website. Never commit the key or local artifact.
+See [profiles](../docs/features/OPTIONAL-CLIENT-PROFILES.md) and [entry/saved-data maintenance](../docs/GATE-AND-SAVED-DATA-MAINTENANCE.md).
 
-Production AI acceptance checks are separate from `npm test`. Run `node tests/test-production-ai.cjs --live` explicitly; this uses paid AI requests with synthetic data against the AOC test domain. Use `--case "Incomplete description"` to repeat only that scenario. Results are saved under the Git-ignored `artifacts/` directory. Browser-simulated errors consume no AI credits. Physical-device testing remains separate from the Chromium viewport checks.
+## Paid provider checks
 
-The remaining tests cover historical calculator versions retained for reconciliation. They are not part of `npm test` because their previous `dist/` UI is no longer the active React application.
+These require an explicit `--live`; they are not part of `npm test`. Use synthetic text/audio only and keep recordings/reports in ignored `artifacts/`.
+
+```sh
+node --env-file=.env.local tests/provider/test-commercial-ai.mjs --live
+node --env-file=.env.local tests/unit/test-description-correction.mjs --live
+node --env-file=.env.local tests/provider/test-live-voice-provider.mjs --live --audio path/to/synthetic.wav --expect-first Testing
+```
+
+The commercial check makes two local API/provider requests. Correction supports `--quality` for two punctuation/uncertainty checks. Voice supports `--expect-silence` and local `--delay low|medium|high` comparisons. It uses synthetic audio, not the physical microphone, and starts playback after **Listening**.
+
+For explicitly authorized deployed voice checks, the voice script supports `--production`, `--mobile` and `--check-correction` (one additional paid correction request). It submits synthetic entry details with database saving off; the deployed server supplies its key. See [live voice](../docs/features/LIVE-VOICE-INPUT.md). Browser viewport checks do not replace physical-device/microphone checks; compare noisy transcripts with the actual recording before claiming accuracy.
+
+`legacy/test-production-ai.cjs` predates gated entry and is retained for historical reference. Use the current gated checks for release verification.

@@ -46,7 +46,7 @@ Check every matching submission if the client entered the form more than once. O
 
 Ask the developer to run the saving-failure and access-protection checks too. Keep AI and database keys in Vercel's private server settings.
 
-Developer details: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md) and [profiles](OPTIONAL-CLIENT-PROFILES.md).
+Developer details: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md) and [profiles](features/OPTIONAL-CLIENT-PROFILES.md).
 
 ## Still on hold
 

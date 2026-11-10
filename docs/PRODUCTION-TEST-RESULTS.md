@@ -60,7 +60,7 @@ Repeatable checks run:
 - `npm run test:intake-access:db -- --live --skip-ai` passed; it removed its two synthetic submissions and eight estimate snapshots.
 - New `npm run test:gate-saving:live` passed all eight viewport/choice cases; it removed its four synthetic submissions and four estimate snapshots. All synthetic profiles from these checks were also removed. Existing client records were preserved.
 
-Maintenance and client-record lookup: [entry and saved-data guide](GATE-AND-SAVED-DATA-MAINTENANCE.md). The repeatable four-choice check is [test-gate-saving-choices.mjs](../tests/test-gate-saving-choices.mjs).
+Maintenance and client-record lookup: [entry and saved-data guide](GATE-AND-SAVED-DATA-MAINTENANCE.md). The repeatable four-choice check is [test-gate-saving-choices.mjs](../tests/database/test-gate-saving-choices.mjs).
 
 The WordPress link/button and website-to-calculator journey are deferred at the user's request. Verification and AOC approval remain paused; the tested behavior is valid submission followed by calculator access. These results do not certify that paused workflow or physical phones. This earlier gate/saving check made no application changes; its tests and maintenance notes are included in the release above.
 
@@ -84,7 +84,7 @@ Before publication, npm test passed, including 10,000 exact-cent balances and 14
 
 The daily profile cleanup job is registered at 03:00 UTC. Its SQL function and authorization were tested; its first scheduled execution has not yet been observed. Disclosed profile expiry defaults to 30 days and is configurable. Verification/AOC approval remains paused. Physical-phone/microphone coverage remains separate from browser viewport and synthetic-audio testing.
 
-Release provider checks used four short prefill requests (including the initial omission/retry), one short realtime session and one text-correction check. Other checks used no paid AI. Maintenance: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md), [profiles](OPTIONAL-CLIENT-PROFILES.md), [voice](LIVE-VOICE-INPUT.md).
+Release provider checks used four short prefill requests (including the initial omission/retry), one short realtime session and one text-correction check. Other checks used no paid AI. Maintenance: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md), [profiles](features/OPTIONAL-CLIENT-PROFILES.md), [voice](features/LIVE-VOICE-INPUT.md).
 
 ## Entry design release — 3 November 2026
 
@@ -100,7 +100,7 @@ Published application commit `cf69d4ec4fd10cb5b30f50f57f45f1ea939e0de2` to [the 
 
 Passed live synthetic-audio checks at 1440px and 390px: **Testing** was recognized on its first occurrence, words appeared before Stop, the final transcript arrived afterward, existing typed details remained intact, captured text was editable, no horizontal overflow appeared, and logout worked. One additional desktop text request verified spelling and list-comma correction, preservation of `$2500 monthly` and draft-only/approval instructions, and Undo. Data saving stayed off; no form or estimate records were saved.
 
-The full local regression suite passed before publication, including silent audio, delayed/out-of-order finals, send failures, final timeouts, unavailable microphones, device removal, background-tab cleanup and recording/text limits. A separate six-second real-provider silence check passed locally without adding words. This release keeps unclear wording reviewable rather than promising recovery of inaudible speech. Physical iPhone/Android microphone, accent and noise checks remain separate from synthetic browser tests. See [voice maintenance instructions](LIVE-VOICE-INPUT.md).
+The full local regression suite passed before publication, including silent audio, delayed/out-of-order finals, send failures, final timeouts, unavailable microphones, device removal, background-tab cleanup and recording/text limits. A separate six-second real-provider silence check passed locally without adding words. This release keeps unclear wording reviewable rather than promising recovery of inaudible speech. Physical iPhone/Android microphone, accent and noise checks remain separate from synthetic browser tests. See [voice maintenance instructions](features/LIVE-VOICE-INPUT.md).
 
 ## Voice input release — 30 October 2026
 
@@ -108,7 +108,7 @@ Published application commit `d53a50e25252e0f297395d99e9e04b5250a0dd40`. Vercel 
 
 Passed on the live AOC domain using synthetic audio at 1440px and 390px: microphone preparation, words appearing before Stop, final transcription, editable captured text, preservation of existing typed text, no horizontal overflow, and logout. “Testing” was correct on its first occurrence in both live and final transcripts, including the single-word mobile-viewport sample. One additional live desktop spelling check corrected typed misspellings, preserved the amount and draft-only/approval restrictions, and supported Undo. Database saving stayed off for both test sessions. These checks used two short audio sessions and one text-correction request; no physical microphone, customer audio or saved form/estimate records were used.
 
-The full local regression suite passed before publication. Physical phone browsers, microphones and accent/noise coverage remain separate from these synthetic Chromium checks. See [voice maintenance instructions](LIVE-VOICE-INPUT.md).
+The full local regression suite passed before publication. Physical phone browsers, microphones and accent/noise coverage remain separate from these synthetic Chromium checks. See [voice maintenance instructions](features/LIVE-VOICE-INPUT.md).
 
 ## Optional saving release — 30 October 2026
 

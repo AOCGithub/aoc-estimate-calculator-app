@@ -6,7 +6,7 @@ The current release is still a testing preview. Use synthetic information only. 
 
 ## Current deployment status
 
-Current release — 6 November 2026: the redesigned entry/calculator, compact results, AOC favicon logo and AI-prefill validation fixes were deployed and verified on the AOC domain. The fixed-price rules reviewed through 29 October and optional Supabase profiles remain active. Use [current pricing/form maintenance](PRICING-AND-FORM-MAINTENANCE.md), [entry/saved-data maintenance](GATE-AND-SAVED-DATA-MAINTENANCE.md) and [profile operations](OPTIONAL-CLIENT-PROFILES.md) for upkeep; [production test results](PRODUCTION-TEST-RESULTS.md) record the deployed checks. The dated 28-30 October observations below are historical.
+Current release — 6 November 2026: the redesigned entry/calculator, compact results, AOC favicon logo and AI-prefill validation fixes were deployed and verified on the AOC domain. The fixed-price rules reviewed through 29 October and optional Supabase profiles remain active. Use [current pricing/form maintenance](PRICING-AND-FORM-MAINTENANCE.md), [entry/saved-data maintenance](GATE-AND-SAVED-DATA-MAINTENANCE.md) and [profile operations](features/OPTIONAL-CLIENT-PROFILES.md) for upkeep; [production test results](PRODUCTION-TEST-RESULTS.md) record the deployed checks. The dated 28-30 October observations below are historical.
 
 The five-field entry form and linked calculation storage are now live in submit-and-enter mode. Production has `VITE_AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_GATE_ENABLED`, `AOC_ACCESS_REQUESTS_ENABLED`, `AOC_INTAKE_ONLY_ENABLED` and `AOC_ESTIMATE_RECORDS_ENABLED` set to `true`; `AOC_MANUAL_ACCESS_ENABLED=false`. The session secret and database/OpenAI credentials are server-only. Desktop/mobile live saving and one paid-advertising AI-prefill check passed; see [production test results](PRODUCTION-TEST-RESULTS.md).
 
@@ -41,7 +41,7 @@ Never use a `VITE_` prefix for the API key. For local development, copy `.env.ex
 
 Provider failure must preserve the typed description and fall back without blocking the visitor. AI prefill must apply only supported facts, leave unknowns blank, and preserve manual corrections.
 
-The five-field form, signed sessions and record storage are deployed in the explicitly requested submit-and-enter mode. Verification and approval are paused; the preserved manual-review mode is not enabled in production. Do not enable only the browser flag or only the server flag. A later verified-client release remains separate, as described in [Phase 2 gated entry](PHASE-2-GATED-ENTRY.md).
+The five-field form, signed sessions and record storage are deployed in the explicitly requested submit-and-enter mode. Verification and approval are paused; the preserved manual-review mode is not enabled in production. Do not enable only the browser flag or only the server flag. A later verified-client release remains separate, as described in [Phase 2 gated entry](features/PHASE-2-GATED-ENTRY.md).
 
 ## Required commercial smoke test
 
@@ -62,7 +62,7 @@ Quoted audit, project and agreement values used in tests are synthetic fixtures.
 
 ## Platform notes
 
-- The retained file-transcription adapter rejects audio at 4 MB. Current live speech and description correction use the existing server-side key and separate feature flags; see [voice maintenance](LIVE-VOICE-INPUT.md).
+- The retained file-transcription adapter rejects audio at 4 MB. Current live speech and description correction use the existing server-side key and separate feature flags; see [voice maintenance](features/LIVE-VOICE-INPUT.md).
 - The Vercel adapter does not define pricing. It imports the same reviewed calculation rules and validation contracts used by local development and the packaged Worker.
 - `vercel.json` applies baseline content, referrer, permissions, and content-type response headers. WordPress embedding is a later phase and requires a deliberate `frame-ancestors` policy change.
 - `.vercel/` is ignored and must not be committed.
