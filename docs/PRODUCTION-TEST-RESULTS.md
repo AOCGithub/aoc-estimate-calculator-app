@@ -1,10 +1,29 @@
 # Production Test Results
 
 Date: 21 October 2026
-Last updated: 6 November 2026
+Last updated: 10 November 2026
 Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
+
+## Project organization and AI-prefill validation - 10 November 2026
+
+Published the [file reorganization](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/cb115792018ee6f4625b7748f0528bfc3105bc48) and [management-evidence correction](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/e781f6857bf2ade0af63e823d46199d4797bad91) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel deployment `dpl_6kDxinibM8n9qns3oxeeHBShhPfu` reached **Ready** with the AOC domain alias. Subsequent documentation commits contain the same application source.
+
+Passed on the deployed domain:
+
+- All four independent profile/estimate-saving choices at 1440px and 390px: eight cases checked actual database contents, calculation parity, logout and profile deletion.
+- Profile consent, review/reuse, preserved current and cleared answers, separate same-email browsers, concurrent-update protection and selected/full deletion.
+- Complete desktop/mobile form-to-calculation journeys with linked snapshots, edited/cleared answers, opt-out, save-failure recovery, refresh and logout.
+- One live advertising prefill retest retained supported facts and left unknown people count, time savings and management blank. The initial check had exposed staff publishing being misclassified as future system management. The validator/prompt correction, direct Node/Worker regressions and an exact-description local real-provider retest passed before the successful deployed retest.
+- One short synthetic voice session recognized **Testing** on its first occurrence and displayed words before Stop. One text-correction request verified spelling, commas, protected facts and Undo. Saving stayed off for this session.
+- Live runtime/validation files and favicon matched source; browser JavaScript/CSS hashes stayed `index-jpKAXHrx.js` and `index-DFog-4VO.css`. Checked public assets contained none of the configured private server credentials. Session protection, blocked email lookup, profile availability and protected cleanup passed.
+
+The saving-choice check removed its four synthetic submissions and four snapshots. The successful full journey removed two submissions and eight snapshots; the initial failed check also removed its one submission. Synthetic profiles were deleted and existing client records were preserved. No pricing formulas, coefficients, database schema or server settings changed.
+
+Before publication, the full local suite passed, including 10,000 payment-rounding cases and 144 independent quote/ROI combinations. An additional 24 complete journeys covered all 12 business areas on desktop/mobile; 26 distinct required fields were cleared and corrected. The full suite passed again after the AI correction. These are browser-viewport and synthetic-audio checks; physical phones/microphones and every possible AI response remain outside this coverage.
+
+Maintenance: [project structure](../README.md), [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md), [entry/saved data](GATE-AND-SAVED-DATA-MAINTENANCE.md). Repeatable deployed checks: `npm run test:gate-saving:live`, `npm run test:intake-access:db -- --live`, and the profile browser tests with `AOC_PROFILE_TEST_URL` set to the AOC domain.
 
 ## Redesigned calculator release - 6 November 2026
 

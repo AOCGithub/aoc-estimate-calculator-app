@@ -1,7 +1,7 @@
 # Form UX Updates
 
 Last updated: 10 November 2026
-Status: Local folder reorganization is complete and tested; it has not been published. The latest deployed changes remain the 6 November entry/calculator redesign and AI-prefill corrections. The earlier rule corrections and optional Supabase profiles remain active.
+Status: The folder reorganization and a management-evidence AI-prefill correction were deployed and verified on 10 November 2026. The existing design, calculation rules and optional Supabase profiles remain active. See the production test results for release evidence.
 
 ## Purpose
 
@@ -9,12 +9,17 @@ This note records the recent prospect-facing form improvements so future work ca
 
 ## Completed changes
 
-### Project organization - 10 November 2026 (local only)
+### AI-prefill management evidence - 10 November 2026 (deployed)
+
+- Live testing exposed an unsupported management answer inferred from staff reviewing and publishing drafts, although the future manager was explicitly unknown. Core management answers now require management evidence; explicit unknown ownership stays blank. Explicit management choices and requests for help deciding remain supported.
+- Added failing-case regression tests for the shared validator, Node API and Worker. The full local suite, an exact-description real-provider retest, and the deployed desktop/mobile calculator journey passed after the fix. Pricing formulas, coefficients, question choices and database rules were unchanged.
+
+### Project organization - 10 November 2026 (deployed)
 
 - Grouped React components and hooks by access, calculator, description/voice and profiles. Shared components and styles have dedicated folders.
 - Grouped server helpers by feature, scripts by purpose, and tests into unit, integration, browser, database, provider and historical folders. Updated imports, packaging paths and existing npm commands.
 - Added a [documentation index](README.md) and updated the [project guide](../README.md). Current maintenance and production-result links keep their existing paths; feature references and historical reports are grouped separately.
-- The full local regression suite and additional desktop/mobile profile journeys passed. Source comparison confirmed path-only application changes; pricing runtime/data, shared profile rules, schema migrations and CSS are unchanged. Public API routes and existing npm command names are preserved. No production settings or records were changed.
+- The full local regression suite and additional desktop/mobile profile journeys passed. Comparison of the relocated code confirmed path-only changes. Pricing formulas/data, shared profile rules, schema migrations and CSS are unchanged; public API routes and existing npm command names are preserved. Live saving, profiles, calculations, voice and correction checks also passed. The separate AI-validation correction is described above; existing client records and production settings were preserved.
 
 ### AI-prefill corrections - 6 November 2026 (deployed 6 November)
 
