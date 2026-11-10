@@ -44,12 +44,13 @@ localApi(env).configureServer({httpServer:server,middlewares:{use(handler){middl
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));origin='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
 const values={'Your name':'Synthetic CAPTCHA Browser',Company:'Synthetic CAPTCHA Company','Company website':'example.com','Your role':'Tester','Business email':'captcha-browser@example.com'};
-const sdk=`window.__captchaCalls=0;window.grecaptcha={ready:callback=>callback(),execute:async(key,options)=>{window.__captchaCalls++;window.__captchaAction=options.action;if(window.__captchaHang)return new Promise(resolve=>{window.__lateCaptcha=resolve;});await new Promise(resolve=>setTimeout(resolve,80));return 'synthetic-'+Math.random()+'-'+Date.now();}};`;
+const sdk=`window.__captchaCalls=0;const callbacks=[];window.grecaptcha={ready:callback=>callbacks.push(callback)};setTimeout(()=>{window.grecaptcha={ready:callback=>callback(),execute:async(key,options)=>{window.__captchaCalls++;window.__captchaAction=options.action;if(window.__captchaHang)return new Promise(resolve=>{window.__lateCaptcha=resolve;});await new Promise(resolve=>setTimeout(resolve,80));return 'synthetic-'+Math.random()+'-'+Date.now();}};callbacks.forEach(callback=>callback());},window.__captchaInitDelay||60);`;
 async function fill(page){for(const[label,value]of Object.entries(values))await page.getByLabel(label,{exact:true}).fill(value);}
 try{
   for(const width of [1440,390])for(const[remember,record]of [[false,false],[true,false],[false,true],[true,true]]){
     const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'}),page=await context.newPage();
     page.setDefaultTimeout(15000);const errors=[];let scripts=0,blockScript=false;
+    if(width===1440&&!remember&&!record)await page.addInitScript(()=>{window.__captchaInitDelay=2000;});
     page.on('pageerror',error=>errors.push(error.message));
     await context.route('https://www.google.com/recaptcha/api.js?*',route=>{
       scripts++;return blockScript?route.abort():route.fulfill({contentType:'text/javascript',body:sdk});

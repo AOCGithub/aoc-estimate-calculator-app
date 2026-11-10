@@ -22,8 +22,9 @@ export function loadRecaptcha(siteKey) {
     }
     script.onerror = () => finish();
     script.onload = () => {
-      if (!window.grecaptcha?.ready || !window.grecaptcha?.execute) return finish();
-      window.grecaptcha.ready(() => finish(window.grecaptcha));
+      // api.js first installs ready(); execute() arrives with its asynchronous runtime.
+      if (!window.grecaptcha?.ready) return finish();
+      window.grecaptcha.ready(() => finish(window.grecaptcha?.execute ? window.grecaptcha : null));
     };
     document.head.append(script);
   });
