@@ -121,7 +121,13 @@ try {
         assert.equal((await forms()).length, Number(record));
         assert.equal((await profiles()).length, Number(remember));
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-        assert.deepEqual(await page.evaluate(() => [Object.keys(localStorage), Object.keys(sessionStorage)]), [[], []]);
+        const storageKeys = await page.evaluate(() => [Object.keys(localStorage), Object.keys(sessionStorage)]);
+        if (status.recaptcha?.enabled) {
+          assert.ok(storageKeys[0].every(key => key === '_grecaptcha'), 'Only Google CAPTCHA storage is allowed; app details/answers stay out of browser storage.');
+          assert.deepEqual(storageKeys[1], []);
+          assert.equal(await page.evaluate(profile => [localStorage, sessionStorage].some(storage => Object.values(profile).some(value =>
+            Object.keys(storage).some(key => String(storage.getItem(key)).includes(value)))), profile), false, 'No submitted personal details appear in browser storage.');
+        } else assert.deepEqual(storageKeys, [[], []]);
 
         await page.getByRole('button', { name: 'End session', exact: true }).click();
         await page.getByRole('button', { name: 'Continue to calculator', exact: true }).waitFor();

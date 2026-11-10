@@ -165,7 +165,13 @@ try {
     await page.locator('.area').first().waitFor();
     assert.equal(await page.locator('input[name="businessEmail"]').count(), 0, 'Active sessions do not repeat the entry form.');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    assert.deepEqual(await page.evaluate(() => [Object.keys(localStorage), Object.keys(sessionStorage)]), [[], []]);
+    const storageKeys = await page.evaluate(() => [Object.keys(localStorage), Object.keys(sessionStorage)]);
+    if (status.recaptcha?.enabled) {
+      assert.ok(storageKeys[0].every(key => key === '_grecaptcha'), 'Only Google CAPTCHA storage is permitted.');
+      assert.deepEqual(storageKeys[1], []);
+      assert.equal(await page.evaluate(profile => [localStorage, sessionStorage].some(storage => Object.values(profile).some(value =>
+        Object.keys(storage).some(key => String(storage.getItem(key)).includes(value)))), profile), false, 'Personal details are not saved in browser storage.');
+    } else assert.deepEqual(storageKeys, [[], []]);
     await page.getByRole('button', { name: 'End session' }).click();
     await page.getByRole('button', { name: 'Continue to calculator' }).waitFor();
     assert.equal(await page.getByLabel('Your name').inputValue(), '');

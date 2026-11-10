@@ -3,6 +3,11 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
+  "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "aoc-estimate-calculator.vercel.app" }], "destination": "https://estimate.alwaysopencommerce.com/", "permanent": false },
+    { "source": "/", "has": [{ "type": "host", "value": "aoc-estimate-calculator-aocs-projects-b933e3ab.vercel.app" }], "destination": "https://estimate.alwaysopencommerce.com/", "permanent": false },
+    { "source": "/", "has": [{ "type": "host", "value": "aoc-estimate-calculator-git-main-aocs-projects-b933e3ab.vercel.app" }], "destination": "https://estimate.alwaysopencommerce.com/", "permanent": false }
+  ],
   "crons": [{ "path": "/api/client-profile/cleanup", "schedule": "0 3 * * *" }],
   "functions": {
     "api/client-profile.mjs": { "maxDuration": 30 },

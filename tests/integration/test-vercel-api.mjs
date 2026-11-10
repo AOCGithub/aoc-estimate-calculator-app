@@ -175,6 +175,11 @@ try {
   const vercelConfig = JSON.parse(await readFile(new URL('../../vercel.json', import.meta.url), 'utf8'));
   assert.equal(vercelConfig.framework, 'vite');
   assert.equal(vercelConfig.outputDirectory, 'dist/client');
+  const fallback = vercelConfig.redirects.find(rule => rule.has?.some(condition => condition.type === 'host' && condition.value === 'aoc-estimate-calculator.vercel.app'));
+  assert.equal(fallback.source, '/', 'Only the entry page redirects; existing API and asset routes are preserved');
+  assert.equal(fallback.destination, 'https://estimate.alwaysopencommerce.com/');
+  assert.equal(fallback.permanent, false);
+  assert.ok(vercelConfig.redirects.every(rule => !rule.has.some(condition => condition.value === 'estimate.alwaysopencommerce.com')), 'The registered AOC hostname does not redirect back to itself');
   assert.ok(vercelConfig.headers.some(rule => rule.headers.some(header => header.key === 'Content-Security-Policy')));
   const csp = vercelConfig.headers.flatMap(rule => rule.headers).find(header => header.key === 'Content-Security-Policy').value;
   assert.ok(csp.split(';').find(directive => directive.trim().startsWith('font-src ')).split(/\s+/).includes("'self'"), 'Self-hosted entry fonts are permitted by production CSP');
