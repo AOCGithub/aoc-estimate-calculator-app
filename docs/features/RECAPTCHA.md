@@ -2,6 +2,8 @@
 
 Google reCAPTCHA protects the business-details form. The app supports the visible v2 checkbox and the existing background v3 check. It does not verify email ownership or enable AOC approval. The existing fields, independent saving choices, calculator and pricing rules are preserved.
 
+Production selects the v2 checkbox using `RECAPTCHA_VERSION=v2`. Google decides whether a visitor also needs an image challenge; accepting the checkbox alone is normal.
+
 ## Configuration
 
 In Vercel's production environment, set:
@@ -16,7 +18,7 @@ The public Vercel entry URL redirects to the registered AOC hostname. The two in
 
 For v3, the security threshold defaults to Google's suggested starting score of `0.5`. A server-only `RECAPTCHA_MIN_SCORE` can tune it after reviewing actual traffic. v2 checks the solved challenge instead of a score. Avoid lowering v3 thresholds merely to make automated browser tests pass. To roll back CAPTCHA enforcement while investigating an outage, explicitly set `AOC_RECAPTCHA_ENABLED=false` and redeploy; the existing form/session guards remain.
 
-### Switch the current production site to the visible checkbox
+### Configure the visible checkbox
 
 1. Register a new **Challenge (v2) → I'm not a robot checkbox** key for `estimate.alwaysopencommerce.com`. Keep the existing v3 registration for rollback.
 2. After the v2 implementation is tested, replace the two Vercel production key values with the matching v2 pair and add `RECAPTCHA_VERSION=v2`. Redeploy the tested code and settings together.

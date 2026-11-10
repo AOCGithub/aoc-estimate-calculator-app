@@ -6,14 +6,17 @@ Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
 
-## Visible v2 checkbox - 10 November 2026 (local preparation)
+## Visible v2 checkbox - 10 November 2026 (deployed)
 
-The requested v2 checkbox is implemented locally. Production remains on v3 pending a matching v2 key pair and coordinated deployment; this is not a live v2 acceptance result.
+Published the [visible v2 checkbox](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/7d683f9984fca4fbce67de6d0ec5053d09afb71e) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Deployment `dpl_5jQ6ixhfqiStFQ8QT1x36uKL3CZL` reached **Ready**. Vercel Production selects `RECAPTCHA_VERSION=v2` with matching keys; the private secret remains server-only. Pricing and database schema were unchanged.
 
 - Passed shared v2/v3 Node/Worker verification, manual-review compatibility and desktop/mobile saving/calculation cases with synthetic providers. Unchecked, expired and rejected checks, provider/script/profile failures, fresh retries, logout and narrow-screen resizing are covered.
 - Full `npm test` passed, including existing pricing/document rules, access/profiles, AI/voice contracts, desktop/mobile calculator journeys and packaged artifact validation. No paid AI requests or production database changes were made.
 - Google's real v2 widget rendered and solved using its published test site key at 1440px, 390px and 320px under the production CSP. No overflow, CSP errors or browser runtime errors occurred. No form submissions or production records were created in this rendering check; test keys do not prove production bot protection.
-- Existing v3 remains the default. Switch using matching v2 keys plus `RECAPTCHA_VERSION=v2`, then verify normal entry and calculation on the AOC domain. See [bot protection maintenance](features/RECAPTCHA.md).
+- Live Google checkbox rendering, unchecked-submit rejection, preservation of form values/saving choices and no horizontal overflow passed at 1440px, 390px and 320px. The server rejected missing-token entry with saving both off and on, plus anonymous profile writes. These checks created no production records.
+- Live assets, published pricing/prefill rules, favicon, server-key exposure checks, protected APIs and canonical/protected Vercel URLs passed. No paid AI requests were made.
+
+Google presented the automated browser with an image challenge, so real-key successful entry/replay/calculation are not marked passed by that run. The user completed the live checkbox in a normal browser and confirmed the calculator opened successfully. This confirms real-key entry; replay and complete calculator regressions remain covered by the separate local tests. Google may accept a checkbox without an image puzzle. Maintenance: [entry bot protection](features/RECAPTCHA.md).
 
 ## reCAPTCHA entry protection - 10 November 2026
 

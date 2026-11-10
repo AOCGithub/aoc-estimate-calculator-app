@@ -9,10 +9,10 @@ This note records the recent prospect-facing form improvements so future work ca
 
 ## Completed changes
 
-### Visible reCAPTCHA checkbox - 10 November 2026 (local)
+### Visible reCAPTCHA checkbox - 10 November 2026 (deployed)
 
 - Added the requested v2 checkbox with compact sizing, expiry/reset handling and retry messages that preserve entered details and saving choices. Shared server verification supports matching v2 keys while retaining v3 as the default.
-- The full local regression suite and v2/v3 security/saving/calculation tests passed. Google's real test widget also rendered and solved at desktop/mobile widths with the production CSP. Production activation awaits the matching v2 keys; calculation rules and database schema were unchanged.
+- Configured matching v2 production keys and deployed the checkbox. The full local regression suite and v2/v3 security/saving/calculation tests passed. Google's test widget rendered and solved at desktop/mobile widths with the production CSP; live checkbox rendering, unchecked/missing-token rejection, protected profiles and release-health checks passed. The user confirmed successful live entry in a normal browser; the automated browser required an image challenge. Calculation rules and database schema were unchanged.
 
 ### Requested entry bot protection - 10 November 2026 (deployed)
 
