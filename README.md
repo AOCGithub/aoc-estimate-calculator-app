@@ -2,6 +2,8 @@
 
 React calculator with editable, relevant questions, optional AI prefill and voice input, server-side estimates, and independent choices for remembering business details and saving estimates. Visitors enter five business details; verification and AOC approval are currently paused.
 
+Production entry uses [server-verified reCAPTCHA v3](docs/features/RECAPTCHA.md). Business verification and AOC approval remain separate and paused. Local preview commands disable CAPTCHA because the production key is registered for the AOC hostname.
+
 Start with the [AOC maintenance guide](docs/GATE-AND-SAVED-DATA-MAINTENANCE.md), [pricing/form instructions](docs/PRICING-AND-FORM-MAINTENANCE.md), or [documentation index](docs/README.md). Published checks are recorded in [Production Test Results](docs/PRODUCTION-TEST-RESULTS.md).
 
 ## Local development

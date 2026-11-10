@@ -6,6 +6,24 @@ Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
 
+## reCAPTCHA entry protection - 10 November 2026
+
+Published [reCAPTCHA v3 and canonical entry handling](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/1e4cf98ee4c84308e4efa77c923da85c724c0ba8) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Application deployment `dpl_6iY8b69zerqrvxvNrTxGS6yNeJvh` reached **Ready**. Subsequent documentation commits have the same application source.
+
+Passed:
+
+- Full local `npm test`, including Node/Worker CAPTCHA verification and all eight desktop/mobile saving-choice cases with synthetic providers. Missing/expired/reused tokens, wrong actions/hostnames, low scores, incomplete configuration, quota/provider failures, protected profile writes, retries and unchanged calculations passed. The real-Supabase local profile/calculator journeys also passed and removed their synthetic records.
+- Real Google-backed entry on the AOC domain, missing-token rejection, reused-token rejection, anonymous profile-write rejection, session-protected calculation, logout, visible Google disclosure, hidden floating badge and no overflow/runtime errors. No AOC data was saved in that acceptance session.
+- All four live saving choices at 1440px and 390px: actual Supabase records, linked estimates, correct calculations, logout and forgetting profiles. Four synthetic submissions and four snapshots were removed; the test's profiles were also deleted.
+- Complete live desktop/mobile calculator journeys, including save-failure recovery, changed/cleared answers, linked snapshots, opt-out, refresh and logout. Two synthetic submissions and eight snapshots were removed. An earlier test-only assertion had rejected Google's observed `_grecaptcha` storage key; that run removed its one submission and four snapshots. Updated privacy checks permit only that Google key and still reject AOC personal details in browser storage.
+- The older Vercel entry address redirects to the AOC hostname registered with Google. Only the three stable Vercel entry URLs redirect; API and asset paths stay available.
+
+The first real script check exposed asynchronous Google SDK initialization that the original fixture did not reproduce. The prior live release was restored while the loader was corrected. Added delayed-bootstrap, timeout and late-result coverage passed, followed by successful real Google verification. No CAPTCHA bypass or weakened score threshold was used.
+
+Production keys remain in Vercel. The default score threshold is 0.5; the server checks action, hostname and two-minute freshness before creating sessions or saving requests. Optional profiles save after that verified session, closing the anonymous profile-write path. Google uses its own necessary browser storage, separately from AOC's unchecked saving choices. Pricing formulas/data, database schema and existing business-approval settings were preserved. This release made no paid OpenAI requests and did not enable a paid CAPTCHA plan.
+
+Maintenance and rollback: [entry bot protection](features/RECAPTCHA.md). Physical-device coverage and future bot-detection scores remain separate from these browser checks.
+
 ## Project organization and AI-prefill validation - 10 November 2026
 
 Published the [file reorganization](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/cb115792018ee6f4625b7748f0528bfc3105bc48) and [management-evidence correction](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/e781f6857bf2ade0af63e823d46199d4797bad91) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel deployment `dpl_6kDxinibM8n9qns3oxeeHBShhPfu` reached **Ready** with the AOC domain alias. Subsequent documentation commits contain the same application source.

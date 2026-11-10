@@ -1,13 +1,19 @@
 # Form UX Updates
 
 Last updated: 10 November 2026
-Status: The folder reorganization and a management-evidence AI-prefill correction were deployed and verified on 10 November 2026. The existing design, calculation rules and optional Supabase profiles remain active. See the production test results for release evidence.
+Status: reCAPTCHA entry protection, the folder reorganization and a management-evidence AI-prefill correction were deployed and verified on 10 November 2026. The existing calculation rules and optional saving choices remain active. See the production test results for release evidence.
 
 ## Purpose
 
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Requested entry bot protection - 10 November 2026 (deployed)
+
+- Connected Google reCAPTCHA v3 using the supplied Vercel keys. The server verifies a fresh token, score, action, hostname and age before granting entry or saving a request, including when saving is unchecked. Errors preserve the form and allow a fresh retry.
+- Optional profiles save after successful entry; anonymous profile POSTs are blocked when CAPTCHA is enabled. Added a short Google privacy/terms disclosure and Checking security button state. Stable Vercel entry links redirect to the registered AOC domain.
+- Fixed the asynchronous Google bootstrap timing found during live testing and added delayed-runtime, timeout and retry coverage. The full local suite, real Supabase checks, real Google acceptance/replay tests and live desktop/mobile saving/calculation journeys passed. Synthetic records were cleaned up. Pricing formulas, database schema and the paused business-verification/approval flow were unchanged.
 
 ### AI-prefill management evidence - 10 November 2026 (deployed)
 
