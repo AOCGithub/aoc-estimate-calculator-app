@@ -11,7 +11,7 @@ In Vercel's production environment, set:
 
 Both keys enable the check automatically. Incomplete configuration blocks new entry. The browser gets only the public configuration from `/api/access/status`; it never receives the secret. Redeploy after changing Vercel variables. Register every production hostname that should accept direct entry, and use separate keys for test environments.
 
-The three stable public Vercel entry URLs redirect to the registered AOC hostname. API and asset paths are preserved. Use the AOC domain for client entry; preview keys remain separate.
+The public Vercel entry URL redirects to the registered AOC hostname. The two internal stable aliases retain Vercel sign-in protection; after that check, the same entry redirect applies. App redirect rules preserve API and asset paths. Use the AOC domain for client entry; preview keys remain separate.
 
 The security threshold defaults to Google's suggested starting score of `0.5`. A server-only `RECAPTCHA_MIN_SCORE` can tune it after reviewing actual traffic. Avoid lowering it merely to make automated browser tests pass. To roll back CAPTCHA enforcement while investigating an outage, explicitly set `AOC_RECAPTCHA_ENABLED=false` and redeploy; the existing form/session guards remain.
 
