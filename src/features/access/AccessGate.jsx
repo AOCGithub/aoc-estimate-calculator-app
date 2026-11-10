@@ -5,6 +5,7 @@ import Aurora from '../../components/visuals/Aurora.jsx';
 import { ClientProfileReview } from '../profiles/ClientProfileReview.jsx';
 import { Brand } from '../../components/Brand.jsx';
 import { RecaptchaNotice } from './RecaptchaNotice.jsx';
+import { RecaptchaCheckbox } from './RecaptchaCheckbox.jsx';
 
 const auroraColors = ['#087E79', '#57C4A5', '#295C80'];
 
@@ -105,6 +106,7 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
                   <p id="access-saving-help">Leave unchecked to use the calculator without saving your business details{access.recordsEnabled ? ' or estimate records' : ''} to AOC’s database.
                     {!access.savingAvailable && ' Saving is currently unavailable; you can continue without it.'}</p>
                 </div>}
+                <RecaptchaCheckbox access={access} />
                 {access.error && <p className="access-error" role="alert">{access.error}</p>}
                 <RecaptchaNotice enabled={access.recaptcha?.enabled} />
                 <button type="submit" className="primary access-submit" disabled={busy || !access.configured}>

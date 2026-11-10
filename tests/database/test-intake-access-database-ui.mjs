@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { chromium } from 'playwright-core';
 import postgres from 'postgres';
+import { completeRecaptcha } from '../helpers/complete-recaptcha.mjs';
 
 const require = createRequire(import.meta.url);
 const fixture = require('../fixtures/commercial.cjs');
@@ -53,11 +54,13 @@ try {
     for (const [field, value] of Object.entries(profile)) await page.locator('#access-' + field).fill(value);
     await consent.check();
     await page.route('**/api/access/verify', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic save failure. Please try again.' }) }));
+    await completeRecaptcha(page, status.recaptcha);
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     await page.getByRole('alert').waitFor();
     assert.equal(await page.getByLabel('Business email').inputValue(), email);
     assert.equal(await page.locator('.area').count(), 0);
     await page.unroute('**/api/access/verify');
+    await completeRecaptcha(page, status.recaptcha);
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     await page.locator('.area').first().waitFor();
     assert.equal(await page.locator('.area').count(), 12, 'Any valid saved submission can enter without approval.');
@@ -181,6 +184,7 @@ try {
     const privateEmail = 'private-' + randomUUID() + '@example.com';
     for (const [field, value] of Object.entries({ ...profile, businessEmail: privateEmail })) await page.locator('#access-' + field).fill(value);
     assert.equal(await consent.isChecked(), false, 'Saving must default off again after logout.');
+    await completeRecaptcha(page, status.recaptcha);
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     await page.getByRole('note').filter({ hasText: /Data saving is off\.|Estimate recording is off\./ }).waitFor();
     const privateState = await page.evaluate(() => globalThis.AOCJourney.getState());

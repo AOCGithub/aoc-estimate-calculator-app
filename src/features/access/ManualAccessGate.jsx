@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessDetailsFields, emptyAccessProfile } from './AccessDetailsFields.jsx';
 import { Brand } from '../../components/Brand.jsx';
 import { RecaptchaNotice } from './RecaptchaNotice.jsx';
+import { RecaptchaCheckbox } from './RecaptchaCheckbox.jsx';
 
 export function ManualAccessGate({ access }) {
   const [profile, setProfile] = useState(emptyAccessProfile);
@@ -67,6 +68,7 @@ export function ManualAccessGate({ access }) {
                 </div>
                 <form className="access-form" onSubmit={submit}>
                   <AccessDetailsFields profile={profile} onChange={setProfile} review disabled={access.working} />
+                  <RecaptchaCheckbox access={access} />
                   <RecaptchaNotice enabled={access.recaptcha?.enabled} />
                   {access.error && <p className="access-error" role="alert">{access.error}</p>}
                   <button type="submit" className="primary access-submit" disabled={access.working || !access.configured}>

@@ -1,13 +1,16 @@
 const failure = 'The security check could not load. Your details are still here; please try again.';
 let loading;
 
-export function loadRecaptcha(siteKey) {
+export function loadRecaptcha(siteKey, version = 'v3') {
   if (loading) return loading;
-  if (window.grecaptcha?.execute) return Promise.resolve(window.grecaptcha);
+  const method = version === 'v2' ? 'render' : 'execute';
+  if (window.grecaptcha?.[method]) return Promise.resolve(window.grecaptcha);
   loading = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.id = 'aoc-recaptcha-script';
-    script.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(siteKey);
+    script.src = version === 'v2'
+      ? 'https://www.google.com/recaptcha/api.js?onload=aocRecaptchaReady&render=explicit'
+      : 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(siteKey);
     script.async = true;
     let settled = false;
     const timer = window.setTimeout(() => finish(), 12000);
@@ -21,7 +24,11 @@ export function loadRecaptcha(siteKey) {
       else { script.remove(); loading = null; reject(new Error(failure)); }
     }
     script.onerror = () => finish();
+    if (version === 'v2') {
+      window.aocRecaptchaReady = () => finish(window.grecaptcha?.render ? window.grecaptcha : null);
+    }
     script.onload = () => {
+      if (version === 'v2') return;
       // api.js first installs ready(); execute() arrives with its asynchronous runtime.
       if (!window.grecaptcha?.ready) return finish();
       window.grecaptcha.ready(() => finish(window.grecaptcha?.execute ? window.grecaptcha : null));

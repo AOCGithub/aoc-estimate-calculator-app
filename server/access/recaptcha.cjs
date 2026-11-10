@@ -12,13 +12,15 @@
     const secret = String(env.RECAPTCHA_SECRET_KEY || '').trim();
     const enabled = env.AOC_RECAPTCHA_ENABLED !== 'false'
       && (env.AOC_RECAPTCHA_ENABLED === 'true' || Boolean(siteKey || secret));
+    const version = String(env.RECAPTCHA_VERSION || 'v3').trim();
     const minimumScore = Number(env.RECAPTCHA_MIN_SCORE || '0.5');
-    return { enabled, siteKey, secret, minimumScore,
-      configured: Boolean(siteKey && secret && Number.isFinite(minimumScore) && minimumScore >= 0 && minimumScore <= 1) };
+    return { enabled, version, siteKey, secret, minimumScore,
+      configured: Boolean(siteKey && secret && (version === 'v2' || version === 'v3')
+        && (version === 'v2' || (Number.isFinite(minimumScore) && minimumScore >= 0 && minimumScore <= 1))) };
   }
   function status(env) {
     const config = configuration(env);
-    return config.enabled ? { recaptcha: { enabled: true, configured: config.configured, siteKey: config.siteKey, action } } : {};
+    return config.enabled ? { recaptcha: { enabled: true, configured: config.configured, version: config.version, siteKey: config.siteKey, action } } : {};
   }
   const error = (message, code) => Response.json({ error: message }, {
     status: code, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' },
@@ -37,9 +39,13 @@
       const data = await response.json();
       const age = Date.now() - Date.parse(data.challenge_ts);
       if (data.success !== true || data.error || data['error-codes']?.length
-        || data.action !== action || data.hostname !== new URL(request.url).hostname
+        || data.hostname !== new URL(request.url).hostname || !Number.isFinite(age) || age < -30000) return error(rejected, 403);
+      if (config.version === 'v3' && (data.action !== action
         || typeof data.score !== 'number' || !Number.isFinite(data.score) || data.score < config.minimumScore || data.score > 1
-        || !Number.isFinite(age) || age < -30000 || age > 120000) return error(rejected, 403);
+        || age > 120000)) return error(rejected, 403);
+      // v2 challenge_ts is the challenge's load time, not the solve time. Google
+      // enforces the response token's two-minute expiry and single use itself.
+      if (config.version === 'v2' && (data.score !== undefined || data.action !== undefined)) return error(rejected, 403);
       return null;
     } catch { return error(unavailable, 503); }
   }

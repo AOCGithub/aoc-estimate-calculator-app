@@ -6,6 +6,15 @@ Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
 
+## Visible v2 checkbox - 10 November 2026 (local preparation)
+
+The requested v2 checkbox is implemented locally. Production remains on v3 pending a matching v2 key pair and coordinated deployment; this is not a live v2 acceptance result.
+
+- Passed shared v2/v3 Node/Worker verification, manual-review compatibility and desktop/mobile saving/calculation cases with synthetic providers. Unchecked, expired and rejected checks, provider/script/profile failures, fresh retries, logout and narrow-screen resizing are covered.
+- Full `npm test` passed, including existing pricing/document rules, access/profiles, AI/voice contracts, desktop/mobile calculator journeys and packaged artifact validation. No paid AI requests or production database changes were made.
+- Google's real v2 widget rendered and solved using its published test site key at 1440px, 390px and 320px under the production CSP. No overflow, CSP errors or browser runtime errors occurred. No form submissions or production records were created in this rendering check; test keys do not prove production bot protection.
+- Existing v3 remains the default. Switch using matching v2 keys plus `RECAPTCHA_VERSION=v2`, then verify normal entry and calculation on the AOC domain. See [bot protection maintenance](features/RECAPTCHA.md).
+
 ## reCAPTCHA entry protection - 10 November 2026
 
 Published [reCAPTCHA v3 and canonical entry handling](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/1e4cf98ee4c84308e4efa77c923da85c724c0ba8) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Application deployment `dpl_6iY8b69zerqrvxvNrTxGS6yNeJvh` reached **Ready**. Subsequent documentation commits have the same application source.

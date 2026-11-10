@@ -32,6 +32,8 @@ export function useAccessGate() {
     saveData: false,
     currentProfile: null,
     recaptcha: null,
+    captchaToken: '',
+    captchaReset: 0,
     checkingCaptcha: false,
     invitationToken: initialInvitation,
   });
@@ -91,15 +93,21 @@ export function useAccessGate() {
   }, []);
 
   useEffect(() => {
-    if (state.recaptcha?.configured && !state.authenticated && !state.loading) {
+    if (state.recaptcha?.configured && state.recaptcha.version !== 'v2' && !state.authenticated && !state.loading) {
       loadRecaptcha(state.recaptcha.siteKey).catch(() => {});
     }
   }, [state.recaptcha, state.authenticated, state.loading]);
 
+  const setCaptchaToken = useCallback(token => {
+    setState(current => ({ ...current, captchaToken: typeof token === 'string' ? token : '', ...(token ? { error: '' } : {}) }));
+  }, []);
+
   const verify = useCallback(async (profile, afterVerification) => {
     setState(current => ({ ...current, working: true, checkingCaptcha: Boolean(current.recaptcha?.enabled), error: '', pending: false }));
     try {
-      const token = await recaptchaToken(state.recaptcha);
+      const checkbox = state.recaptcha?.enabled && state.recaptcha.version === 'v2';
+      if (checkbox && !state.captchaToken) throw new Error('Please complete the “I’m not a robot” checkbox before continuing.');
+      const token = checkbox ? state.captchaToken : await recaptchaToken(state.recaptcha);
       setState(current => ({ ...current, checkingCaptcha: false }));
       const response = await fetch('/api/access/verify', {
         method: 'POST',
@@ -132,8 +140,12 @@ export function useAccessGate() {
     } catch (error) {
       setState(current => ({ ...current, working: false, checkingCaptcha: false, error: error.message }));
       return { ok: false, message: error.message };
+    } finally {
+      if (state.recaptcha?.version === 'v2' && state.captchaToken) {
+        setState(current => ({ ...current, captchaToken: '', captchaReset: current.captchaReset + 1 }));
+      }
     }
-  }, [state.recaptcha]);
+  }, [state.recaptcha, state.captchaToken]);
 
   const logout = useCallback(async () => {
     try {
@@ -152,6 +164,7 @@ export function useAccessGate() {
         working: false,
         pending: false,
         invitationToken: '',
+        captchaToken: '',
       }));
       return { ok: true };
     } catch (error) {
@@ -187,5 +200,6 @@ export function useAccessGate() {
     logout,
     resetRequest,
     redeemInvitation,
-  }), [logout, redeemInvitation, resetRequest, state, verify]);
+    setCaptchaToken,
+  }), [logout, redeemInvitation, resetRequest, setCaptchaToken, state, verify]);
 }

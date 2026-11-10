@@ -12,7 +12,7 @@ const env={AOC_ACCESS_GATE_ENABLED:'true',AOC_INTAKE_ONLY_ENABLED:'true',AOC_ACC
   AOC_ACCESS_SESSION_SECRET:'synthetic-session-secret-at-least-32-characters',SUPABASE_URL:'https://captcha-store.example.invalid',SUPABASE_SECRET_KEY:'sb_secret_synthetic_fixture',
   VITE_RECAPTCHA_SITE_KEY:'synthetic-public-site-key',RECAPTCHA_SECRET_KEY:'synthetic-private-server-key'};
 const request=(body={},cookie='')=>new Request(origin+'/api/access/verify',{method:'POST',headers:{origin,cookie,'content-type':'application/json'},body:JSON.stringify({...profile,...body})});
-const good=()=>({success:true,score:0.9,action:'calculator_entry',hostname:new URL(origin).hostname,challenge_ts:new Date().toISOString()});
+const good=(version='v3')=>({success:true,...(version==='v3'?{score:0.9,action:'calculator_entry'}:{}),hostname:new URL(origin).hostname,challenge_ts:new Date().toISOString()});
 let answer=good(), providerStatus=200, providerCalls=0, writes=0, fail=false;
 const originalFetch=globalThis.fetch;
 async function provider(url, options) {
@@ -35,9 +35,12 @@ try {
   assert.equal(Recaptcha.configuration({...env,AOC_RECAPTCHA_ENABLED:'false'}).enabled,false);
   assert.equal(Recaptcha.configuration({RECAPTCHA_SECRET_KEY:'one-key'}).configured,false);
   assert.equal(Recaptcha.configuration({...env,RECAPTCHA_MIN_SCORE:'invalid'}).configured,false);
+  assert.equal(Recaptcha.configuration({...env,RECAPTCHA_VERSION:'unknown'}).configured,false);
+  assert.equal(Recaptcha.configuration({...env,RECAPTCHA_VERSION:'v2',RECAPTCHA_MIN_SCORE:'unused'}).configured,true);
   const status=await handleAccessStatus(new Request(origin+'/api/access/status'),env).json();
   assert.equal(status.recaptcha.siteKey,env.VITE_RECAPTCHA_SITE_KEY);
   assert.equal(status.recaptcha.action,'calculator_entry');
+  assert.equal(status.recaptcha.version,'v3');
   assert.ok(!JSON.stringify(status).includes(env.RECAPTCHA_SECRET_KEY));
   for(const token of [undefined,'',[],{},'x'.repeat(8193)]) {
     const before=providerCalls;
@@ -54,6 +57,15 @@ try {
     answer={...good(),...change};assert.equal((await Recaptcha.verify(request(),env,'token')).status,403);
   }
   answer=good();answer.score=0.5;assert.equal(await Recaptcha.verify(request(),env,'token'),null);
+  const checkboxEnv={...env,RECAPTCHA_VERSION:'v2'};
+  assert.equal((await handleAccessStatus(new Request(origin+'/api/access/status'),checkboxEnv).json()).recaptcha.version,'v2');
+  answer=good('v2');assert.equal(await Recaptcha.verify(request(),checkboxEnv,'solved-checkbox'),null,'v2 does not require a v3 score or action');
+  answer.challenge_ts=new Date(Date.now()-600000).toISOString();
+  assert.equal(await Recaptcha.verify(request(),checkboxEnv,'newly-solved-checkbox'),null,'v2 challenge load time can precede the fresh solve; Google enforces token expiry');
+  for(const change of [{success:false},{hostname:'other.example.com'},{challenge_ts:'invalid'},{challenge_ts:new Date(Date.now()+60000).toISOString()},{'error-codes':['timeout-or-duplicate']},{'error-codes':['Over free quota.']},{score:0.9},{action:'calculator_entry'}]){
+    answer={...good('v2'),...change};assert.equal((await Recaptcha.verify(request(),checkboxEnv,'checkbox-token')).status,403);
+  }
+  answer=good('v2');assert.equal((await Recaptcha.verify(request(),env,'wrong-key-type')).status,403,'v2 tokens cannot satisfy v3 checks');
   providerStatus=500;assert.equal((await Recaptcha.verify(request(),env,'token')).status,503);providerStatus=200;
   answer='invalid-json';assert.equal((await Recaptcha.verify(request(),env,'token')).status,503);
   fail=true;const safeError=await Recaptcha.verify(request(),env,'token');assert.equal(safeError.status,503);assert.ok(!(await safeError.text()).includes('private-provider'));fail=false;
@@ -61,19 +73,20 @@ try {
   const workerSource=await readFile(new URL('../../dist/server/index.js',import.meta.url),'utf8');
   const context=vm.createContext({Request,Response,URL,URLSearchParams,Blob,FormData,AbortSignal,crypto:webcrypto,atob,btoa,TextEncoder,TextDecoder,setTimeout,clearTimeout,console,fetch:provider});
   vm.runInContext(workerSource.replace(/export default\s*\{\s*async fetch/,'globalThis.worker={async fetch'),context);
-  for(const [name,dispatch]of [['Node',(req,settings)=>handleAccessVerification(req,settings)],['Worker',(req,settings)=>context.worker.fetch(req,settings)]]) {
+  for(const version of ['v3','v2'])for(const [name,dispatch]of [['Node',(req,settings)=>handleAccessVerification(req,settings)],['Worker',(req,settings)=>context.worker.fetch(req,settings)]]) {
+    const settings={...env,RECAPTCHA_VERSION:version};
     for(const saveData of [false,true]) {
-      const before=writes;answer={...good(),score:0.1};
-      let response=await dispatch(request({saveData}),env);assert.equal(response.status,403);assert.equal(response.headers.get('set-cookie'),null);
-      response=await dispatch(request({saveData,captchaToken:'rejected-token'}),env);assert.equal(response.status,403);assert.equal(writes,before,name+' rejected requests cannot write records');
-      answer=good();response=await dispatch(request({saveData,captchaToken:'fresh-token'}),env);assert.equal(response.status,200);
+      const before=writes;answer={...good(version),success:false};
+      let response=await dispatch(request({saveData}),settings);assert.equal(response.status,403);assert.equal(response.headers.get('set-cookie'),null);
+      response=await dispatch(request({saveData,captchaToken:'rejected-token'}),settings);assert.equal(response.status,403);assert.equal(writes,before,name+' rejected requests cannot write records');
+      answer=good(version);response=await dispatch(request({saveData,captchaToken:'fresh-token'}),settings);assert.equal(response.status,200);
       assert.ok(response.headers.get('set-cookie'));assert.equal((await response.json()).saveData,saveData);
       assert.equal(writes,before+Number(saveData));
-      answer={...good(),success:false,'error-codes':['timeout-or-duplicate']};
-      response=await dispatch(request({saveData,captchaToken:'fresh-token'}),env);assert.equal(response.status,403,'A reused provider token is rejected');
+      answer={...good(version),success:false,'error-codes':['timeout-or-duplicate']};
+      response=await dispatch(request({saveData,captchaToken:'fresh-token'}),settings);assert.equal(response.status,403,'A reused provider token is rejected');
     }
     const before=writes;
-    answer=good();const manual={...env,AOC_INTAKE_ONLY_ENABLED:'false',AOC_MANUAL_ACCESS_ENABLED:'true'};
+    answer=good(version);const manual={...settings,AOC_INTAKE_ONLY_ENABLED:'false',AOC_MANUAL_ACCESS_ENABLED:'true'};
     assert.equal((await dispatch(request(),manual)).status,403);
     const pending=await dispatch(request({captchaToken:'manual-fresh'}),manual);
     assert.equal(pending.status,202);assert.equal(writes,before+1,'Manual review requires CAPTCHA too');
@@ -91,5 +104,5 @@ try {
     const profileCookie=saved.headers.get('set-cookie').split(';')[0],revision=(await saved.json()).revision;
     assert.equal((await profiles.handle(new Request(origin+'/api/client-profile',{method:'DELETE',headers:{origin,cookie:profileCookie,'if-match':revision}}))).status,200);
   }finally{profiles.close();}
-  console.log('PASS: reCAPTCHA score/action/hostname/age, replay and quota errors, missing configuration, provider failures, no writes/sessions before verification, Node/Worker/manual parity, private credentials and profile bypass protection. No Google calls.');
+  console.log('PASS: reCAPTCHA v2/v3 verification, version mismatch, score/action/hostname/age, replay and quota errors, missing configuration, provider failures, no writes/sessions before verification, Node/Worker/manual parity, private credentials and profile bypass protection. No Google calls.');
 }finally{globalThis.fetch=originalFetch;}

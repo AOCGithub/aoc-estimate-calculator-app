@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { chromium } from 'playwright-core';
 import postgres from 'postgres';
+import { completeRecaptcha } from '../helpers/complete-recaptcha.mjs';
 
 const live = process.argv.includes('--live');
 assert.ok(live !== process.argv.includes('--database'), 'Choose --live or the local --database harness.');
@@ -88,6 +89,7 @@ try {
         assert.equal(await recordBox.isChecked(), false, 'Profile consent cannot select recording consent.');
         await recordBox.setChecked(record);
         assert.equal(await rememberBox.isChecked(), remember, 'Recording consent cannot change profile consent.');
+        await completeRecaptcha(page, status.recaptcha);
         await page.getByRole('button', { name: 'Continue to calculator', exact: true }).click();
         await page.locator('.area').first().waitFor();
         assert.equal(await page.locator('.area').count(), 12);

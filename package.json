@@ -33,7 +33,7 @@
     "test:gate-saving:live": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/database/test-gate-saving-choices.mjs --live",
     "test:access-ui": "node tests/browser/test-access-ui.cjs",
     "test:profiles": "node tests/unit/test-client-profiles.mjs && node tests/unit/test-production-profiles.mjs",
-    "test:recaptcha": "node tests/unit/test-recaptcha.mjs && node tests/browser/test-recaptcha-ui.mjs",
+    "test:recaptcha": "node tests/unit/test-recaptcha.mjs && node tests/browser/test-recaptcha-ui.mjs && node tests/browser/test-recaptcha-ui.mjs --v2",
     "test:profiles:ui": "node tests/browser/test-client-profiles-ui.cjs && node tests/browser/test-company-profile-ui.cjs",
     "test:ui": "node tests/browser/test-react-ui.cjs",
     "test:ui:capture": "node tests/browser/test-react-ui.cjs --capture",
