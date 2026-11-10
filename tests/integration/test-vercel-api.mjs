@@ -134,6 +134,16 @@ try {
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).analysis.facts, [], 'API removes unsupported management-help choices');
 
+  const manualPublishing = 'Staff review and publish everything manually.';
+  const unknownManager = manualPublishing + ' We do not know how many people will use it, who will manage the finished workflow, or how much time it will save.';
+  output.facts = [{ id: 'responsibility_split', value: 'client', quote: manualPublishing }, { id: 'management', value: 'no', quote: manualPublishing }];
+  response = await analysisRoute.fetch(new Request(`${origin}/api/journey/analyze`, {
+    method: 'POST', headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify({ area: 'area10', text: unknownManager }),
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).analysis.facts, [], 'API keeps future management unknown despite manual publishing');
+
   const explicitManagementHelp = 'Please help us decide who should manage the process.';
   output.facts = [{ id: 'responsibility_split', value: 'help', quote: explicitManagementHelp }];
   response = await analysisRoute.fetch(new Request(`${origin}/api/journey/analyze`, {

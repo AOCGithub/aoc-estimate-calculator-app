@@ -57,6 +57,24 @@ assert.equal(responsibilityFacts('AOC manages the process.','aoc')[0]?.value,'ao
 assert.equal(responsibilityFacts('Our team manages the process.','client')[0]?.value,'client');
 assert.equal(responsibilityFacts('We share responsibility with AOC.','shared')[0]?.value,'shared');
 
+// Reviewing/publishing drafts is not ownership of the finished automation.
+const staffPublishing='Staff review and publish everything manually.';
+const unknownFutureManager=staffPublishing+' We do not know how many people will use it, who will manage the finished workflow, or how much time it will save.';
+for(const quote of [staffPublishing,unknownFutureManager]) for(const [id,values] of [['responsibility_split',['client','aoc','shared','help']],['management',['yes','no']]]) {
+ for(const value of values) assert.deepEqual(C.validate({...analysis,facts:[{id,value,quote}]},unknownFutureManager,'area10').facts,[],'unknown future management is not a confirmed choice: '+id+'='+value);
+}
+assert.deepEqual(responsibilityFacts(staffPublishing,'client'),[],'manual execution alone does not confirm management');
+for(const unknown of ['We do not know who should manage the workflow.','We are not sure who will maintain it.','Management responsibility is unknown.','Ownership is not yet decided.']) {
+ const description=staffPublishing+' '+unknown;
+ assert.deepEqual(C.validate({...analysis,facts:[{id:'responsibility_split',value:'client',quote:staffPublishing}]},description,'area10').facts,[]);
+}
+for(const [quote,value] of [['Our team manages the process.','client'],['AOC will manage the system.','aoc'],['We share responsibility with AOC.','shared']]) {
+ const description=quote+' The budget is unknown and we do not know the monthly costs.';
+ assert.equal(C.validate({...analysis,facts:[{id:'responsibility_split',value,quote}]},description,'area0').facts[0]?.value,value,'unrelated unknown costs do not erase explicit management');
+}
+const unknownButHelpRequested='We do not know who should manage it. Please help us decide who should manage the workflow.';
+assert.equal(C.validate({...analysis,facts:[{id:'responsibility_split',value:'help',quote:'Please help us decide who should manage the workflow.'}]},unknownButHelpRequested,'area0').facts[0]?.value,'help');
+
 // Human approval alone must not promote drafting to system execution.
 function actionFacts(quote,value) {
  return C.validate({...analysis,facts:[{id:'action_mode',value,quote}]},quote,'area1').facts;

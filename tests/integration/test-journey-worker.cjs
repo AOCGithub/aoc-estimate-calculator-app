@@ -192,6 +192,16 @@ vm.runInContext(code, context);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).analysis.facts.length, 2);
 
+  const manualPublishing = 'Staff review and publish everything manually.';
+  const unknownManager = manualPublishing + ' We do not know how many people will use it, who will manage the finished workflow, or how much time it will save.';
+  output.facts = [{ id: 'responsibility_split', value: 'client', quote: manualPublishing }, { id: 'management', value: 'no', quote: manualPublishing }];
+  response = await context.worker.fetch(new Request('https://demo.test/api/journey/analyze', {
+    method: 'POST', headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
+    body: JSON.stringify({ area: 'area10', text: unknownManager }),
+  }), { OPENAI_API_KEY: 'test-placeholder-not-real', AOC_AI_ORGANIZER_ENABLED: 'true' });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).analysis.facts, [], 'Worker keeps future management unknown despite manual publishing');
+
   console.log('PASS: built Worker serves the React journey, retains historical intake routes, and validates authoritative calculation, origin guards, fallback, and structured extraction.');
 })().catch((error) => {
   console.error(error);
