@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessDetailsFields, emptyAccessProfile } from './AccessDetailsFields.jsx';
 import { Brand } from '../../components/Brand.jsx';
+import { RecaptchaNotice } from './RecaptchaNotice.jsx';
 
 export function ManualAccessGate({ access }) {
   const [profile, setProfile] = useState(emptyAccessProfile);
@@ -10,6 +11,7 @@ export function ManualAccessGate({ access }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (access.working) return;
     await access.verify(profile);
   }
 
@@ -64,10 +66,11 @@ export function ManualAccessGate({ access }) {
                   <p>Submitting this form requests access. It does not automatically open the calculator.</p>
                 </div>
                 <form className="access-form" onSubmit={submit}>
-                  <AccessDetailsFields profile={profile} onChange={setProfile} review />
+                  <AccessDetailsFields profile={profile} onChange={setProfile} review disabled={access.working} />
+                  <RecaptchaNotice enabled={access.recaptcha?.enabled} />
                   {access.error && <p className="access-error" role="alert">{access.error}</p>}
                   <button type="submit" className="primary access-submit" disabled={access.working || !access.configured}>
-                    {access.working ? 'Submitting request…' : 'Request access'}
+                    {access.checkingCaptcha ? 'Checking security…' : access.working ? 'Submitting request…' : 'Request access'}
                   </button>
                 </form>
               </>

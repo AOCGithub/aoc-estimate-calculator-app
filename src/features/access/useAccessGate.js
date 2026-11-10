@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { loadRecaptcha, recaptchaToken } from './recaptcha.js';
 
 const buildGateEnabled = import.meta.env.VITE_AOC_ACCESS_GATE_ENABLED === 'true'
   || document.querySelector('meta[name="aoc-access-gate"][content="enabled"]') !== null;
@@ -30,6 +31,8 @@ export function useAccessGate() {
     savingAvailable: false,
     saveData: false,
     currentProfile: null,
+    recaptcha: null,
+    checkingCaptcha: false,
     invitationToken: initialInvitation,
   });
 
@@ -70,6 +73,7 @@ export function useAccessGate() {
           profilesEnabled: Boolean(data.profilesEnabled),
           savingAvailable: Boolean(data.savingAvailable),
           saveData: data.saveData === true,
+          recaptcha: data.recaptcha || null,
           loading: false,
           error: data.enabled && !data.configured ? 'Calculator access is not configured yet.' : '',
         }));
@@ -86,14 +90,22 @@ export function useAccessGate() {
     return () => controller.abort();
   }, []);
 
-  const verify = useCallback(async (profile) => {
-    setState(current => ({ ...current, working: true, error: '', pending: false }));
+  useEffect(() => {
+    if (state.recaptcha?.configured && !state.authenticated && !state.loading) {
+      loadRecaptcha(state.recaptcha.siteKey).catch(() => {});
+    }
+  }, [state.recaptcha, state.authenticated, state.loading]);
+
+  const verify = useCallback(async (profile, afterVerification) => {
+    setState(current => ({ ...current, working: true, checkingCaptcha: Boolean(current.recaptcha?.enabled), error: '', pending: false }));
     try {
+      const token = await recaptchaToken(state.recaptcha);
+      setState(current => ({ ...current, checkingCaptcha: false }));
       const response = await fetch('/api/access/verify', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({ ...profile, ...(token ? { captchaToken: token } : {}) }),
       });
       const data = await response.json().catch(() => ({}));
       if (response.status === 202 && data.pending === true && data.authenticated === false) {
@@ -101,6 +113,10 @@ export function useAccessGate() {
         return { ok: true, pending: true };
       }
       if (!response.ok || !data.authenticated) throw new Error(data.error || 'Access could not be verified.');
+      if (afterVerification && !await afterVerification()) {
+        setState(current => ({ ...current, working: false }));
+        return { ok: false };
+      }
       setState(current => ({
         ...current,
         authenticated: true,
@@ -114,10 +130,10 @@ export function useAccessGate() {
       }));
       return { ok: true };
     } catch (error) {
-      setState(current => ({ ...current, working: false, error: error.message }));
+      setState(current => ({ ...current, working: false, checkingCaptcha: false, error: error.message }));
       return { ok: false, message: error.message };
     }
-  }, []);
+  }, [state.recaptcha]);
 
   const logout = useCallback(async () => {
     try {

@@ -8,7 +8,7 @@ import { json } from '../api-handlers.mjs';
 import { createClientProfiles } from './client-profiles.mjs';
 const digest = token => createHash('sha256').update(token).digest('hex');
 export const localProfileDatabasePath = join(tmpdir(), 'aoc-estimator-profiles-' + digest(process.cwd()).slice(0,12), 'profiles.sqlite');
-export function createLocalClientProfiles(filename = localProfileDatabasePath, { now = Date.now } = {}) {
+export function createLocalClientProfiles(filename = localProfileDatabasePath, { now = Date.now, environment = {} } = {}) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
   const database = new DatabaseSync(filename);
   database.exec(`CREATE TABLE IF NOT EXISTS client_profiles (
@@ -32,6 +32,6 @@ export function createLocalClientProfiles(filename = localProfileDatabasePath, {
     },
     remove: (hash,id) => database.prepare('DELETE FROM client_profiles WHERE token_hash=? AND id=?').run(hash,id).changes === 1,
   };
-  const api=createClientProfiles(store,{now});
+  const api=createClientProfiles(store,{now,environment});
   return { handle: request => ['127.0.0.1','localhost','[::1]'].includes(new URL(request.url).hostname) ? api.handle(request) : json({error:'Offline adapter is local only.'},403), close:()=>database.close() };
 }

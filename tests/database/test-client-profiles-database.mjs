@@ -4,7 +4,7 @@ import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import postgres from 'postgres';
 import { handleClientProfile } from '../../server/profiles/client-profiles.mjs';
 assert.ok(process.argv.includes('--database'), 'Explicit --database required.');
-const environment = { ...process.env, AOC_CLIENT_PROFILES_ENABLED: 'true', AOC_ACCESS_GATE_ENABLED: 'true', AOC_INTAKE_ONLY_ENABLED: 'true' };
+const environment = { ...process.env, AOC_RECAPTCHA_ENABLED: 'false', AOC_CLIENT_PROFILES_ENABLED: 'true', AOC_ACCESS_GATE_ENABLED: 'true', AOC_INTAKE_ONLY_ENABLED: 'true' };
 const sql = postgres(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING, { prepare: false, max: 1, ssl: 'require', connect_timeout: 15 });
 const origin = 'https://profile-test.example.invalid';
 const ownedHashes = new Set();

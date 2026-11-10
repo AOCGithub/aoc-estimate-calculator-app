@@ -8,6 +8,8 @@ process.env.AOC_MANUAL_ACCESS_ENABLED = process.argv.includes('--review') ? 'tru
 process.env.AOC_INTAKE_ONLY_ENABLED = process.argv.includes('--review') || process.argv.includes('--previous') ? 'false' : 'true';
 process.env.AOC_ESTIMATE_RECORDS_ENABLED = process.env.AOC_INTAKE_ONLY_ENABLED;
 process.env.AOC_VOICE_ENABLED = 'true';
+// Production CAPTCHA keys do not cover localhost. Production settings are unchanged.
+process.env.AOC_RECAPTCHA_ENABLED = 'false';
 process.env.AOC_DESCRIPTION_CORRECTION_ENABLED = 'true';
 // Session secret and local tester approvals are read from .env.development.local.
 const child = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '0.0.0.0', '--port', process.env.AOC_LOCAL_ACCESS_PORT || '5173', '--strictPort'], {

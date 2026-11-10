@@ -12,6 +12,7 @@ These guides keep their existing paths so shared handoff links continue to work.
 
 ## Feature references
 
+- [Entry bot protection](features/RECAPTCHA.md)
 - [Temporary entry without approval](features/TEMPORARY-INTAKE-ACCESS.md)
 - [Form submissions and estimate records](features/FORM-AND-ESTIMATE-RECORDS.md)
 - [Optional client profiles](features/OPTIONAL-CLIENT-PROFILES.md)

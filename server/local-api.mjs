@@ -33,7 +33,7 @@ export function localApi(environment) {
         if (!environment.VERCEL && environment.AOC_LOCAL_CLIENT_PROFILES_ENABLED === 'true' && ['/api/client-profile', '/api/client-profile/status'].includes(pathname)) {
           handler = async webRequest => {
             const moduleUrl = new URL('./profiles/local-client-profiles.mjs', import.meta.url).href;
-            profileStore ||= import(moduleUrl).then(module => module.createLocalClientProfiles());
+            profileStore ||= import(moduleUrl).then(module => module.createLocalClientProfiles(undefined, { environment }));
             return (await profileStore).handle(webRequest);
           };
         }

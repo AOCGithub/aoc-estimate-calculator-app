@@ -183,8 +183,9 @@ async function accessStatusAPI(request, env) {
   const session = authenticated ? JSON.parse(new TextDecoder().decode(accessDecodeBase64Url(accessCookie(request).split('.')[0]))) : null;
   return json({
     enabled: true,
-    configured: configuration.configured,
+    configured: configuration.configured && (!AOCRecaptcha.configuration(env).enabled || AOCRecaptcha.configuration(env).configured),
     authenticated,
+    ...AOCRecaptcha.status(env),
     ...(configuration.requests.enabled ? { requestsEnabled: true } : {}),
     ...(configuration.intakeOnly ? { intakeOnly: true,
       savingAvailable: configuration.requests.enabled && configuration.requests.configured,
@@ -217,6 +218,8 @@ async function accessVerifyAPI(request, env, url) {
   if (configuration.intakeOnly && parsed.body.saveData !== undefined && typeof parsed.body.saveData !== 'boolean') {
     return json({ error: 'Choose whether to save your data.' }, 400);
   }
+  const captchaError = await AOCRecaptcha.verify(request, env, parsed.body.captchaToken);
+  if (captchaError) return captchaError;
   if (configuration.intakeOnly && parsed.body.saveData !== true) {
     const response = json({ enabled: true, authenticated: true, saveData: false });
     response.headers.set('set-cookie', accessCookieHeader(request,

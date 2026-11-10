@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { json, validateAccessProfile } from '../api-handlers.mjs';
+import { json, requireAccess, validateAccessProfile } from '../api-handlers.mjs';
+import Recaptcha from '../access/recaptcha.cjs';
 import AccessRequests from '../access/access-requests.cjs';
 import { companyFactFields, sameProfileOwner, validateCompanyFacts } from '../../shared/client-profile.mjs';
 
@@ -25,7 +26,7 @@ export function profileConfiguration(environment = process.env) {
 }
 
 // The same request/consent protocol is used by Supabase and the offline test adapter.
-export function createClientProfiles(store, { now = Date.now, retentionDays = 30 } = {}) {
+export function createClientProfiles(store, { now = Date.now, retentionDays = 30, environment = {} } = {}) {
   async function handle(request) {
     const url = new URL(request.url);
     if (url.search) return json({ error: 'Use this browser’s saved profile.' }, 400);
@@ -34,6 +35,10 @@ export function createClientProfiles(store, { now = Date.now, retentionDays = 30
     if (request.headers.get('sec-fetch-site') === 'cross-site'
       || (request.headers.has('origin') && request.headers.get('origin') !== url.origin)
       || (request.method !== 'GET' && request.headers.get('origin') !== url.origin)) return json({ error: 'Use this estimator page.' }, 403);
+    if (request.method === 'POST' && Recaptcha.configuration(environment).enabled) {
+      const denied = await requireAccess(request, environment);
+      if (denied) return denied;
+    }
     try {
       const time = now(), token = tokenFrom(request), hash = token ? digest(token) : null;
       if (hash) await store.expire(hash, time);
@@ -143,7 +148,7 @@ export async function handleClientProfile(request, environment = process.env) {
   const configuration = profileConfiguration(environment);
   if (!configuration.enabled || !configuration.configured) return new URL(request.url).pathname.endsWith('/status') && request.method === 'GET'
     ? json({ available: false, saved: false, revision: null }) : json({ error: 'Profile saving is unavailable. You can continue without it.' }, 503);
-  return createClientProfiles(createSupabaseProfileStore(configuration), configuration).handle(request);
+  return createClientProfiles(createSupabaseProfileStore(configuration), { ...configuration, environment }).handle(request);
 }
 export async function handleProfileCleanup(request, environment = process.env) {
   if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);

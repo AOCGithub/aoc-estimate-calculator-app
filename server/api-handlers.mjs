@@ -6,6 +6,7 @@ import IntakeContract from '../public/intake-contract.js';
 import CatalogData from '../public/catalog.js';
 import AccessRequests from './access/access-requests.cjs';
 import ManualAccess from './access/manual-access.cjs';
+import Recaptcha from './access/recaptcha.cjs';
 import EstimateRecords from './calculator/estimate-records.cjs';
 import Pricing from '../public/approved-pricing.js';
 import LiveVoice from './description/live-voice.cjs';
@@ -154,7 +155,7 @@ export function validateAccessProfile(body) {
   return { profile };
 }
 
-async function requireAccess(request, environment = process.env) {
+export async function requireAccess(request, environment = process.env) {
   if (ManualAccess.enabled(environment)) return ManualAccess.requireAccess(request, environment);
   if (!accessEnabled(environment)) return null;
   const configuration = accessConfiguration(environment);
@@ -169,12 +170,14 @@ export function handleAccessStatus(request, environment = process.env) {
   if (methodError) return methodError;
   if (!accessEnabled(environment)) return json({ enabled: false, configured: true, authenticated: true });
   const configuration = accessConfiguration(environment);
+  const captcha = Recaptcha.configuration(environment);
   const authenticated = configuration.configured && validAccessSession(request, configuration);
   const session = authenticated ? JSON.parse(Buffer.from(accessCookie(request).split('.')[0], 'base64url').toString('utf8')) : null;
   return json({
     enabled: true,
-    configured: configuration.configured,
+    configured: configuration.configured && (!captcha.enabled || captcha.configured),
     authenticated,
+    ...Recaptcha.status(environment),
     ...(configuration.requests.enabled ? { requestsEnabled: true } : {}),
     ...(configuration.intakeOnly ? { intakeOnly: true,
       savingAvailable: configuration.requests.enabled && configuration.requests.configured,
@@ -201,6 +204,8 @@ export async function handleAccessVerification(request, environment = process.en
   if (configuration.intakeOnly && parsed.body.saveData !== undefined && typeof parsed.body.saveData !== 'boolean') {
     return json({ error: 'Choose whether to save your data.' }, 400);
   }
+  const captchaError = await Recaptcha.verify(request, environment, parsed.body.captchaToken);
+  if (captchaError) return captchaError;
   // Opting out (including an older client with no choice) never writes personal
   // details or estimate records. Only a random session identifier is retained.
   if (configuration.intakeOnly && parsed.body.saveData !== true) {

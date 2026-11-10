@@ -22,6 +22,7 @@ Build first with `npm run build:worker` when running focused checks against gene
 
 - `npm run test:domain`: calculation and document-rule checks.
 - `npm run test:access`: entry, session and estimate-record checks.
+- `npm run test:recaptcha`: server verification, replay/age/action/hostname/score guards, no writes before verification, profile bypass protection and desktop/mobile entry/retry/saving journeys with synthetic providers.
 - `npm run test:profiles`: offline profile protocol and mocked production storage.
 - `npm run test:access-ui`: current entry form and consent journeys.
 - `npm run test:ui`: calculator journeys, editable/relevant fields, validation, calculation, stale results, download and desktop/mobile layouts.

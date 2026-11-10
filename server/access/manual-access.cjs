@@ -1,10 +1,11 @@
 // Server-only, shared unchanged by Vercel, Vite and the retained Worker.
 (function (root, factory) {
   const storage = typeof module === 'object' && module.exports ? require('./access-requests.cjs') : root.AOCAccessRequests;
-  const api = factory(storage);
+  const captcha = typeof module === 'object' && module.exports ? require('./recaptcha.cjs') : root.AOCRecaptcha;
+  const api = factory(storage, captcha);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.AOCManualAccess = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (storage) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (storage, captcha) {
   const cookieName = 'aoc_estimator_review_access';
   const attempts = new Map();
   const tokenPattern = /^[0-9a-f]{64}$/u;
@@ -98,7 +99,8 @@
   async function status(request, env) {
     if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
     const config = configuration(env);
-    const result = { enabled: true, requestsEnabled: true, manualApproval: true, configured: config.configured, authenticated: false };
+    const security = captcha.configuration(env);
+    const result = { enabled: true, requestsEnabled: true, manualApproval: true, configured: config.configured && (!security.enabled || security.configured), authenticated: false, ...captcha.status(env) };
     try {
       result.authenticated = config.configured && await sessionValid(request, config);
       return json(result);
@@ -135,6 +137,8 @@
     if (action === 'verify') {
       const validated = profile(parsed.value);
       if (validated.error) return json({ error: validated.error }, 400);
+      const captchaError = await captcha.verify(request, env, parsed.value.captchaToken);
+      if (captchaError) return captchaError;
       try {
         await storage.save(config, validated.value);
         // No allowlist check: a submission never grants access in this mode.

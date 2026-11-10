@@ -43,6 +43,9 @@
 .client-profile-review { margin-bottom: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbf5; }
 .client-profile-trial { margin: 0 0 10px; color: var(--teal); font-size: 10px; }
 .client-profile-review h3 { margin: 14px 0 8px; font-size: 17px; }
+.recaptcha-notice { margin: 14px 0; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.recaptcha-notice a { color: inherit; text-decoration: underline; }
+.grecaptcha-badge { visibility: hidden; }
 .client-profile-review p { font-size: 11px; }
 .client-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .client-profile-actions button { min-height: 44px; font-size: 11px; }

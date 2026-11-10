@@ -4,6 +4,7 @@ import { AccessDetailsFields, emptyAccessProfile } from './AccessDetailsFields.j
 import Aurora from '../../components/visuals/Aurora.jsx';
 import { ClientProfileReview } from '../profiles/ClientProfileReview.jsx';
 import { Brand } from '../../components/Brand.jsx';
+import { RecaptchaNotice } from './RecaptchaNotice.jsx';
 
 const auroraColors = ['#087E79', '#57C4A5', '#295C80'];
 
@@ -30,8 +31,8 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
-    if (profiles.enabled && rememberProfile && !await profiles.save(profile, reuseConfirmed)) return;
-    const outcome = await access.verify(access.intakeOnly ? { ...profile, saveData } : profile);
+    const outcome = await access.verify(access.intakeOnly ? { ...profile, saveData } : profile,
+      async () => !profiles.enabled || !rememberProfile || await profiles.save(profile, reuseConfirmed));
     if (outcome?.ok && profiles.enabled) profiles.cancelReview();
   }
 
@@ -105,8 +106,9 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
                     {!access.savingAvailable && ' Saving is currently unavailable; you can continue without it.'}</p>
                 </div>}
                 {access.error && <p className="access-error" role="alert">{access.error}</p>}
+                <RecaptchaNotice enabled={access.recaptcha?.enabled} />
                 <button type="submit" className="primary access-submit" disabled={busy || !access.configured}>
-                  <span>{profiles.working ? 'Please wait…' : access.working ? (access.intakeOnly ? saveData ? 'Saving details…' : 'Opening calculator…' : access.requestsEnabled ? 'Submitting request…' : 'Checking access…') : (access.intakeOnly ? 'Continue to calculator' : access.requestsEnabled ? 'Request access / continue' : 'Continue to estimator')}</span>
+                  <span>{access.checkingCaptcha ? 'Checking security…' : profiles.working ? 'Please wait…' : access.working ? (access.intakeOnly ? saveData ? 'Saving details…' : 'Opening calculator…' : access.requestsEnabled ? 'Submitting request…' : 'Checking access…') : (access.intakeOnly ? 'Continue to calculator' : access.requestsEnabled ? 'Request access / continue' : 'Continue to estimator')}</span>
                   {!busy && <i aria-hidden="true">→</i>}
                 </button>
               </form>}

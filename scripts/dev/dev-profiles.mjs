@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 const database = process.argv.includes('--database');
 Object.assign(process.env, {
   VERCEL: '',
+  AOC_RECAPTCHA_ENABLED: 'false',
   VITE_AOC_ACCESS_GATE_ENABLED: 'true', AOC_ACCESS_GATE_ENABLED: 'true',
   AOC_INTAKE_ONLY_ENABLED: 'true', AOC_MANUAL_ACCESS_ENABLED: 'false',
   AOC_ACCESS_REQUESTS_ENABLED: database ? 'true' : 'false', AOC_ESTIMATE_RECORDS_ENABLED: database ? 'true' : 'false',

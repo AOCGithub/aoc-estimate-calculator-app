@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { localApi } from '../../server/local-api.mjs';
 assert.ok(process.argv.includes('--database'), 'Explicit --database required.');
 const root=fileURLToPath(new URL('../../dist/client/',import.meta.url));
-const environment={...process.env,AOC_CLIENT_PROFILES_ENABLED:'true',AOC_LOCAL_CLIENT_PROFILES_ENABLED:'false',
+const environment={...process.env,AOC_RECAPTCHA_ENABLED:'false',AOC_CLIENT_PROFILES_ENABLED:'true',AOC_LOCAL_CLIENT_PROFILES_ENABLED:'false',
   AOC_ACCESS_GATE_ENABLED:'true',AOC_INTAKE_ONLY_ENABLED:'true',AOC_MANUAL_ACCESS_ENABLED:'false',AOC_ACCESS_REQUESTS_ENABLED:'true',AOC_ESTIMATE_RECORDS_ENABLED:'true',
   AOC_ACCESS_SESSION_SECRET:randomBytes(32).toString('hex'),AOC_AI_ORGANIZER_ENABLED:'false',AOC_VOICE_ENABLED:'false',AOC_DESCRIPTION_CORRECTION_ENABLED:'false'};
 let middleware;
