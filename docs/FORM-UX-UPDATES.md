@@ -1,7 +1,7 @@
 # Form UX Updates
 
 Last updated: 11 November 2026
-Status: reCAPTCHA entry protection, the folder reorganization and a management-evidence AI-prefill correction were deployed and verified on 10 November 2026. The existing calculation rules and optional saving choices remain active. See the production test results for release evidence.
+Status: the loading/refactor work, clearer result explanations, documented zero-implementation-quote correction and defensive fixes were deployed on 11 November 2026. The full local suite, live asset/security checks and a local replay of the published browser build passed. A fresh complete live gated journey is waiting for human CAPTCHA completion; see the production test results for the exact verification scope. The existing pricing coefficients and optional saving choices remain active.
 
 ## Purpose
 

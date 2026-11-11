@@ -1,6 +1,6 @@
 # Code and performance review — 11 November 2026
 
-Scope: requested local review and targeted refactoring. Not deployed. The existing uncommitted maintenance-note edit was preserved.
+Scope: requested local review and targeted refactoring. The observations below were recorded before deployment. The changes were published later on 11 November in application commit `39f004e`; see [production test results](../PRODUCTION-TEST-RESULTS.md) for current release checks and the pending human-CAPTCHA step. The existing uncommitted maintenance-note edit was preserved.
 
 ## Findings and changes
 

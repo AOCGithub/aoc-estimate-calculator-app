@@ -6,6 +6,21 @@ Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
 
+## Production release - 11 November 2026
+
+Published [application commit 39f004e](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/39f004e4e7209a5d3e8aef7b3acd3103aa06e69b) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel deployment `dpl_EpRHs3y31wUj3DEwFAb165bSUShM` reached **Ready**, and the AOC domain serves its new browser assets and calculation files. This release includes the tested loading/API refactor, clearer result explanations, explicit zero-quote correction, JSON validation fix and Vite patch. The earlier local-only notes below describe the checks before publication.
+
+Passed:
+
+- Full local `npm test` after the final app correction, including pricing/document rules, exact-cent payments, Node/Worker APIs, saving choices, access/profiles, CAPTCHA, simulated AI/voice and complete desktop/mobile calculator journeys.
+- Live initial and deferred calculator JavaScript/CSS, rule/prefill file equality with the released source, original favicon, security headers, current access/profile/recording configuration, protected calculations and cleanup, and blocked public profile-email lookup. Checked public assets contain none of the available configured private credentials.
+- Live entry required-field blocking/correction, independent unchecked saving defaults and settled responsive layout at 1440px, 390px and 320px.
+- The exact published browser build also passed the complete desktop/mobile calculator regression when replayed locally with synthetic API responses. This is separate from a successful live gated journey or a real-provider check.
+
+**Still pending in this release check:** Google presented an image challenge in the isolated Chrome test window. The actual live entry, real AI prefill, saved test records and post-entry calculator journey are waiting for human CAPTCHA completion. They are not marked passed by the checks above. Production CAPTCHA was not disabled or bypassed. At this checkpoint, the waiting journey had made no paid AI requests or database submissions.
+
+The source workbook, production settings and database schema were not changed. Test artifacts and private environment files were excluded from Git; the unrelated pre-existing maintenance-guide edit was preserved locally.
+
 ## Explicit zero implementation quote correction - 11 November 2026 (not deployed)
 
 The current workbook (modified 5 November) allows nonnegative itemized quote components in `Audit & Project Quote!B20`. The source check reproduced an app-only positive-implementation restriction. Removed that restriction from shared request validation and project-total calculation; unknown components still prevent a complete quote. Added a short reminder to enter zero only when AOC explicitly quoted it.
