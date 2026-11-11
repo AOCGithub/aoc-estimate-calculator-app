@@ -45,7 +45,7 @@ export function CommercialFields({ answers, fields }) {
           <>
             <h3>Provided fixed-project quote</h3>
             {fields.input('preparation_fee', 'Quoted preparation/foundation fee (USD)', 'Explicit zero if included or not applicable; shared work is counted once.', 'number')}
-            {fields.input('implementation_fee', 'Quoted implementation fee (USD)', 'Includes agreed build, testing, rollout and included reusable training.', 'number')}
+            {fields.input('implementation_fee', 'Quoted implementation fee (USD)', 'Includes agreed build, testing, rollout and reusable training. Enter zero only if explicitly quoted by AOC; leave unknown amounts blank.', 'number')}
             {fields.select('live_training', 'Has additional hands-on/live training been purchased?', [['yes', 'Yes'], ['no', 'No']])}
             {answers.live_training === 'yes' && fields.input('live_training_fee', 'Quoted additional live-training fee (USD)', 'No automatic session surcharge.', 'number')}
           </>

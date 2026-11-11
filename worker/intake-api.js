@@ -34,6 +34,7 @@ async function intakeAnalysisAPI(request, env, url) {
   } catch {
     return json({ error: 'Could not read the request.' }, 400);
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Send a JSON object.' }, 400);
   if (typeof body.text !== 'string' || body.text.trim().length < 30 || body.text.length > 18000) {
     return json({ error: 'Describe the process in 30-18,000 characters.' }, 400);
   }

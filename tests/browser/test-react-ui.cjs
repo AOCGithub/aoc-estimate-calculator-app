@@ -148,6 +148,8 @@ const server = http.createServer((request, response) => {
       await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-home.png'), fullPage: true });
     }
     assert.equal(await page.locator('.area').count(), 12, 'all business areas render');
+    assert.equal(await page.locator('#estimateStatus').textContent(), 'NOT CALCULATED', 'the initial estimate is distinct from a completed partial calculation');
+    assert.equal(await page.locator('.result-incomplete').count(), 0, 'missing-result guidance only appears after calculation');
     assert.equal(
       await page.getByRole('button', { name: 'Orders, inventory, and fulfillment' }).locator('.icon svg').count(),
       1,
@@ -290,7 +292,7 @@ const server = http.createServer((request, response) => {
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
 
     await page.locator('.money').filter({hasText:'$11,500'}).waitFor();
-    assert.equal(await page.locator('.result-group[open]').count(), 0, 'supporting results start collapsed');
+    assert.equal(await page.locator('.result-group[open]:not(.result-review)').count(), 0, 'supporting results start collapsed');
     assert.equal(await page.locator('.result-highlight').count(), 2, 'the overview keeps the main value and payback visible');
     if (capture) await page.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'estimator-result-compact.png') });
     await page.getByText('Project & ongoing costs', { exact: true }).click();
@@ -311,7 +313,8 @@ const server = http.createServer((request, response) => {
     const monthlyService = page.getByText('AOC monthly service', { exact: true }).locator('..').locator(':scope > .value');
     await page.waitForFunction(() => globalThis.AOCJourney.getState().result?.monthly === 0);
     assert.equal(await monthlyService.textContent(), '$0');
-    assert.equal(await page.locator('#estimateStatus').textContent(), 'SERVER VERIFIED');
+    assert.equal(await page.locator('#estimateStatus').textContent(), 'ESTIMATE CALCULATED');
+    assert.equal(await page.locator('.result-incomplete').count(), 0, 'complete estimates do not show the missing-details notice');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server');
 
     calculationMode = 'validation';
@@ -340,6 +343,19 @@ const server = http.createServer((request, response) => {
     let project = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
     assert.equal(project.firstProjectPayment,5000.03);
     assert.equal(project.secondProjectPayment,5000.02);
+    await page.locator('#f_preparation_fee').fill('2000');
+    await page.locator('#f_implementation_fee').fill('0');
+    await page.locator('.check input').check();
+    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
+    await page.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.build===2000;});
+    project = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
+    assert.equal(project.buildQuoted,true,'an explicit zero implementation component preserves the entered project quote');
+    assert.equal(project.firstProjectPayment,375);
+    assert.equal(project.secondProjectPayment,375);
+    assert.equal(project.payback,1.25);
+    assert.equal(await page.locator('.money').textContent(),'$2,000','the result shows the quoted project total rather than the provisional build');
+    assert.equal(await page.locator('#f_implementation_fee').inputValue(),'0','the editable zero is retained');
+    await page.locator('#f_preparation_fee').fill('0');
     await page.locator('#f_implementation_fee').fill('');
     await page.locator('.check input').check();
     await page.getByRole('button',{name:/Confirm details & calculate/}).click();
@@ -578,7 +594,62 @@ const server = http.createServer((request, response) => {
     await mobilePage.waitForFunction(() => globalThis.AOCJourney.getState().result?.build != null);
     assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().step), 7, 'mobile journey reaches the final step');
     assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server', 'mobile journey uses the server calculator');
-    assert.equal(await mobilePage.locator('#estimateStatus').textContent(), 'SERVER VERIFIED · PARTIAL', 'mobile journey calculates a review-needed estimate without inventing quote amounts');
+    assert.equal(await mobilePage.locator('#estimateStatus').textContent(), 'CALCULATED · PARTIAL', 'partial estimates state calculation has run without implying a final quote');
+    assert.doesNotMatch(await mobilePage.locator('#result').textContent(), /Not yet calculated/i, 'a completed partial result does not claim calculation has not run');
+    assert.ok(await mobilePage.locator('.result-incomplete').isVisible(), 'partial results explain why some figures need more details');
+    assert.equal(await mobilePage.locator('.result-review').getAttribute('open'), null, 'the full pending list stays expandable while the short next steps remain visible');
+    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /You can add:.*AOC will confirm:/s, 'next steps distinguish client inputs from AOC pricing details');
+    assert.match(await mobilePage.locator('.result-review').textContent(), /audit.*quote/i, 'pending quote requirements remain visible rather than inventing a fee');
+    await mobilePage.getByText('Potential monthly value', { exact: true }).click();
+    const mobileMetric = title => mobilePage.getByText(title, { exact: true }).locator('..').locator(':scope > .value');
+    assert.equal(await mobileMetric('Capacity value').textContent(), 'Needs details');
+    assert.equal(await mobileMetric('Recurring cash savings').textContent(), 'Needs details');
+    assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), 'Needs details');
+    const partialBuild = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result.build);
+    assert.equal(await mobilePage.locator('.result-highlight').nth(1).locator('strong').textContent(), 'Pending', 'unknown payback has an understandable state');
+    if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-next-steps-mobile-390.png') });
+    const beforeResultNavigation = await mobilePage.evaluate(() => globalThis.AOCJourney.getState());
+
+    await mobilePage.getByRole('button', { name: 'Review time & costs', exact: true }).click();
+    const afterResultNavigation = await mobilePage.evaluate(() => globalThis.AOCJourney.getState());
+    assert.equal(afterResultNavigation.step, 6, 'the result action opens the relevant existing section');
+    assert.deepEqual(afterResultNavigation.answers, beforeResultNavigation.answers, 'result navigation preserves all answers');
+    assert.deepEqual(afterResultNavigation.result, beforeResultNavigation.result, 'result navigation preserves the calculation');
+    assert.equal(afterResultNavigation.dirty, beforeResultNavigation.dirty, 'result navigation does not mark the estimate changed');
+    await mobilePage.getByText('Calculate potential value', { exact: true }).click();
+    await mobilePage.locator('#f_team_time').fill('40');
+    await mobilePage.locator('#f_blended_hourly_cost').fill('30');
+    await mobilePage.locator('#f_software_replaced_portion').selectOption('none');
+    await mobilePage.locator('#f_incremental_software_cost').fill('50');
+    await mobilePage.locator('#section-picker').selectOption('7');
+    await mobilePage.locator('#f_responsibility_split').selectOption('client');
+    await mobilePage.locator('.check input').check();
+    await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
+    await mobilePage.waitForFunction(() => !globalThis.AOCJourney.getState().dirty && globalThis.AOCJourney.getState().result?.net === 910);
+    assert.equal(await mobileMetric('Capacity value').textContent(), '$960', 'provided time and hourly cost calculate capacity value');
+    assert.equal(await mobileMetric('Recurring cash savings').textContent(), '$0', 'confirmed no eliminated costs shows zero rather than a missing label');
+    assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), '$50', 'known ongoing costs display even while project quote details are missing');
+    assert.equal(await mobileMetric('Net monthly economic benefit').textContent(), '$910');
+    assert.equal(await mobilePage.getByRole('button', { name: 'Review time & costs', exact: true }).count(), 0, 'complete value inputs no longer prompt the client to add them');
+    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /AOC will confirm:/, 'quote requirements remain visible without repeating optional input prompts');
+    assert.doesNotMatch(await mobilePage.locator('.result-incomplete').textContent(), /support fee/, 'client-operated results do not suggest a missing AOC support fee');
+    if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-known-value-mobile-390.png') });
+    const knownValueResult = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result);
+    assert.equal(knownValueResult.build, partialBuild, 'time and cost inputs do not change the scope build estimate');
+    assert.equal(knownValueResult.audit, null, 'known ROI inputs do not invent an audit quote');
+    assert.equal(knownValueResult.payback, null, 'unknown project and credit details still prevent a supported payback');
+
+    await mobilePage.locator('#section-picker').selectOption('6');
+    await mobilePage.getByText('Calculate potential value', { exact: true }).click();
+    await mobilePage.locator('#f_team_time').fill('');
+    await mobilePage.locator('#section-picker').selectOption('7');
+    await mobilePage.locator('.check input').check();
+    await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
+    await mobilePage.waitForFunction(() => !globalThis.AOCJourney.getState().dirty && globalThis.AOCJourney.getState().result?.capacity === null);
+    assert.equal(await mobileMetric('Capacity value').textContent(), 'Needs details', 'clearing a source input removes its old calculated value');
+    assert.equal(await mobileMetric('Net monthly economic benefit').textContent(), 'Needs details');
+    assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), '$50', 'clearing hours preserves independent known costs');
+    assert.doesNotMatch(await mobilePage.locator('#result').textContent(), /Not yet calculated/i);
     assert.equal(
       await mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       true,
@@ -891,7 +962,7 @@ const server = http.createServer((request, response) => {
     } finally { await performancePage.close(); }
 
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
-    console.log('PASS: React desktop and complete mobile browser journeys, local AOC favicon, reset confirmation/cancellation/late AI protection, conditional fields, scope preservation, server/local calculation paths, fixture totals, stale recalculation, protected area changes, and mobile overflow.');
+    console.log('PASS: React desktop and complete mobile browser journeys, local AOC favicon, reset confirmation/cancellation/late AI protection, conditional fields, scope preservation, server/local calculation paths, fixture totals, completed partial-result guidance, known/cleared value inputs, stale recalculation, protected area changes, and mobile overflow.');
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

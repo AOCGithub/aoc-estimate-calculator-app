@@ -5,6 +5,7 @@ async function journeyAPI(request,env,url){
  if(env.AOC_AI_ORGANIZER_ENABLED!=='true'||!env.OPENAI_API_KEY)return json({localFallback:true,mode:'local'},200);
  if(Number(request.headers.get('content-length')||0)>50000)return json({error:'Please shorten the description.'},413);
  let body;try{const raw=await request.text();if(raw.length>30000)throw Error();body=JSON.parse(raw);}catch{return json({error:'Could not read the request.'},400);}
+ if(!body||typeof body!=='object'||Array.isArray(body))return json({error:'Send a JSON object.'},400);
  if(!AOCBank.areas.some(a=>a.id===body.area)||typeof body.text!=='string'||body.text.trim().length<30||body.text.length>18000)return json({error:'Choose an area and describe the process in 30–18,000 characters.'},400);
  const id='journey:'+(request.headers.get('oai-authenticated-user-id')||'public-pilot'),now=Date.now();for(const [k,v]of buckets)if(now-v.start>3600000)buckets.delete(k);const bucket=buckets.get(id)||{start:now,count:0};if(bucket.count>=30)return json({error:'Analysis limit reached for this preview. Use editable fields or try later.'},429);bucket.count++;buckets.set(id,bucket);
  try{

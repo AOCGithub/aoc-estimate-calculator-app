@@ -63,8 +63,15 @@ footer { display: flex; justify-content: space-between; gap: 15px; margin-top: 3
 .result-cost-summary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 0; }
 .result-cost-summary dt { color: var(--muted); }
 .result-cost-summary dt small { font-size: 9px; }
-.result-cost-summary dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.result-cost-summary dd { margin: 0; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
 .result-stale { margin: 0; padding: 10px 20px; background: #fff8e8; color: #8c622f; font-size: 11px; }
+.result-incomplete { margin: 16px 20px 0; padding: 14px; border: 1px solid var(--line); border-radius: 7px; background: #f9fbf6; color: var(--muted); font-size: 11px; line-height: 1.75; }
+.result-incomplete h4 { margin: 0 0 8px; color: var(--ink); font-size: 12px; font-weight: 500; }
+.result-incomplete p { margin: 0; font-size: 11px; }
+.result-incomplete > :not(h4) + p { margin-top: 12px; }
+.result-incomplete strong { color: var(--ink); font-weight: 500; }
+.result-edit { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-top: 4px; padding: 4px 0; border: 0; background: transparent; color: var(--teal); font-size: 11px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.result-edit .ui-icon { width: 12px; height: 12px; }
 .result-highlights { display: grid; grid-template-columns: 1fr 1fr; padding: 20px 0; margin: 0 20px; border-bottom: 1px solid var(--line); }
 .result-highlight { min-width: 0; padding: 0 12px; }
 .result-highlight:first-child { padding-left: 0; border-right: 1px solid var(--line); }

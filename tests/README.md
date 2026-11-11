@@ -24,10 +24,10 @@ Build first with `npm run build:worker` when running focused checks against gene
 - `npm run test:access`: entry, session and estimate-record checks.
 - `npm run test:recaptcha`: v2/v3 server verification, version/hostname/expiry/replay guards, v3 action/score checks, no writes before verification, profile bypass protection and desktop/mobile checkbox/entry/retry/saving journeys with synthetic providers.
 - `npm run test:profiles`: offline profile protocol and mocked production storage.
-- `npm run test:access-ui`: current entry form and consent journeys.
+- `npm run test:access-ui`: entry/consent journeys, deferred calculator loading, download failures/reload, logout privacy and re-entry.
 - `npm run test:ui`: calculator journeys, editable/relevant fields, validation, calculation, stale results, download and desktop/mobile layouts.
 - `npm run test:live-voice`: voice/correction logic and simulated browser journeys, including Undo, punctuation, ambiguous words, silence, device errors and delayed responses.
-- `npm run test:worker`, `test:intake`, `test:vercel`, `test:local-api`: server/deployment adapter checks.
+- `npm run test:worker`, `test:intake`, `test:vercel`, `test:local-api`: server/deployment adapter and non-object JSON checks. Local-API checks also verify deferred data loading and private-file protection using an isolated Vite server with synthetic files; real environment files are never probed.
 - `npm run test:local-pricing`: isolated sample support-pricing checks; never publishes sample prices.
 
 For the additional profile/company-fact browser journeys, start `npm run dev:profiles` and run `npm run test:profiles:ui` in another terminal. Set `AOC_PROFILE_TEST_URL` to use another local port. `npm run test:ui:capture` saves screenshots in ignored `artifacts/`.

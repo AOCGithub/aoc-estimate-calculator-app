@@ -1,10 +1,54 @@
 # Production Test Results
 
 Date: 21 October 2026
-Last updated: 10 November 2026
+Last updated: 11 November 2026
 Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
+
+## Explicit zero implementation quote correction - 11 November 2026 (not deployed)
+
+The current workbook (modified 5 November) allows nonnegative itemized quote components in `Audit & Project Quote!B20`. The source check reproduced an app-only positive-implementation restriction. Removed that restriction from shared request validation and project-total calculation; unknown components still prevent a complete quote. Added a short reminder to enter zero only when AOC explicitly quoted it.
+
+- The regression failed before the fix and passed afterward. Coverage includes numeric/string zero, blank or missing preparation/implementation amounts, invalid/negative values, explicit zero totals and the existing excess-credit hold.
+- Full `npm test` passed after the correction: pricing/document rules, 10,000 payment splits, 144 independent quote/ROI cases, access/profiles, saving choices, CAPTCHA, Node/Worker APIs, simulated AI/voice, desktop/mobile calculator journeys and artifact validation. Grounded AI-prefill validation preserves an explicit zero quote.
+- The current-source audit passed 104 checks after the fix, including 96 scope/component combinations across all 12 areas. The two recorded workbook-test limitations remain separate: its draft-build investment/payback comparison and combined-versus-incremental fee reference. The app retains the written accepted-quote and incremental-ROI rules.
+- Restarted the verified local preview to clear cached API code. Actual local entry and server calculations passed with both saving choices unchecked: numeric/text zero produce the quoted total, clearing restores an unknown quote and pending payback, and recording is skipped. No runtime errors or paid requests occurred.
+
+No new prices, pricing coefficients, database schema, source-workbook edits, production data writes, push or deployment were made. Paid AI/voice providers were simulated in the regression suite.
+
+## Completed-result availability labels - 11 November 2026 (not deployed)
+
+Reproduced the misleading "Not yet calculated" label after a successful calculation with required scope answers but incomplete optional costs/quotes. The local UI now distinguishes missing details, AOC quotes and audit-credit details. The summary uses simpler wording, describes optional client inputs separately from missing details AOC must confirm, and links to the existing time/cost section. All supporting metrics and the full outstanding-details list remain expandable; errors stay open. No calculation rules, required inputs, downloadable data or prices changed.
+
+- Desktop/mobile calculator regression and pricing/document-rule tests passed. The new browser checks cover missing optional inputs, navigation without changing answers/results, adding inputs, confirmed zero savings and clearing a previously answered input; independent known amounts remain displayed. Once time/cost inputs are complete, only the relevant AOC confirmation prompt remains.
+- A manually mapped paid-advertising sample produced a provisional $7,400 build, $960 monthly capacity value, $50 ongoing costs and $910 net monthly benefit. Missing audit/project quotes and credit details correctly leave payment/payback figures unknown. This checks the calculator inputs, not a new real-provider AI-prefill call.
+- Final full `npm test` passed after the readability update: production build, access/profiles and saving choices, CAPTCHA, pricing/document rules, Node/Worker APIs, simulated AI/voice, complete desktop/mobile journeys and artifact validation. Pricing/rule data and database schema are unchanged. No paid AI calls, production database writes, push or deployment were made for this correction.
+
+## Overall local retest and fixes — 11 November 2026 (not deployed)
+
+A fresh overall run found and fixed an unhandled non-object JSON input case in Node/Worker analysis handlers and patched the Vite development-server dependency to 6.4.6. Normal calculator behavior and pricing rules were preserved.
+
+Passed after the fixes:
+
+- Full `npm test`: build, input validation, access/profiles, v2/v3 CAPTCHA, pricing/document rules, simulated AI/voice, complete desktop/mobile calculator journeys and artifact validation.
+- All 140 JavaScript syntax/import checks; final dependency audit: zero known vulnerabilities. The security patch left browser assets byte-identical.
+- Actual Supabase ownership, concurrent-update, expiry and deletion checks; production-build profile/company-fact journeys and all eight desktop/mobile saving-choice cases. Synthetic records were removed, including four submissions and four estimates from the saving-choice cases.
+- Offline browser journeys through the patched Vite preview and 138 established normal API comparisons against the production commit. The new HTTP 400 response for non-object JSON is an intentional correction.
+- Refreshed port 5173 preview: entry, 12 areas, expected server calculation with recording off, logout and private-state clearing.
+
+Production was not redeployed or reconfigured. AI/voice providers were simulated; physical devices/microphones and a fresh live human-CAPTCHA journey were not tested. Details: [overall findings](history/CODE-PERFORMANCE-REVIEW-2026-11-11.md#fresh-overall-regression-and-fixes).
+
+## Refactored local build compared with production — 11 November 2026 (not deployed)
+
+Production remains Ready at commit `4d841dd3fdcc7e4d5e9b522e9c7f103295e56093`. The local refactor has not been published.
+
+- Nine deployed rule/validation files match local. All 138 original/refactored API comparisons matched, including 12-area workflow/agent estimates, ROI, changing/clearing answers, validation and simulated AI/voice contracts.
+- The same complete desktop/mobile calculator journeys passed against the downloaded deployed bundle and the refactored build with synthetic local API responses.
+- Actual Supabase profile/company-fact journeys and all eight desktop/mobile saving-choice cases passed on the local production build. Four synthetic submissions, four estimates and the tests' owned profiles were removed; existing records were preserved.
+- Actual live entry checks passed at 1440px, 390px and 320px: required fields, unchecked saving defaults, visible v2, unchecked-CAPTCHA blocking, preserved input and no overflow/runtime errors. No live form submissions were made by this check.
+
+No unintended functional differences were found. AI/voice responses were simulated, with no paid requests or physical microphone test. Normal localhost CAPTCHA configuration still differs intentionally from production. These results do not claim a new complete live entry through Google's image challenge. Details: [code/performance review](history/CODE-PERFORMANCE-REVIEW-2026-11-11.md).
 
 ## Visible v2 checkbox - 10 November 2026 (deployed)
 

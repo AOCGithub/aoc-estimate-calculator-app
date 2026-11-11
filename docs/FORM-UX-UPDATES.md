@@ -1,6 +1,6 @@
 # Form UX Updates
 
-Last updated: 10 November 2026
+Last updated: 11 November 2026
 Status: reCAPTCHA entry protection, the folder reorganization and a management-evidence AI-prefill correction were deployed and verified on 10 November 2026. The existing calculation rules and optional saving choices remain active. See the production test results for release evidence.
 
 ## Purpose
@@ -8,6 +8,30 @@ Status: reCAPTCHA entry protection, the folder reorganization and a management-e
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Explicit zero implementation quotes - 11 November 2026 (local)
+
+- Aligned the shared calculation API and project-total logic with `Audit & Project Quote!B20`: an explicitly AOC-quoted $0 implementation component is valid. Blank components remain unknown; negative/invalid inputs and the existing audit-credit safeguards remain protected.
+- Added quote-field guidance and regression checks for numeric/text zero, clearing, missing components, zero totals, excess credit, grounded prefill, Node/Worker APIs and the browser result. The full `npm test` suite and the refreshed port 5173 no-save check passed. No pricing coefficients, source workbook or production settings changed; this fix is not deployed.
+
+### Completed estimate labels - 11 November 2026 (local)
+
+- Fixed completed results that misleadingly showed missing amounts as "Not yet calculated." Missing value inputs now say "Needs details"; missing audit/project quotes and audit-credit details have distinct labels.
+- Simplified the overview wording and added short next steps that separate details the client can add from missing prices/credit details AOC must confirm. A direct button opens the existing time/cost section. The full outstanding-details list stays expandable; calculation errors remain expanded. All metrics, warnings and downloaded data are retained.
+- Verified desktop/mobile results, navigation without changing answers/results, adding and clearing value inputs, known zero amounts, and existing pricing/document rules. The final full `npm test` suite passed after these updates. Required fields and pricing rules are unchanged; unknown amounts are not treated as zero. These changes are local and not deployed.
+
+### Overall checks and fixes — 11 November 2026 (local)
+
+- Fixed non-object JSON handling so the organizer and retained intake APIs return a validation error instead of throwing for `null`; matching Node/Worker regressions cover other primitive shapes too.
+- Patched Vite from 6.4.4 to 6.4.6 for the reported development-server advisory. The final dependency audit reports zero known vulnerabilities; browser assets were unchanged by the patch.
+- The fresh full regression suite, real Supabase ownership/concurrency/saving checks, offline profile journeys and 138 normal API comparisons passed. Synthetic data was cleaned up, and the normal local preview was refreshed on port 5173. No pricing, form fields, schema, production settings or paid AI usage changed. These fixes are not deployed.
+
+### Requested code/performance refactor — 11 November 2026 (local)
+
+- Load the calculator and its unchanged approved rules when opened, reducing initial entry-page JavaScript by 65.6% before compression in local checks. Defer heavy Node API dependencies until needed.
+- Reuse optional-question filtering and stable calculator actions, remove an unused icon list, and clear the previous estimate's in-memory bridge on logout. The full local regression suite and additional desktop/mobile profile/company-fact journeys passed, including loading-failure/retry and deferred-API checks. No pricing, fields, saving choices or database schema changes.
+- Follow-up comparison passed: 138 API cases matched the deployed version, the same desktop/mobile calculator journeys passed for both browser builds, and actual Supabase profile/recording checks passed with synthetic records cleaned up. The live form's validation, unchecked saving defaults, visible CAPTCHA and mobile layout were also checked without submitting data. AI/voice provider responses were simulated; no paid calls were made.
+- Scope, measurements and verification: [code/performance review](history/CODE-PERFORMANCE-REVIEW-2026-11-11.md). These changes are local and have not been deployed.
 
 ### Visible reCAPTCHA checkbox - 10 November 2026 (deployed)
 

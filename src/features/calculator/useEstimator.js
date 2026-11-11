@@ -699,28 +699,29 @@ export function useEstimator() {
   }, []);
 
   useEffect(() => {
-    globalThis.AOCJourney = {
+    const bridge = {
       getState: () => structuredClone(state),
       calculate: calculateEstimate,
     };
+    globalThis.AOCJourney = bridge;
+    return () => { if (globalThis.AOCJourney === bridge) delete globalThis.AOCJourney; };
   }, [state]);
 
-  return {
-    state,
-    selectedArea,
-    actions: {
-      addVisibleField,
-      calculate,
-      chooseArea,
-      goTo,
-      mark,
-      organize,
-      applyProfileFacts,
-      removeVisibleField,
-      restart,
-      setConfirmed,
-      setDescription,
-      toggleRoute,
-    },
-  };
+  const actions = useMemo(() => ({
+    addVisibleField,
+    calculate,
+    chooseArea,
+    goTo,
+    mark,
+    organize,
+    applyProfileFacts,
+    removeVisibleField,
+    restart,
+    setConfirmed,
+    setDescription,
+    toggleRoute,
+  }), [addVisibleField, calculate, chooseArea, goTo, mark, organize, applyProfileFacts,
+    removeVisibleField, restart, setConfirmed, setDescription, toggleRoute]);
+
+  return { state, selectedArea, actions };
 }

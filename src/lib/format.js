@@ -1,5 +1,5 @@
 export function money(value) {
-  if (value === null || value === undefined) return 'Not yet calculated';
+  if (value === null || value === undefined) return 'Needs details';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

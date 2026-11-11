@@ -32,6 +32,34 @@ for (const handover of ['one', 'group', 'multiple']) {
   assert.equal(calc({ handover, live_training: 'yes', live_training_fee: 300 }).build, 11800);
 }
 
+// Audit & Project Quote!B20 permits explicitly quoted zero components; blanks stay unknown.
+const zeroImplementationQuote = { preparation_fee: 1000, implementation_fee: 0, audit_fee: 250, audit_paid: 250 };
+for (const implementation_fee of [0, '0', '0.00']) {
+  const result = Calculation.calculate(request({ ...zeroImplementationQuote, implementation_fee })).result;
+  for (const [key, expected] of Object.entries({ build: 1000, buildQuoted: true, projectBalance: 750,
+    firstProjectPayment: 375, secondProjectPayment: 375, initialSpend: 1000, net: 1600, payback: .625 })) {
+    assert.equal(result[key], expected, key + ' with an explicit zero implementation component');
+  }
+}
+for (const blank of [null, undefined, '', '  ']) {
+  for (const field of ['implementation_fee', 'preparation_fee']) {
+    const result = Calculation.calculate(request({ ...zeroImplementationQuote, [field]: blank })).result;
+    assert.equal(result.buildQuoted, false, field + ' remains unknown');
+    assert.equal(result.projectBalance, null);
+    assert.equal(result.payback, null);
+  }
+}
+for (const invalid of [-1, false]) assert.throws(() => Calculation.calculate(request({ implementation_fee: invalid })));
+const zeroProject = Calculation.calculate(request({ preparation_fee: 0, implementation_fee: 0, audit_credit_used: 'yes' })).result;
+assert.equal(zeroProject.build, 0, 'all explicitly quoted zero components are retained');
+assert.equal(zeroProject.projectBalance, 0);
+assert.equal(zeroProject.firstProjectPayment, 0);
+assert.equal(zeroProject.secondProjectPayment, 0);
+const zeroOverCredit = Calculation.calculate(request({ preparation_fee: 0, implementation_fee: 0 })).result;
+assert.equal(zeroOverCredit.projectBalance, null, 'existing over-credit protection still applies');
+assert.equal(zeroOverCredit.payback, null);
+assert.ok(zeroOverCredit.pending.some(message => /credit exceeds the project price/i.test(message)));
+
 // Web Calculator Test!B63: provider replacement is limited to marketing areas 6–10.
 for (let index = 0; index < 12; index++) {
   const eligible = index >= 6 && index <= 10;

@@ -1,16 +1,9 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import Bank from '../public/approved-bank.js';
-import JourneyCalculation from '../public/journey-calculation.js';
-import JourneyContract from '../public/journey-contract.js';
-import IntakeContract from '../public/intake-contract.js';
-import CatalogData from '../public/catalog.js';
 import AccessRequests from './access/access-requests.cjs';
 import ManualAccess from './access/manual-access.cjs';
 import Recaptcha from './access/recaptcha.cjs';
 import EstimateRecords from './calculator/estimate-records.cjs';
 import Pricing from '../public/approved-pricing.js';
-import LiveVoice from './description/live-voice.cjs';
-import DescriptionCorrection from './description/description-correction.cjs';
 
 const buckets = new Map();
 const ACCESS_COOKIE = 'aoc_estimator_access';
@@ -258,12 +251,14 @@ export function handleAccessRedemption(request, environment = process.env) {
 export async function handleDescriptionCorrection(request, environment = process.env) {
   const accessError = await requireAccess(request, environment);
   if (accessError) return accessError;
+  const { default: DescriptionCorrection } = await import('./description/description-correction.cjs');
   return DescriptionCorrection.handle(request, environment);
 }
 
 export async function handleLiveVoice(request, environment = process.env) {
   const accessError = await requireAccess(request, environment);
   if (accessError) return accessError;
+  const { default: LiveVoice } = await import('./description/live-voice.cjs');
   return LiveVoice.handle(request, environment);
 }
 
@@ -292,7 +287,11 @@ async function readJson(request, maximumLength) {
   try {
     const raw = await request.text();
     if (raw.length > maximumLength) return { response: json({ error: 'The request is too large.' }, 413) };
-    return { body: JSON.parse(raw) };
+    const body = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return { response: json({ error: 'Send a JSON object.' }, 400) };
+    }
+    return { body };
   } catch {
     return { response: json({ error: 'Could not read the request.' }, 400) };
   }
@@ -307,6 +306,7 @@ export async function handleJourneyCalculation(request, environment = process.en
   const parsed = await readJson(request, 100000);
   if (parsed.response) return parsed.response;
   try {
+    const { default: JourneyCalculation } = await import('../public/journey-calculation.js');
     const calculation = JourneyCalculation.calculate(parsed.body);
     let record;
     if (EstimateRecords.enabled(environment)) {
@@ -333,6 +333,9 @@ export async function handleJourneyAnalysis(request, environment = process.env) 
   const parsed = await readJson(request, 30000);
   if (parsed.response) return parsed.response;
   const body = parsed.body;
+  const [{ default: Bank }, { default: JourneyContract }] = await Promise.all([
+    import('../public/approved-bank.js'), import('../public/journey-contract.js'),
+  ]);
   if (!Bank.areas.some(area => area.id === body.area) || typeof body.text !== 'string' || body.text.trim().length < 30 || body.text.length > 18000) {
     return json({ error: 'Choose an area and describe the process in 30-18,000 characters.' }, 400);
   }
@@ -387,6 +390,9 @@ export async function handleIntakeAnalysis(request) {
   if (parsed.response) return parsed.response;
   const body = parsed.body;
   if (typeof body.text !== 'string' || body.text.trim().length < 30 || body.text.length > 18000) return json({ error: 'Describe the process in 30-18,000 characters.' }, 400);
+  const [{ default: IntakeContract }, { default: CatalogData }] = await Promise.all([
+    import('../public/intake-contract.js'), import('../public/catalog.js'),
+  ]);
   if (body.area && !IntakeContract.enums.area.includes(body.area)) return json({ error: 'Choose a valid business area.' }, 400);
   if (body.service && !IntakeContract.enums.service.includes(body.service)) return json({ error: 'Choose a valid service.' }, 400);
 

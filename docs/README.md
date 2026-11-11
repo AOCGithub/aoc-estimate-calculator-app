@@ -25,6 +25,7 @@ The review-mode references describe retained functionality. Verification and AOC
 
 ## Historical reviews
 
+- [11 November code/performance review](history/CODE-PERFORMANCE-REVIEW-2026-11-11.md) (local, not deployed)
 - [Original developer handoff](history/DEVELOPER-HANDOFF.md)
 - [Earlier maintainability review](history/MAINTAINABILITY-REVIEW.md)
 - [4 November system audit](history/SYSTEM-AUDIT-2026-11-04.md)

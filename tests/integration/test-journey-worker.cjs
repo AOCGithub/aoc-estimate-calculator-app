@@ -92,6 +92,17 @@ vm.runInContext(code, context);
   }), {});
   assert.equal(response.status, 503);
 
+  for (const route of ['journey/analyze', 'intake/analyze', 'journey/calculate']) {
+    for (const value of [null, [], 123, true, 'unexpected text']) {
+      response = await context.worker.fetch(new Request('https://demo.test/api/' + route, {
+        method: 'POST', headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
+        body: JSON.stringify(value),
+      }), { OPENAI_API_KEY: 'synthetic-boundary-only', AOC_AI_ORGANIZER_ENABLED: 'true' });
+      assert.equal(response.status, 400, route + ' rejects non-object JSON without an unhandled exception');
+      assert.equal(typeof (await response.json()).error, 'string');
+    }
+  }
+
   response = await context.worker.fetch(new Request('https://demo.test/api/journey/analyze', {
     method: 'POST',
     headers: { origin: 'https://evil.test', 'content-type': 'application/json' },
@@ -151,6 +162,19 @@ vm.runInContext(code, context);
   assert.equal(calculated.result.build, 11500, 'the supplied fixed quote is preserved');
   assert.equal(calculated.result.audit, 1250);
   assert.equal(calculated.result.monthly, 0);
+  for (const implementationFee of [0, '']) {
+    response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
+      method: 'POST', headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
+      body: JSON.stringify({ ...calculation, answers: { ...calculation.answers, preparation_fee: 2000, implementation_fee: implementationFee } }),
+    }), {});
+    assert.equal(response.status, 200, 'zero and unknown quote components are both valid inputs');
+    const quoted = (await response.json()).result;
+    assert.equal(quoted.buildQuoted, implementationFee === 0);
+    assert.equal(quoted.projectBalance, implementationFee === 0 ? 750 : null);
+    assert.equal(quoted.firstProjectPayment, implementationFee === 0 ? 375 : null);
+    assert.equal(quoted.secondProjectPayment, implementationFee === 0 ? 375 : null);
+    assert.equal(quoted.payback, implementationFee === 0 ? 1.25 : null);
+  }
 
   const invalidCalculation = structuredClone(calculation);
   invalidCalculation.answers.legacy_system_check = 'INVALID';

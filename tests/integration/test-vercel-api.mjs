@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import calculationRoute from '../../api/journey/calculate.mjs';
 import analysisRoute from '../../api/journey/analyze.mjs';
 import intakeStatusRoute from '../../api/intake/status.mjs';
+import intakeAnalysisRoute from '../../api/intake/analyze.mjs';
 import intakeTranscriptionRoute from '../../api/intake/transcribe.mjs';
 import commercialFixture from '../fixtures/commercial.cjs';
 
@@ -57,6 +58,19 @@ try {
   assert.equal(result.result.audit, 1250);
   assert.equal(result.result.monthly, null,'unapproved project-support price stays pending');
   assert.equal(result.version, '2026-10-29-fixed-project-v1');
+  for (const implementationFee of [0, '']) {
+    response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {
+      method: 'POST', headers: { origin, 'content-type': 'application/json' },
+      body: JSON.stringify({ ...calculation, answers: { ...calculation.answers, preparation_fee: 2000, implementation_fee: implementationFee, responsibility_split: 'client' } }),
+    }));
+    assert.equal(response.status, 200, 'zero and unknown quote components are both valid inputs');
+    const quoted = (await response.json()).result;
+    assert.equal(quoted.buildQuoted, implementationFee === 0);
+    assert.equal(quoted.projectBalance, implementationFee === 0 ? 750 : null);
+    assert.equal(quoted.firstProjectPayment, implementationFee === 0 ? 375 : null);
+    assert.equal(quoted.secondProjectPayment, implementationFee === 0 ? 375 : null);
+    assert.equal(quoted.payback, implementationFee === 0 ? 1.25 : null);
+  }
   const monthlyRequest = { ...calculation, answers: { ...calculation.answers, implementation_route:'monthly', audit_accepted_route:'monthly', delivery_intent:'ongoing', monthly_plan:'level2', comparison_months:12, benefit_months:6 } };
   response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(monthlyRequest)}));
   assert.equal(response.status,400, 'deferred monthly programs cannot be priced by the launch API');
@@ -95,6 +109,15 @@ try {
 
   process.env.OPENAI_API_KEY = 'test-placeholder-not-real';
   process.env.AOC_AI_ORGANIZER_ENABLED = 'true';
+  for (const [route, name] of [[analysisRoute, 'journey/analyze'], [intakeAnalysisRoute, 'intake/analyze'], [calculationRoute, 'journey/calculate']]) {
+    for (const value of [null, [], 123, true, 'unexpected text']) {
+      const invalid = await route.fetch(new Request(`${origin}/api/${name}`, {
+        method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(value),
+      }));
+      assert.equal(invalid.status, 400, name + ' rejects non-object JSON without an unhandled exception');
+      assert.equal(typeof (await invalid.json()).error, 'string');
+    }
+  }
   const output = {
     title: 'Invoice preparation',
     summary: 'Monthly invoice preparation',

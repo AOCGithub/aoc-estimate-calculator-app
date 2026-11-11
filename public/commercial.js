@@ -93,7 +93,7 @@
     if (credit.amount === null) review.push(credit.reason);
     const prep = number(input.preparation_fee), implementation = number(input.implementation_fee);
     const training = input.live_training === 'no' ? 0 : input.live_training === 'yes' ? number(input.live_training_fee) : null;
-    const quotedBuild = prep !== null && implementation !== null && implementation > 0 && training !== null ? round(prep + implementation + training) : null;
+    const quotedBuild = prep !== null && implementation !== null && training !== null ? round(prep + implementation + training) : null;
     const planFee = route === 'monthly' ? rules.monthlyPlans[input.monthly_plan] ?? null : null;
     const hours = number(input.agreed_monthly_hours), blend = number(input.agreed_agency_blend);
     let monthly = route === 'monthly' ? planFee : route === 'project'

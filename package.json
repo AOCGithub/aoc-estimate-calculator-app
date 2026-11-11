@@ -25,13 +25,13 @@
     "test:worker": "node tests/integration/test-journey-worker.cjs",
     "test:intake": "node tests/integration/test-voice-server.cjs",
     "test:vercel": "node tests/integration/test-vercel-api.mjs",
-    "test:local-api": "node tests/integration/test-local-api.mjs",
+    "test:local-api": "node tests/integration/test-local-api.mjs && node tests/integration/test-deferred-api.mjs && node tests/integration/test-dev-file-access.mjs",
     "test:live-voice": "node tests/unit/test-live-voice.mjs && node tests/unit/test-description-correction.mjs && node tests/browser/test-live-voice-ui.cjs",
     "test:access": "node tests/unit/test-access.mjs && node tests/unit/test-access-requests.mjs && node tests/unit/test-manual-access.mjs && node tests/unit/test-intake-access.mjs && node tests/unit/test-estimate-records.mjs",
     "test:manual-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/database/test-manual-access-database-ui.mjs",
     "test:intake-access:db": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/database/test-intake-access-database-ui.mjs",
     "test:gate-saving:live": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/database/test-gate-saving-choices.mjs --live",
-    "test:access-ui": "node tests/browser/test-access-ui.cjs",
+    "test:access-ui": "node tests/browser/test-access-ui.cjs && node tests/browser/test-loading-ui.mjs",
     "test:profiles": "node tests/unit/test-client-profiles.mjs && node tests/unit/test-production-profiles.mjs",
     "test:recaptcha": "node tests/unit/test-recaptcha.mjs && node tests/browser/test-recaptcha-ui.mjs && node tests/browser/test-recaptcha-ui.mjs --v2",
     "test:profiles:ui": "node tests/browser/test-client-profiles-ui.cjs && node tests/browser/test-company-profile-ui.cjs",
@@ -53,6 +53,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "playwright-core": "^1.64.1",
     "postgres": "3.4.9",
-    "vite": "^6.1.0"
+    "vite": "^6.4.6"
   }
 }
