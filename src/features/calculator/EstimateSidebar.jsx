@@ -74,9 +74,9 @@ function Result({ state, area, onNavigate }) {
     </dl>
     <div className="result-highlights">
       <div className="result-highlight">
-        <span>Net monthly benefit</span>
+        <span>Estimated monthly value after costs</span>
         <strong>{result.net === null ? 'Needs value details' : money(result.net)}</strong>
-        <small>Time value + cash savings − costs</small>
+        <small>Includes the value of staff time freed. Cash savings are shown separately.</small>
       </div>
       <div className="result-highlight">
         <span>{monthlyProgram ? 'Comparison period' : 'Illustrative payback'}</span>

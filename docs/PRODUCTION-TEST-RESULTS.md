@@ -6,6 +6,12 @@ Scope: Production calculator, entry and optional saved-data verification
 
 Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
 
+## Monthly value wording - 11 November 2026
+
+Changed the summary label to **Estimated monthly value after costs**, with a note that staff-time value is included and cash savings are shown separately. Kept the amount aligned with payback when the longer label wraps. This is a presentation change; formulas, pricing coefficients, fields and downloaded result values are unchanged.
+
+The production build, packaged artifact validation, existing desktop/mobile browser journeys and pricing/document-rule tests passed after the update. This wording check does not claim a new complete live journey through Google's human CAPTCHA.
+
 ## Production release - 11 November 2026
 
 Published [application commit 39f004e](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/39f004e4e7209a5d3e8aef7b3acd3103aa06e69b) to [the AOC estimator](https://estimate.alwaysopencommerce.com/). Vercel deployment `dpl_EpRHs3y31wUj3DEwFAb165bSUShM` reached **Ready**, and the AOC domain serves its new browser assets and calculation files. This release includes the tested loading/API refactor, clearer result explanations, explicit zero-quote correction, JSON validation fix and Vite patch. The earlier local-only notes below describe the checks before publication.
@@ -17,7 +23,7 @@ Passed:
 - Live entry required-field blocking/correction, independent unchecked saving defaults and settled responsive layout at 1440px, 390px and 320px.
 - The exact published browser build also passed the complete desktop/mobile calculator regression when replayed locally with synthetic API responses. This is separate from a successful live gated journey or a real-provider check.
 
-**Still pending in this release check:** Google presented an image challenge in the isolated Chrome test window. The actual live entry, real AI prefill, saved test records and post-entry calculator journey are waiting for human CAPTCHA completion. They are not marked passed by the checks above. Production CAPTCHA was not disabled or bypassed. At this checkpoint, the waiting journey had made no paid AI requests or database submissions.
+**Still pending in this release check:** Google presented an image challenge in the isolated Chrome test window. That attempt timed out without human completion; it made no paid AI requests or database submissions, and cleanup confirmed no test records were created. Actual live entry, real AI prefill, saved test records and the post-entry calculator journey are not marked passed by the checks above. A new complete live attempt requires human CAPTCHA completion. Production CAPTCHA was not disabled or bypassed.
 
 The source workbook, production settings and database schema were not changed. Test artifacts and private environment files were excluded from Git; the unrelated pre-existing maintenance-guide edit was preserved locally.
 

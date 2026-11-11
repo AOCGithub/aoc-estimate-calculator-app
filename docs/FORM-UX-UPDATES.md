@@ -1,13 +1,18 @@
 # Form UX Updates
 
 Last updated: 11 November 2026
-Status: the loading/refactor work, clearer result explanations, documented zero-implementation-quote correction and defensive fixes were deployed on 11 November 2026. The full local suite, live asset/security checks and a local replay of the published browser build passed. A fresh complete live gated journey is waiting for human CAPTCHA completion; see the production test results for the exact verification scope. The existing pricing coefficients and optional saving choices remain active.
+Status: the loading/refactor work, clearer result explanations, documented zero-implementation-quote correction and defensive fixes were deployed on 11 November 2026. The full local suite, live asset/security checks and a local replay of the published browser build passed. A fresh complete live gated journey still requires human CAPTCHA completion; see the production test results for the exact verification scope. The existing pricing coefficients and optional saving choices remain active.
 
 ## Purpose
 
 This note records the recent prospect-facing form improvements so future work can build on them without restoring unnecessary fields or changing pricing behavior by accident.
 
 ## Completed changes
+
+### Monthly value explanation - 11 November 2026
+
+- Renamed the summary's "Net monthly benefit" to "Estimated monthly value after costs" and explained that it includes the value of staff time freed, with cash savings shown separately. Kept the two summary values aligned when the label wraps.
+- Existing desktop/mobile browser journeys, pricing/document-rule tests and build validation passed. Calculation formulas, inputs and downloadable result values are unchanged.
 
 ### Explicit zero implementation quotes - 11 November 2026 (local)
 
