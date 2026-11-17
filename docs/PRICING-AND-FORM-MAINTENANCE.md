@@ -6,7 +6,7 @@ Apply the approved source changes, test the affected forms and calculations, the
 
 ## Current source baseline
 
-The sources were rechecked on 11 November: the framework and agreement remain modified on 29 October; the workbook was modified on 5 November. The active commercial direction remains the 28-29 October baseline. Its fixed-price launch decision supersedes the older monthly-build instructions: fixed-price builds are active; monthly build subscriptions and their hour allowances are deferred. Optional monthly management stays separate, with missing prices left unknown. Reusable training is included; separately purchased live training uses its accepted quote. Clients own and pay for their Make accounts directly.
+The sources were rechecked on 17 November: the framework and agreement remain modified on 29 October; the workbook was modified on 5 November. Current pricing values and formulas were read again for the detailed calculation audit. The active commercial direction remains the 28-29 October baseline. Its fixed-price launch decision supersedes the older monthly-build instructions: fixed-price builds are active; monthly build subscriptions and their hour allowances are deferred. Optional monthly management stays separate, with missing prices left unknown. Reusable training is included; separately purchased live training uses its accepted quote. Clients own and pay for their Make accounts directly.
 
 The production AOC hostname and organizer are active. Production browser verification and publication records must still be refreshed whenever the commercial rules or form change.
 
@@ -41,8 +41,10 @@ The deployed implementation uses a separately quoted fixed audit, one eligible c
 
 Quote components accept explicitly quoted zero amounts; blank means unknown. For comparison, `Web Calculator Test!B59,B68,B71` still need reconciliation with the written incremental-cost and accepted-quote rules. The app follows those written rules rather than adding retained unrelated costs to ROI or replacing an accepted quote with a draft estimate.
 
+The 17 November audit also reproduced a missing-answer difference: with an expired audit window but unknown acceptance/first-payment dates, `Audit & Project Quote!B11:B12` stays pending while the app sets the credit to $0. That behavior needs targeted review/correction and retesting; it was not changed during the audit. See the [detailed calculation verification](history/CALCULATION-VERIFICATION-2026-11-17.md) for exact inputs and expected/actual payments. The passing ordinary calculations do not establish full parity for this incomplete-record case.
+
 Unknown fees, credit eligibility and existing-agreement changes stay pending. Provider savings apply only to marketing areas 6–10; app savings apply where relevant. Partial replacement requires both the current total and the eliminated amount. Missing figures leave net ROI/payback unknown; savings cannot exceed current costs. The 18 and 21 October models remain historical regression coverage.
 
-Publishing and deployed-version verification are separate steps. The tested corrections and refactor were published on 11 November in commit `39f004e`; monthly-value wording was published and verified in commit `2a423f6`. The [production test results](PRODUCTION-TEST-RESULTS.md) distinguish that release, later manual feedback, historical pre-release tests and the verification still outstanding. Source comparisons remain dated 11 November; a later workbook edit requires review of the affected rules.
+Publishing and deployed-version verification are separate steps. The tested corrections and refactor were published on 11 November in commit `39f004e`; monthly-value wording was published and verified in commit `2a423f6`. The [production test results](PRODUCTION-TEST-RESULTS.md) distinguish that release, later manual feedback, historical pre-release tests and the verification still outstanding. The latest source/calculation comparison is dated 17 November; a later workbook edit requires review of the affected rules.
 
 For developer setup and further technical details, see the [README](../README.md).

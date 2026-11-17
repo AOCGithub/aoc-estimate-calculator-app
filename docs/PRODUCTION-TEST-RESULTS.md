@@ -14,6 +14,17 @@ The dated entries below retain the test history. Entries labelled **pre-release 
 
 This documentation update records existing evidence and the later reports below. It does not introduce calculator changes or repeat completed checks.
 
+## Fresh calculation verification - 17 November 2026
+
+The user subsequently requested a new detailed calculation audit. Current workbook values/formulas and the written framework/agreement were read again; their modification dates are unchanged. This fresh audit is separate from the earlier documentation-only update.
+
+- 45 configured coefficients matched; 960 scope/build combinations, 21 component-boundary cases and eight invalid-classification cases passed against both local and freshly downloaded website calculation modules.
+- Established pricing regressions passed on both sets of modules, including 144 independent quote/ROI scenarios and 10,000 payment-rounding cases. Fourteen explicit commercial samples and the 104-check current-source audit also passed. These suites overlap and are not a count of unique live customer journeys.
+- All seven public calculation/validation files matched the tested local source byte for byte. Vercel/Worker integration checks passed locally. A fresh authenticated live API comparison was not run because human CAPTCHA completion was unavailable; the browser was closed before entry.
+- The two previously recorded workbook test-reference differences were reproduced. **An additional missing-answer difference was found:** when the audit window has expired but acceptance/first-payment dates are unprovided, `Audit & Project Quote!B11:B12` keeps the credit pending, while the app assumes $0 and computes full project payments. This requires targeted follow-up before claiming parity for incomplete historical records.
+
+No application logic, prices, workbook cells, database records or paid AI calls were changed/created for this audit. See the [detailed calculation report](history/CALCULATION-VERIFICATION-2026-11-17.md) for source cells, inputs, expected/actual amounts, all three differences and limits; the [960-case CSV](history/CALCULATION-SCOPE-CASES-2026-11-17.csv) contains the full scope comparison.
+
 ## Existing pricing and scope evidence - checked 11 November 2026
 
 The comparison used the [pricing workbook](https://docs.google.com/spreadsheets/d/1vUDbKYWQPTaVIvJEYGzY5pVDCt0n369Ywel0tPk9M7s/edit), [pricing framework](https://docs.google.com/document/d/1okDUVm5wE4MrPiFANlvQIrCJ1sC8omfXCssy37WqCdw/edit) and [agreement](https://docs.google.com/document/d/15BxB-yzw8U1oP_1B2cpJu2EUgh3P8rnqKT5_ZqdT3dA/edit) reviewed on 11 November. The workbook's recorded modification date was 5 November; this is not a fresh comparison with any later edits.
@@ -39,8 +50,10 @@ All four app tables, their foreign keys, RLS and server/browser permissions rema
 
 ## Outstanding verification and release steps
 
-- Confirm whether the workbook has changed since the 11 November comparison. Compare and retest only affected rules if it has; do not rerun completed checks without a relevant change.
+- Resolve and retest the incomplete historical audit-date behavior identified on 17 November: unknown eligibility in the worksheet versus an assumed expired/$0 credit in the app.
 - Reconcile the two workbook test-reference differences above before claiming complete workbook formula parity.
+- The source versions and pricing comparison were refreshed on 17 November. After any later source change, compare and retest only affected rules; do not repeat completed checks without a relevant change.
+- An authenticated live calculation API comparison was not run in the 17 November audit because human CAPTCHA completion was unavailable. The published calculation modules and local API checks passed; keep those distinct from a live server test.
 - Record the remaining real-provider AI-prefill and optional saved-data acceptance checks for the latest release. The manager's reported CAPTCHA/main-flow check does not cover those paths; earlier live AI/saving results remain dated evidence below.
 - Record physical-phone/microphone acceptance where required for handoff. Browser viewport checks and synthetic audio are already recorded and do not establish that coverage.
 - Confirm the AOC website link/button placement, then test the website-to-calculator entry journey and complete the handoff notes. Link placement remains separate from the deployed calculator.
