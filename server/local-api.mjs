@@ -17,7 +17,15 @@ const routes = {
   '/api/client-profile': handleClientProfile,
   '/api/client-profile/status': handleClientProfile,
   '/api/client-profile/cleanup': handleProfileCleanup,
+  '/api/payments/status': handlePayments,
+  '/api/payments/checkout': handlePayments,
+  '/api/payments/webhook': handlePayments,
 };
+
+async function handlePayments(request,environment) {
+  const { handleG2Payment } = await import('./payments/stripe-handoff.mjs');
+  return handleG2Payment(request,environment);
+}
 
 // Adapt Vite's Node request to the same handlers used in Vercel. Business rules,
 // validation, sessions and provider calls live there, not in the build config.
@@ -26,7 +34,10 @@ export function localApi(environment) {
   return {
     name: 'aoc-local-api',
     configureServer(server) {
-      server.httpServer?.once('close', () => { profileStore?.then(store => store.close()); });
+      server.httpServer?.once('close', () => {
+        profileStore?.then(store => store.close());
+        import('./payments/stripe-handoff.mjs').then(module => module.closeG2Payments());
+      });
       server.middlewares.use(async (request, response, next) => {
         const pathname = request.url.split('?')[0];
         let handler = routes[pathname];

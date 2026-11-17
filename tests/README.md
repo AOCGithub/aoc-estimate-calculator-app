@@ -21,6 +21,7 @@ The current pricing checks preserve historical arithmetic as explicit regression
 Build first with `npm run build:worker` when running focused checks against generated assets.
 
 - `npm run test:domain`: calculation and document-rule checks.
+- `npm run test:g2`: local Stripe handoff checks with signed fixtures and mocked API responses, SQLite transaction/restart protection, receipt/estimate UI and mobile layouts. No real Stripe transaction or production database writes.
 - `npm run test:access`: entry, session and estimate-record checks.
 - `npm run test:recaptcha`: v2/v3 server verification, version/hostname/expiry/replay guards, v3 action/score checks, no writes before verification, profile bypass protection and desktop/mobile checkbox/entry/retry/saving journeys with synthetic providers.
 - `npm run test:profiles`: offline profile protocol and mocked production storage.

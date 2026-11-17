@@ -16,6 +16,7 @@ import { LiveContext } from '../../components/LiveContext.jsx';
 import { RestartDialog } from '../../components/RestartDialog.jsx';
 import { CompanyProfilePanel } from '../profiles/CompanyProfilePanel.jsx';
 import { Brand } from '../../components/Brand.jsx';
+import { TestPurchase } from '../payments/TestPurchase.jsx';
 
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
@@ -193,6 +194,8 @@ export default function Calculator({ access, profiles }) {
           </div>
           <EstimateSidebar state={state} area={selectedArea || { label: 'AI Commerce' }} onNavigate={actions.goTo} />
         </div>
+        {import.meta.env.VITE_AOC_STRIPE_TEST_HANDOFF_ENABLED === 'true'
+          && <TestPurchase state={state} profile={access.currentProfile} onNavigate={actions.goTo} />}
         <footer>
           <span>Always Open Commerce · USD · Estimates only</span>
           <span>{estimatorBank.version}</span>

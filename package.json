@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "npm run dev:access",
+    "dev:g2": "node scripts/dev/dev-g2.mjs",
     "dev:profiles": "node scripts/dev/dev-profiles.mjs",
     "dev:access": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-access.mjs",
     "dev:access:previous": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-access.mjs --previous",
@@ -21,6 +22,7 @@
     "build:worker": "npm run build && node scripts/build/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:domain": "node tests/unit/test-journey.cjs && node tests/unit/test-commercial.cjs && node tests/unit/test-document-rules.cjs",
+    "test:g2": "node tests/integration/test-stripe-handoff.mjs && node tests/browser/test-stripe-handoff-ui.mjs",
     "test:local-pricing": "node tests/unit/test-local-pricing.cjs && node tests/browser/test-local-pricing-ui.cjs",
     "test:worker": "node tests/integration/test-journey-worker.cjs",
     "test:intake": "node tests/integration/test-voice-server.cjs",
@@ -37,7 +39,7 @@
     "test:profiles:ui": "node tests/browser/test-client-profiles-ui.cjs && node tests/browser/test-company-profile-ui.cjs",
     "test:ui": "node tests/browser/test-react-ui.cjs",
     "test:ui:capture": "node tests/browser/test-react-ui.cjs --capture",
-    "test": "npm run build:worker && npm run test:access && npm run test:profiles && npm run test:recaptcha && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:live-voice && npm run test:ui && node scripts/build/validate-artifact.mjs",
+    "test": "npm run build:worker && npm run test:g2 && npm run test:access && npm run test:profiles && npm run test:recaptcha && npm run test:access-ui && npm run test:domain && npm run test:local-pricing && npm run test:worker && npm run test:intake && npm run test:vercel && npm run test:local-api && npm run test:live-voice && npm run test:ui && node scripts/build/validate-artifact.mjs",
     "profiles:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/client-profile-database.mjs setup",
     "profiles:db:check": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/client-profile-database.mjs check",
     "test:profiles:database": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node tests/database/test-client-profiles-database.mjs --database",
@@ -47,7 +49,8 @@
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "stripe": "23.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
