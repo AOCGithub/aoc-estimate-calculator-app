@@ -1,7 +1,7 @@
 # Form UX Updates
 
-Last updated: 11 November 2026
-Status: the loading/refactor work, clearer result explanations, documented zero-implementation-quote correction and defensive fixes were deployed on 11 November 2026. The full local suite, live asset/security checks and a local replay of the published browser build passed. A fresh complete live gated journey still requires human CAPTCHA completion; see the production test results for the exact verification scope. The existing pricing coefficients and optional saving choices remain active.
+Last updated: 17 November 2026
+Status: the loading/refactor work, clearer result explanations, documented zero-implementation-quote correction and defensive fixes were deployed on 11 November 2026. The monthly-value wording was also published and verified that day. The full local suite, live asset/security checks and a local replay of the published browser build passed. Manager feedback reported on 17 November confirms live reCAPTCHA and the main calculator flow worked and the results were clearer. See the [production test results](PRODUCTION-TEST-RESULTS.md) for the separate AI/saving and physical-device coverage still to record. The existing pricing coefficients and optional saving choices remain active. Earlier local test notes below describe work subsequently released; they are not current deployment holds.
 
 ## Purpose
 
@@ -14,29 +14,29 @@ This note records the recent prospect-facing form improvements so future work ca
 - Renamed the summary's "Net monthly benefit" to "Estimated monthly value after costs" and explained that it includes the value of staff time freed, with cash savings shown separately. Kept the two summary values aligned when the label wraps.
 - Existing desktop/mobile browser journeys, pricing/document-rule tests and build validation passed. Calculation formulas, inputs and downloadable result values are unchanged.
 
-### Explicit zero implementation quotes - 11 November 2026 (local)
+### Explicit zero implementation quotes - 11 November 2026 (deployed)
 
 - Aligned the shared calculation API and project-total logic with `Audit & Project Quote!B20`: an explicitly AOC-quoted $0 implementation component is valid. Blank components remain unknown; negative/invalid inputs and the existing audit-credit safeguards remain protected.
-- Added quote-field guidance and regression checks for numeric/text zero, clearing, missing components, zero totals, excess credit, grounded prefill, Node/Worker APIs and the browser result. The full `npm test` suite and the refreshed port 5173 no-save check passed. No pricing coefficients, source workbook or production settings changed; this fix is not deployed.
+- Added quote-field guidance and regression checks for numeric/text zero, clearing, missing components, zero totals, excess credit, grounded prefill, Node/Worker APIs and the browser result. The full `npm test` suite and the refreshed port 5173 no-save check passed before release. No pricing coefficients, source workbook or production settings changed. Published in commit `39f004e` on 11 November.
 
-### Completed estimate labels - 11 November 2026 (local)
+### Completed estimate labels - 11 November 2026 (deployed)
 
 - Fixed completed results that misleadingly showed missing amounts as "Not yet calculated." Missing value inputs now say "Needs details"; missing audit/project quotes and audit-credit details have distinct labels.
 - Simplified the overview wording and added short next steps that separate details the client can add from missing prices/credit details AOC must confirm. A direct button opens the existing time/cost section. The full outstanding-details list stays expandable; calculation errors remain expanded. All metrics, warnings and downloaded data are retained.
-- Verified desktop/mobile results, navigation without changing answers/results, adding and clearing value inputs, known zero amounts, and existing pricing/document rules. The final full `npm test` suite passed after these updates. Required fields and pricing rules are unchanged; unknown amounts are not treated as zero. These changes are local and not deployed.
+- Verified desktop/mobile results, navigation without changing answers/results, adding and clearing value inputs, known zero amounts, and existing pricing/document rules. The final full `npm test` suite passed after these updates. Required fields and pricing rules are unchanged; unknown amounts are not treated as zero. Published in commit `39f004e` on 11 November.
 
-### Overall checks and fixes — 11 November 2026 (local)
+### Overall checks and fixes — 11 November 2026 (deployed)
 
 - Fixed non-object JSON handling so the organizer and retained intake APIs return a validation error instead of throwing for `null`; matching Node/Worker regressions cover other primitive shapes too.
 - Patched Vite from 6.4.4 to 6.4.6 for the reported development-server advisory. The final dependency audit reports zero known vulnerabilities; browser assets were unchanged by the patch.
-- The fresh full regression suite, real Supabase ownership/concurrency/saving checks, offline profile journeys and 138 normal API comparisons passed. Synthetic data was cleaned up, and the normal local preview was refreshed on port 5173. No pricing, form fields, schema, production settings or paid AI usage changed. These fixes are not deployed.
+- The fresh full regression suite, real Supabase ownership/concurrency/saving checks, offline profile journeys and 138 normal API comparisons passed. Synthetic data was cleaned up, and the normal local preview was refreshed on port 5173. No pricing, form fields, schema, production settings or paid AI usage changed. Published in commit `39f004e` on 11 November.
 
-### Requested code/performance refactor — 11 November 2026 (local)
+### Requested code/performance refactor — 11 November 2026 (deployed)
 
 - Load the calculator and its unchanged approved rules when opened, reducing initial entry-page JavaScript by 65.6% before compression in local checks. Defer heavy Node API dependencies until needed.
 - Reuse optional-question filtering and stable calculator actions, remove an unused icon list, and clear the previous estimate's in-memory bridge on logout. The full local regression suite and additional desktop/mobile profile/company-fact journeys passed, including loading-failure/retry and deferred-API checks. No pricing, fields, saving choices or database schema changes.
 - Follow-up comparison passed: 138 API cases matched the deployed version, the same desktop/mobile calculator journeys passed for both browser builds, and actual Supabase profile/recording checks passed with synthetic records cleaned up. The live form's validation, unchecked saving defaults, visible CAPTCHA and mobile layout were also checked without submitting data. AI/voice provider responses were simulated; no paid calls were made.
-- Scope, measurements and verification: [code/performance review](history/CODE-PERFORMANCE-REVIEW-2026-11-11.md). These changes are local and have not been deployed.
+- Scope, measurements and verification: [code/performance review](history/CODE-PERFORMANCE-REVIEW-2026-11-11.md). Published in commit `39f004e` on 11 November; the release verification is recorded in the production test results.
 
 ### Visible reCAPTCHA checkbox - 10 November 2026 (deployed)
 

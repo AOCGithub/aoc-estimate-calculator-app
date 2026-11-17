@@ -1,6 +1,6 @@
 # Pricing and Form Maintenance
 
-Updated: 11 November 2026
+Updated: 17 November 2026
 
 Apply the approved source changes, test the affected forms and calculations, then publish the tested update.
 
@@ -37,12 +37,12 @@ For entry fields, the two independent saving choices, Supabase record lookup and
 
 ## Current pricing status
 
-The local implementation uses a separately quoted fixed audit, one eligible credit under the existing 30-day conditions, and fixed-project balance/payments. The credit is deducted once before splitting the balance into two payments; the first rounds to cents and the second reconciles the remainder. An explicitly entered project quote is preserved. Standard/Priority/Premier support prices stay unknown because the sources do not supply them. The calculator does not approve quotes, redeem credits or take payments.
+The deployed implementation uses a separately quoted fixed audit, one eligible credit under the existing 30-day conditions, and fixed-project balance/payments. The credit is deducted once before splitting the balance into two payments; the first rounds to cents and the second reconciles the remainder. An explicitly entered project quote is preserved. Standard/Priority/Premier support prices stay unknown because the sources do not supply them. The calculator does not approve quotes, redeem credits or take payments.
 
 Quote components accept explicitly quoted zero amounts; blank means unknown. For comparison, `Web Calculator Test!B59,B68,B71` still need reconciliation with the written incremental-cost and accepted-quote rules. The app follows those written rules rather than adding retained unrelated costs to ROI or replacing an accepted quote with a draft estimate.
 
 Unknown fees, credit eligibility and existing-agreement changes stay pending. Provider savings apply only to marketing areas 6–10; app savings apply where relevant. Partial replacement requires both the current total and the eliminated amount. Missing figures leave net ROI/payback unknown; savings cannot exceed current costs. The 18 and 21 October models remain historical regression coverage.
 
-Publishing and deployed-version verification are separate steps. Existing production results still describe the earlier deployment until the tested update is released.
+Publishing and deployed-version verification are separate steps. The tested corrections and refactor were published on 11 November in commit `39f004e`; monthly-value wording was published and verified in commit `2a423f6`. The [production test results](PRODUCTION-TEST-RESULTS.md) distinguish that release, later manual feedback, historical pre-release tests and the verification still outstanding. Source comparisons remain dated 11 November; a later workbook edit requires review of the affected rules.
 
 For developer setup and further technical details, see the [README](../README.md).
