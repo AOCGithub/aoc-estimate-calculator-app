@@ -16,17 +16,6 @@ export function AccessGate({ access, profiles = { enabled: false, working: false
   const [reuseConfirmed, setReuseConfirmed] = useState(false);
   const busy = access.working || profiles.working;
 
-  if (access.loading) {
-    return (
-      <div className="access-page">
-        <header className="access-header">
-          <Brand />
-        </header>
-        <main className="access-shell" aria-busy="true" aria-label="Loading calculator" />
-      </div>
-    );
-  }
-
   if (access.manualApproval) return <ManualAccessGate access={access} />;
 
   async function submit(event) {

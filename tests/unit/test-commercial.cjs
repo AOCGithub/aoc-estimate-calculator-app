@@ -46,11 +46,32 @@ const boundary = { ...base, audit_sent_date: '2026-10-01', implementation_accept
 assert.equal(Commercial.auditCredit(boundary, Rules, new Date('2026-10-31')).amount, 1250, 'day 30 inclusive');
 assert.equal(Commercial.auditCredit({ ...boundary, first_implementation_payment_date: '2026-11-01' }, Rules, new Date('2026-11-01')).amount, 0);
 assert.equal(Commercial.auditCredit({ ...boundary, implementation_acceptance_date: '2026-11-01' }, Rules, new Date('2026-11-01')).amount, 0);
-assert.equal(Commercial.auditCredit({ ...boundary, first_implementation_payment_date: null }, Rules, new Date('2026-11-01')).amount, 0);
+assert.equal(Commercial.auditCredit({ ...boundary, first_implementation_payment_date: null }, Rules, new Date('2026-11-01')).amount, null, 'passing the deadline does not fill a missing historical payment date');
+assert.equal(Commercial.auditCredit({ ...boundary, first_implementation_payment_date: '2026-11-01', implementation_acceptance_date: null }, Rules, new Date('2026-11-01')).status, 'pending');
 assert.equal(Commercial.auditCredit({ ...boundary, implementation_acceptance_date: '2026-09-30' }, Rules, new Date('2026-10-31')).amount, null);
 assert.equal(Commercial.auditCredit(boundary, Rules, new Date('2026-10-20')).amount, null, 'planned dates are not actual acceptance/payment');
 assert.equal(Commercial.date('2026-02-30'), null);
 assert.ok(Commercial.date('2024-02-29'));
+for (const dates of [
+  { implementation_acceptance_date: null, first_implementation_payment_date: null },
+  { implementation_acceptance_date: '2020-01-10', first_implementation_payment_date: null },
+  { implementation_acceptance_date: null, first_implementation_payment_date: '2020-02-01' },
+]) {
+  const result = Calculation.calculate(request(dates)).result;
+  assert.equal(result.audit, 1250);
+  assert.equal(result.build, 11500);
+  assert.equal(result.credit.status, 'pending');
+  assert.equal(result.credit.expiryDate, '2020-01-31');
+  assert.equal(result.net, 1600);
+  for (const key of ['projectBalance', 'firstProjectPayment', 'secondProjectPayment', 'initialSpend', 'yearInvestment', 'payback']) {
+    assert.equal(result[key], null, key + ' stays pending while audit credit is unknown');
+  }
+}
+const lateAudit = Calculation.calculate(request({ first_implementation_payment_date: '2020-02-01' })).result;
+assert.equal(lateAudit.credit.status, 'expired');
+assert.equal(lateAudit.credit.amount, 0);
+assert.equal(lateAudit.firstProjectPayment, 5750);
+assert.equal(lateAudit.secondProjectPayment, 5750);
 for (const tier of ['standard', 'priority', 'premier']) {
   assert.equal(calc({ management: 'yes', tier, quoted_support_fee: null }).monthly, null, 'tier has no invented fee');
   assert.equal(calc({ management: 'yes', tier, quoted_support_fee: 625 }).monthly, null,'client-supplied support fee cannot set the price');

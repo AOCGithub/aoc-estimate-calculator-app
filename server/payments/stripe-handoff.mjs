@@ -1,16 +1,23 @@
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { json, requireAccess, validateAccessProfile } from '../api-handlers.mjs';
+import { auditService } from './audit-service.mjs';
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const allowedEvents = new Set(['checkout.session.completed','checkout.session.async_payment_succeeded',
   'checkout.session.async_payment_failed','checkout.session.expired','payment_intent.payment_failed']);
 const loopback = request => ['localhost','127.0.0.1','[::1]'].includes(new URL(request.url).hostname);
-const enabled = (request,env) => env.AOC_STRIPE_TEST_HANDOFF_ENABLED === 'true' && !env.VERCEL && loopback(request);
+function enabled(request, env) {
+  if (env.AOC_STRIPE_TEST_HANDOFF_ENABLED !== 'true') return false;
+  if (!env.VERCEL) return loopback(request);
+  const {protocol, origin} = new URL(request.url);
+  return protocol === 'https:' && origin === env.AOC_G2_HOSTED_ORIGIN;
+}
+const hostedConnection = env => env.AOC_G2_POSTGRES_URL || env.POSTGRES_URL;
 const settings = env => ({
   testKey: String(env.STRIPE_SECRET_KEY || '').startsWith('sk_test_'),
-  price: /^price_[a-zA-Z0-9_]+$/.test(env.STRIPE_TEST_AUDIT_PRICE_ID || ''),
   webhook: String(env.STRIPE_WEBHOOK_SECRET || '').startsWith('whsec_') && env.STRIPE_WEBHOOK_SECRET.length >= 20,
+  ...(env.VERCEL ? {storage: Boolean(hostedConnection(env))} : {}),
 });
 const ready = env => Object.values(settings(env)).every(Boolean);
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -20,6 +27,7 @@ const safeUrl = (value,hosts) => {
 };
 const checkoutUrl = value => safeUrl(value,['checkout.stripe.com']);
 const receiptUrl = value => safeUrl(value,['pay.stripe.com','receipts.stripe.com']);
+const readSnapshot = value => typeof value === 'string' ? JSON.parse(value) : value;
 
 async function rawBody(request,limit) {
   if (Number(request.headers.get('content-length') || 0) > limit) throw new Error('request_too_large');
@@ -44,18 +52,16 @@ function view(bundle) {
     outcome:p.outcome, amount:p.amount, currency:p.currency, item:p.item_name,paidAt:p.paid_at,
     stripeCheckoutReference:p.checkout_reference, stripePaymentReference:p.payment_reference,
     receiptUrl:p.outcome==='paid'?receiptUrl(p.receipt_url):null,
-    snapshot:{...JSON.parse(s.snapshot),description:s.description,savedAt:s.created_at} };
+    snapshot:{...readSnapshot(s.snapshot),description:s.description,savedAt:s.created_at} };
 }
 
 export function createG2Payments({ environment:env,store,stripe,checkAccess=requireAccess }) {
-  let pricePromise;
-  async function price() {
-    pricePromise ||= stripe.prices.retrieve(env.STRIPE_TEST_AUDIT_PRICE_ID,{expand:['product']}).then(row=>{
-      if(row.livemode!==false || !row.active || row.type!=='one_time' || row.currency!=='usd'
-        || !Number.isSafeInteger(row.unit_amount) || row.unit_amount<=0) throw new Error('invalid_test_price');
-      return {id:row.id,amount:row.unit_amount,currency:row.currency,name:typeof row.product==='object'?row.product.name:'Initial audit — G2 test'};
-    }).catch(error=>{pricePromise=null;throw error;});
-    return pricePromise;
+  function auditOffer(result) {
+    // Current commercial rules use the explicitly quoted fixed audit fee, never a build percentage.
+    const amount=Math.round(result.audit*100);
+    if(typeof result.audit!=='number' || !Number.isSafeInteger(amount) || amount<=0 || amount>99999999
+      || Math.abs(result.audit*100-amount)>0.000001)throw new Error('invalid_audit_quote');
+    return {id:'inline_audit_quote',amount,currency:'usd',name:auditService.name};
   }
   async function owner(request) {
     if(env.AOC_ACCESS_GATE_ENABLED!=='true')return {response:json({error:'Enter the calculator before starting a test purchase.'},401)};
@@ -64,20 +70,27 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     if(!cookie)return {response:json({error:'Enter the calculator before starting a test purchase.'},401)};
     return {hash:hash(cookie)};
   }
-  const references = p => ({submission_reference:p.submission_reference,recording_reference:store.submission(p.submission_reference).recording_reference,purchase_reference:p.id});
-  function verifySession(session,p) {
-    const refs=references(p),metadata=session.metadata||{};
+  async function references(p) {
+    const submission=await store.submission(p.submission_reference);
+    return {submission_reference:p.submission_reference,recording_reference:submission.recording_reference,purchase_reference:p.id};
+  }
+  function verifySession(session,p,refs) {
+    const metadata=session.metadata||{};
     if(session.livemode!==false || session.mode!=='payment' || !String(session.id).startsWith('cs_test_')
       || session.client_reference_id!==refs.submission_reference
       || Object.entries(refs).some(([key,value])=>metadata[key]!==value)
       || session.amount_total!==p.amount || session.currency!==p.currency
       || (p.checkout_reference && session.id!==p.checkout_reference)) throw new Error('purchase_mismatch');
     const items=session.line_items?.data;
-    if(!Array.isArray(items)||items.length!==1||items[0].quantity!==1||items[0].price?.id!==p.price_reference)throw new Error('purchase_mismatch');
+    const item=items?.[0],price=item?.price;
+    if(!Array.isArray(items)||items.length!==1||item.quantity!==1||!/^price_/.test(price?.id||'')
+      || (p.price_reference!=='inline_audit_quote'&&price.id!==p.price_reference)
+      || price.livemode!==false||price.type!=='one_time'||price.currency!==p.currency||price.unit_amount!==p.amount
+      || item.amount_total!==p.amount||item.description!==p.item_name)throw new Error('purchase_mismatch');
     return session;
   }
   const retrieve = async p => verifySession(await stripe.checkout.sessions.retrieve(p.checkout_reference,
-    {expand:['line_items','payment_intent.latest_charge']}),p);
+    {expand:['line_items','payment_intent.latest_charge']}),p,await references(p));
 
   async function checkout(request,ownerHash) {
     if(request.method!=='POST')return json({error:'Method not allowed.'},405);
@@ -91,10 +104,13 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
     let prepared;
     try {
-      const offer=await price();
+      let offer;
       if(body.submissionReference){
         if(!uuid(body.submissionReference))return json({error:'Invalid submission reference.'},400);
-        prepared=store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
+        const saved=await store.submission(body.submissionReference);
+        if(!saved||saved.owner_hash!==ownerHash)return json({error:'Purchase not found for this session.'},404);
+        offer=auditOffer(readSnapshot(saved.snapshot).result);
+        prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
         if(!prepared)return json({error:'Purchase not found for this session.'},404);
       }else{
         if(!uuid(body.requestReference)||typeof body.description!=='string'||!body.description.trim()||body.description.length>18000)
@@ -105,37 +121,46 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
         catch { return json({error:'Review the calculator answers and recalculate before the test purchase.'},400); }
         if(!body.calculation.confirmed || calculated.result.errors.length || calculated.result.provisionalBuild===null
           || body.calculation.answers.legacy_system_check!=='Standard')return json({error:'Confirm a complete, unblocked scope and recalculate before the test purchase.'},400);
+        offer=auditOffer(calculated.result);
         let profile=null;
         if(body.profile){const checked=validateAccessProfile(body.profile);if(checked.error)return json({error:checked.error},400);profile=checked.profile;}
         const snapshot={area:body.calculation.area,answers:body.calculation.answers,confirmed:true,result:calculated.result,
-          calculatorVersion:calculated.version,profile};
+          calculatorVersion:calculated.version,profile,service:auditService};
         const input={description:body.description.trim(),calculation:body.calculation,profile};
-        prepared=store.prepare({ownerHash,requestReference:body.requestReference,fingerprint:hash(JSON.stringify(input)),
+        prepared=await store.prepare({ownerHash,requestReference:body.requestReference,fingerprint:hash(JSON.stringify(input)),
           description:input.description,snapshot,price:offer});
       }
       if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
       if(prepared.purchase.checkout_reference){
         const session=await retrieve(prepared.purchase);
         if(session.status==='expired'){
-          store.closeExpiredCheckout(prepared.purchase.id);
-          prepared=store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer});
+          await store.closeExpiredCheckout(prepared.purchase.id);
+          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer});
+          if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
+          if(prepared.purchase.checkout_reference)return json({purchase:view(prepared),waitingForPaymentEvent:true});
         }else if(session.status==='open' && checkoutUrl(session.url))return json({purchase:view(prepared),checkoutUrl:checkoutUrl(session.url)});
         else return json({purchase:view(prepared),waitingForPaymentEvent:true});
       }
-      const p=prepared.purchase,refs=references(p),origin=new URL(request.url).origin;
-      const result=await stripe.checkout.sessions.create({mode:'payment',line_items:[{price:p.price_reference,quantity:1}],
-        payment_method_types:['card'],adaptive_pricing:{enabled:false},automatic_tax:{enabled:false},allow_promotion_codes:false,
+      const p=prepared.purchase,refs=await references(p),origin=new URL(request.url).origin;
+      const snapshot=readSnapshot(prepared.submission.snapshot);
+      const result=await stripe.checkout.sessions.create({mode:'payment',line_items:[{price_data:{currency:p.currency,
+          unit_amount:p.amount,product_data:{name:p.item_name,description:snapshot.service?.description||'Initial audit of the agreed work. Implementation and ongoing services are separate.'}},quantity:1}],expand:['line_items'],
+        allowed_payment_method_types:['card'],adaptive_pricing:{enabled:false},automatic_tax:{enabled:false},allow_promotion_codes:false,
         client_reference_id:prepared.submission.id,metadata:refs,payment_intent_data:{metadata:refs},
-        ...(JSON.parse(prepared.submission.snapshot).profile?.businessEmail?{customer_email:JSON.parse(prepared.submission.snapshot).profile.businessEmail}:{}),
-        success_url:`${origin}/?purchase_reference=${p.id}&checkout_result=success`,
-        cancel_url:`${origin}/?purchase_reference=${p.id}&checkout_result=cancelled`},
+        ...(snapshot.profile?.businessEmail?{customer_email:snapshot.profile.businessEmail}:{}),
+        success_url:`${origin}/payment/status?purchase_reference=${p.id}&checkout_result=success`,
+        cancel_url:`${origin}/payment/status?purchase_reference=${p.id}&checkout_result=cancelled`},
         {idempotencyKey:'g2-checkout-'+p.id});
       if(result.livemode!==false || !String(result.id).startsWith('cs_test_')||!checkoutUrl(result.url))throw new Error('invalid_test_checkout');
-      store.bindCheckout(p.id,result);
-      return json({purchase:view(store.bundle(p.id,ownerHash)),checkoutUrl:checkoutUrl(result.url)});
+      verifySession(result,p,refs);
+      await store.bindCheckout(p.id,result);
+      const stored=await store.bundle(p.id,ownerHash);
+      return json({purchase:view(stored),...(stored.purchase.outcome==='paid'?{}:{checkoutUrl:checkoutUrl(result.url)})});
     }catch(error){
+      if(error.message==='invalid_audit_quote')return json({error:'Enter the positive fixed audit fee explicitly quoted by AOC, in USD with no more than two decimal places. No audit amount is inferred from the build estimate.'},400);
       if(error.message==='snapshot_conflict')return json({error:'This submission has changed. Review it as a new test purchase.'},409);
       if(error.message==='purchase_mismatch')return json({error:'Stripe references or amounts need review; no new purchase was created.'},409);
+      console.warn('Stripe sandbox checkout failed.',{type:error.type||error.name,code:error.code||null,param:error.param||null});
       return json({error:'Could not open Stripe test checkout. Your saved submission is retained; retry safely.'},502);
     }
   }
@@ -150,14 +175,15 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     const object=event.data?.object,metadata=object?.metadata||{};
     if(object?.livemode!==false)return json({error:'G2 accepts test objects only.'},400);
     if(!uuid(metadata.purchase_reference))return json({received:true,ignored:true});
-    const p=store.purchase(metadata.purchase_reference);
-    if(!p)return json({error:'Referenced purchase is unavailable; retry delivery.'},503);
-    if(Object.entries(references(p)).some(([key,value])=>metadata[key]!==value))return json({error:'Purchase references do not match.'},400);
     try {
+      const p=await store.purchase(metadata.purchase_reference);
+      if(!p)return json({error:'Referenced purchase is unavailable; retry delivery.'},503);
+      const refs=await references(p);
+      if(Object.entries(refs).some(([key,value])=>metadata[key]!==value))return json({error:'Purchase references do not match.'},400);
       let session;
       if(event.type.startsWith('checkout.session.')){
         if(object.livemode!==false || (p.checkout_reference&&p.checkout_reference!==object.id))throw new Error('purchase_mismatch');
-        session=verifySession(await stripe.checkout.sessions.retrieve(object.id,{expand:['line_items','payment_intent.latest_charge']}),p);
+        session=verifySession(await stripe.checkout.sessions.retrieve(object.id,{expand:['line_items','payment_intent.latest_charge']}),p,refs);
       }else{
         if(!p.checkout_reference)return json({error:'Checkout binding is not ready; retry delivery.'},503);
         session=await retrieve(p);
@@ -169,7 +195,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
         :['checkout.session.async_payment_failed','payment_intent.payment_failed'].includes(event.type)?'failed'
           :session.status==='complete'?'processing':'pending';
       const intent=session.payment_intent;
-      const result=store.applyEvent({eventId:event.id,type:event.type,objectId:object.id,purchaseId:p.id,
+      const result=await store.applyEvent({eventId:event.id,type:event.type,objectId:object.id,purchaseId:p.id,
         sessionId:session.id,paymentId:typeof intent==='string'?intent:intent?.id,
         outcome,receiptUrl:outcome==='paid'?receiptUrl(intent?.latest_charge?.receipt_url):null,checkoutState:session.status});
       return json({received:true,duplicate:result.duplicate,outcome:result.purchase.outcome,auditIntakeReference:result.submission.audit_intake_reference});
@@ -194,29 +220,57 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const reference=new URL(request.url).searchParams.get('purchase_reference');
       if(reference){
         if(!uuid(reference))return json({error:'Invalid purchase reference.'},400);
-        const stored=store.bundle(reference,identity.hash);
+        const stored=await store.bundle(reference,identity.hash);
         if(!stored)return json({error:'Purchase not found for this session.'},404);
+        if(new URL(request.url).searchParams.get('refresh')==='true'){
+          try {
+            if(!stored.purchase.checkout_reference)return json({error:'Checkout is still being prepared. Please check again shortly.'},503);
+            const current=await retrieve(stored.purchase),intent=current.payment_intent;
+            const outcome=current.payment_status==='paid'?'paid':current.status==='expired'?'incomplete'
+              :current.status==='complete'?'processing':stored.purchase.outcome==='failed'?'failed':'pending';
+            const updated=await store.reconcileCheckout({purchaseId:reference,sessionId:current.id,
+              paymentId:typeof intent==='string'?intent:intent?.id,outcome,checkoutState:current.status,
+              receiptUrl:outcome==='paid'?receiptUrl(intent?.latest_charge?.receipt_url):null});
+            return json({enabled:true,configured:true,purchase:view(updated),checkedAt:new Date().toISOString()});
+          }catch(error){
+            if(error.message==='purchase_mismatch')return json({error:'The payment details did not match your saved order. Contact AOC before trying another payment.'},409);
+            return json({error:'We could not check Stripe right now. Your saved payment status has not changed. Please try again.'},502);
+          }
+        }
         if(stored.purchase.outcome==='paid'&&!stored.purchase.receipt_url){
           try {const current=await retrieve(stored.purchase);const url=receiptUrl(current.payment_intent?.latest_charge?.receipt_url);
-            if(url){store.setReceipt(reference,url);stored.purchase.receipt_url=url;}}catch{/* A missing receipt must not undo a recorded payment. */}
+            if(url){await store.setReceipt(reference,url);stored.purchase.receipt_url=url;}}catch{/* A missing receipt must not undo a recorded payment. */}
         }
         return json({enabled:true,configured:true,purchase:view(stored)});
       }
-      try {return json({enabled:true,configured:true,testMode:true,offer:await price()});}
-      catch {return json({enabled:true,configured:false,error:'Check the Stripe test key and the one-time USD test Price ID.'});}
+      await store.check?.();
+      return json({enabled:true,configured:true,testMode:true,pricing:'quoted_audit',service:auditService});
     },
     close:()=>store.close(),
   };
 }
 
-let localPayments;
+let payments;
 export async function handleG2Payment(request,environment=process.env) {
   const status=new URL(request.url).pathname==='/api/payments/status';
   if(!enabled(request,environment))return status?json({enabled:false}):json({error:'Not found.'},404);
   if(!ready(environment))return status?json({enabled:true,configured:false,settings:settings(environment)}):json({error:'Stripe test setup is incomplete.'},503);
-  localPayments ||= Promise.all([import('stripe'),import('./handoff-store.mjs')]).then(([{default:Stripe},{createHandoffStore}])=>
-    createG2Payments({environment,store:createHandoffStore(environment.AOC_G2_STORE_PATH || fileURLToPath(new URL('../../artifacts/g2/stripe-handoff.sqlite',import.meta.url))),
-      stripe:new Stripe(environment.STRIPE_SECRET_KEY,{maxNetworkRetries:2,timeout:12000})}));
-  return (await localPayments).handle(request);
+  payments ||= (async () => {
+    const {default:Stripe}=await import('stripe');
+    let store;
+    if(environment.VERCEL){
+      const {createHostedHandoffStore}=await import('./hosted-handoff-store.mjs');
+      store=createHostedHandoffStore(hostedConnection(environment));
+    }else{
+      const {createHandoffStore}=await import('./handoff-store.mjs');
+      store=createHandoffStore(environment.AOC_G2_STORE_PATH || fileURLToPath(new URL('../../artifacts/g2/stripe-handoff.sqlite',import.meta.url)));
+    }
+    return createG2Payments({environment,store,stripe:new Stripe(environment.STRIPE_SECRET_KEY,{maxNetworkRetries:2,timeout:12000})});
+  })().catch(error=>{payments=null;throw error;});
+  try { return await (await payments).handle(request); }
+  catch(error){
+    console.warn('G2 payment service unavailable.',{code:error.code||error.name});
+    return json({error:'Could not access the saved test payment. Try again shortly.'},503);
+  }
 }
-export async function closeG2Payments(){if(localPayments){(await localPayments).close();localPayments=null;}}
+export async function closeG2Payments(){if(payments){const current=await payments;payments=null;await current.close();}}

@@ -71,6 +71,47 @@ try {
       console.log(`PASS: ${width}px deferred rules/code, one load under StrictMode, dependency ordering, logout privacy and empty re-entry.`);
     } finally { await context.close(); }
   }
+  for (const width of [1440, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    await context.addCookies([{ name: 'loading_session', value: 'yes', url: origin }]);
+    // Hold each request independently so we can see both parts of an approved session's return.
+    let releaseAccess, releaseRules, startRules;
+    const accessReady = new Promise(resolve => { releaseAccess = resolve; });
+    const rulesReady = new Promise(resolve => { releaseRules = resolve; });
+    const rulesRequested = new Promise(resolve => { startRules = resolve; });
+    await context.route('**/api/access/status', async route => {
+      await accessReady;
+      await route.continue();
+    });
+    await context.route('**/engine.js', async route => {
+      startRules();
+      await rulesReady;
+      await route.continue();
+    });
+    try {
+      await page.goto(origin, { waitUntil: 'domcontentloaded' });
+      const skeleton = page.getByRole('main', { name: 'Calculator', exact: true });
+      await skeleton.waitFor();
+      const firstLayout = await skeleton.boundingBox();
+      assert.equal(await skeleton.getAttribute('aria-busy'), 'true');
+      assert.equal((await skeleton.innerText()).trim(), '', 'Waiting for access shows a visual placeholder');
+      assert.equal(await page.getByRole('status').filter({ hasText: 'Opening calculator' }).count(), 1);
+      releaseAccess();
+      await rulesRequested;
+      assert.deepEqual(await skeleton.boundingBox(), firstLayout, 'The placeholder holds its layout through both loading phases');
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      releaseRules();
+      await page.locator('.area').first().waitFor();
+      assert.equal(await skeleton.count(), 0, 'The placeholder gives way to the calculator when it is ready');
+      assert.equal(await page.locator('.calculator-main').evaluate(node => getComputedStyle(node).animationName), 'none');
+      console.log(`PASS: ${width}px returning calculator uses one stable placeholder through access and rule loading, with reduced motion respected.`);
+    } finally {
+      releaseAccess();
+      releaseRules();
+      await context.close();
+    }
+  }
   for (const blocked of ['**/approved-bank.js', '**/assets/Calculator-*.js']) {
     const context = await browser.newContext({ reducedMotion: 'reduce' });
     await context.addCookies([{ name: 'loading_session', value: 'yes', url: origin }]);

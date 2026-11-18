@@ -293,15 +293,15 @@ const server = http.createServer((request, response) => {
 
     await page.locator('.money').filter({hasText:'$11,500'}).waitFor();
     assert.equal(await page.locator('.result-group[open]:not(.result-review)').count(), 0, 'supporting results start collapsed');
-    assert.equal(await page.locator('.result-highlight').count(), 2, 'the overview keeps the main value and payback visible');
+    assert.match(await page.locator('.result-incomplete').textContent(),/ROI (not estimated because optional time or cost details were not provided|can be estimated after AOC quotes the support fee)/);
     if (capture) await page.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'estimator-result-compact.png') });
     await page.getByText('Project & ongoing costs', { exact: true }).click();
-    await page.getByText('Needs scope / quoted fee', {exact:true}).waitFor();
+    assert.equal(await page.locator('.result-group .metric').filter({hasText:'AOC monthly service'}).first().locator('.value').textContent(),'Support fee to be quoted by AOC');
     assert.equal(await page.locator('#estimateStatus').textContent(), 'LOCAL PREVIEW · VERIFY');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'local-preview');
-    assert.ok(await page.getByText('AOC monthly service scope', { exact: true }).isVisible());
-    assert.ok(await page.getByText('Recommended solution and connected scope', { exact: true }).isVisible());
-    await page.getByText('Recommended solution and connected scope', { exact: true }).click();
+    assert.ok(await page.getByText('What monthly support would cover', { exact: true }).isVisible());
+    assert.ok(await page.getByText('What the project would cover', { exact: true }).isVisible());
+    await page.getByText('What the project would cover', { exact: true }).click();
     assert.ok(await page.getByText('Create and send invoices', { exact: true }).last().isVisible());
     if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-result.png'), fullPage: true });
 
@@ -312,7 +312,8 @@ const server = http.createServer((request, response) => {
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
     const monthlyService = page.getByText('AOC monthly service', { exact: true }).locator('..').locator(':scope > .value');
     await page.waitForFunction(() => globalThis.AOCJourney.getState().result?.monthly === 0);
-    assert.equal(await monthlyService.textContent(), '$0');
+    assert.equal(await monthlyService.textContent(), 'Ongoing AOC support not included');
+    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().result.monthly),0,'Self-management still calculates a zero AOC monthly fee');
     assert.equal(await page.locator('#estimateStatus').textContent(), 'ESTIMATE CALCULATED');
     assert.equal(await page.locator('.result-incomplete').count(), 0, 'complete estimates do not show the missing-details notice');
     assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server');
@@ -343,6 +344,9 @@ const server = http.createServer((request, response) => {
     let project = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
     assert.equal(project.firstProjectPayment,5000.03);
     assert.equal(project.secondProjectPayment,5000.02);
+    await page.getByText('Project quote and payment amounts',{exact:true}).click();
+    assert.equal(await page.getByText('First project payment (50%)',{exact:true}).locator('..').locator('.value').textContent(),'$5,000.03');
+    assert.equal(await page.getByText('Second project payment (remaining 50%)',{exact:true}).locator('..').locator('.value').textContent(),'$5,000.02');
     await page.locator('#f_preparation_fee').fill('2000');
     await page.locator('#f_implementation_fee').fill('0');
     await page.locator('.check input').check();
@@ -361,6 +365,8 @@ const server = http.createServer((request, response) => {
     await page.getByRole('button',{name:/Confirm details & calculate/}).click();
     await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.buildQuoted===false);
     assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).payback,null);
+    assert.equal(await page.getByText(/AOC still needs to confirm the implementation fee/).isVisible(),true);
+    assert.equal(await page.getByText('First project payment (50%)',{exact:true}).count(),0,'No placeholder installment amount replaces a cleared quote');
     await page.locator('#f_implementation_fee').fill('11500');
     await page.locator('#f_existing_client').selectOption('yes');
     assert.equal(await page.locator('#f_existing_plan_name').isVisible(),true);
@@ -598,15 +604,15 @@ const server = http.createServer((request, response) => {
     assert.doesNotMatch(await mobilePage.locator('#result').textContent(), /Not yet calculated/i, 'a completed partial result does not claim calculation has not run');
     assert.ok(await mobilePage.locator('.result-incomplete').isVisible(), 'partial results explain why some figures need more details');
     assert.equal(await mobilePage.locator('.result-review').getAttribute('open'), null, 'the full pending list stays expandable while the short next steps remain visible');
-    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /You can add:.*AOC will confirm:/s, 'next steps distinguish client inputs from AOC pricing details');
+    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /ROI not estimated because optional time or cost details were not provided.*AOC will confirm/s, 'next steps distinguish optional inputs from confirmed pricing requirements');
     assert.match(await mobilePage.locator('.result-review').textContent(), /audit.*quote/i, 'pending quote requirements remain visible rather than inventing a fee');
     await mobilePage.getByText('Potential monthly value', { exact: true }).click();
     const mobileMetric = title => mobilePage.getByText(title, { exact: true }).locator('..').locator(':scope > .value');
-    assert.equal(await mobileMetric('Capacity value').textContent(), 'Needs details');
-    assert.equal(await mobileMetric('Recurring cash savings').textContent(), 'Needs details');
-    assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), 'Needs details');
+    assert.equal(await mobileMetric('Capacity value').count(),0);
+    assert.equal(await mobileMetric('Recurring cash savings').count(),0);
+    assert.equal(await mobileMetric('Total monthly ongoing costs').count(),0);
     const partialBuild = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result.build);
-    assert.equal(await mobilePage.locator('.result-highlight').nth(1).locator('strong').textContent(), 'Pending', 'unknown payback has an understandable state');
+    assert.equal(await mobilePage.locator('.result-highlight').count(),0,'Skipped optional inputs do not create empty KPI cards');
     if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-next-steps-mobile-390.png') });
     const beforeResultNavigation = await mobilePage.evaluate(() => globalThis.AOCJourney.getState());
 
@@ -631,7 +637,7 @@ const server = http.createServer((request, response) => {
     assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), '$50', 'known ongoing costs display even while project quote details are missing');
     assert.equal(await mobileMetric('Net monthly economic benefit').textContent(), '$910');
     assert.equal(await mobilePage.getByRole('button', { name: 'Review time & costs', exact: true }).count(), 0, 'complete value inputs no longer prompt the client to add them');
-    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /AOC will confirm:/, 'quote requirements remain visible without repeating optional input prompts');
+    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /Payback can be estimated after AOC confirms/, 'quote requirements remain visible without repeating optional input prompts');
     assert.doesNotMatch(await mobilePage.locator('.result-incomplete').textContent(), /support fee/, 'client-operated results do not suggest a missing AOC support fee');
     if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-known-value-mobile-390.png') });
     const knownValueResult = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result);
@@ -646,8 +652,9 @@ const server = http.createServer((request, response) => {
     await mobilePage.locator('.check input').check();
     await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
     await mobilePage.waitForFunction(() => !globalThis.AOCJourney.getState().dirty && globalThis.AOCJourney.getState().result?.capacity === null);
-    assert.equal(await mobileMetric('Capacity value').textContent(), 'Needs details', 'clearing a source input removes its old calculated value');
-    assert.equal(await mobileMetric('Net monthly economic benefit').textContent(), 'Needs details');
+    assert.equal(await mobileMetric('Capacity value').count(),0,'Clearing a source input removes its old calculated value');
+    assert.equal(await mobileMetric('Net monthly economic benefit').count(),0);
+    assert.equal(await mobilePage.getByText('ROI not estimated because optional time or cost details were not provided.',{exact:true}).count(),1);
     assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), '$50', 'clearing hours preserves independent known costs');
     assert.doesNotMatch(await mobilePage.locator('#result').textContent(), /Not yet calculated/i);
     assert.equal(
@@ -734,6 +741,69 @@ const server = http.createServer((request, response) => {
         assert.equal(answers.channel_count, 2, 'manual count correction survives reorganization');
         assert.equal(answers.format_count, null, 'manual clearing survives reorganization');
       } finally { await countsPage.close(); }
+    }
+
+    // Recover explicitly supplied paid-advertising scope when the AI omits it,
+    // retain manual corrections, and name the actual missing cost in results.
+    for(const width of [1440,390]){
+      const advertisingPage=await browser.newPage({viewport:{width,height:1000}});
+      advertisingPage.on('pageerror',error=>errors.push(error.message));
+      try{
+        const text='We want a workflow covering six capabilities: reporting, monitoring, creative drafts, recommendations, feeds and approvals. '
+          +'We need 24 advertising outputs per month. AOC prepares the agreed creative and copy. '
+          +'Three people across two departments need group training. Our shared responsibilities include AOC management and approved changes. '
+          +'We use five standard apps daily, clear current documentation and some data preparation. '
+          +'We are a new AOC client choosing ongoing operations through a fixed-price project for one brand in English. '
+          +'Our team spends 60 hours monthly at $30 per hour. The provider costs $1000 and $600 stops; no software costs are removed and added software costs $80 monthly. '
+          +'AOC quoted preparation at $0, implementation at $11500 and an unpaid audit at $1250. No additional live training is purchased and no audit credit has been used.';
+        const supplied={people_count:3,department_count:2,handover:'group',cadence:'daily',
+          systems:'Meta Ads, Shopify, Google Sheets, Google Drive, Slack',legacy_system_check:'Standard',
+          documentation_readiness:'Clear and current',data_preparation_level:'Some preparation',
+          responsibility_split:'shared',action_mode:'approved',consequential:'yes',delivery_intent:'ongoing',
+          implementation_route:'project',existing_client:'no',brand_count:1,language_count:1,
+          team_time:60,blended_hourly_cost:30,replacement_provider_cost:1000,provider_replaced_portion:'part',provider_removed_amount:600,
+          software_replaced_portion:'none',incremental_software_cost:80,audit_fee:1250,audit_paid:0,
+          preparation_fee:0,implementation_fee:11500,live_training:'no',audit_credit_used:'no'};
+        const analysis=JourneyContract.validate({title:'Paid advertising workflow',summary:text,solution:'workflow',recommendationReason:'Defined workflow',
+          classification:{steps:3,variations:2,decisions:null,reason:'Connected systems with standard groups'},routes:[],
+          facts:Object.entries(supplied).map(([id,value])=>({id,value:String(value),quote:text})),relevantFields:[],uncertainties:[]},text,'area10');
+        await advertisingPage.route('**/api/journey/analyze',route=>route.fulfill({json:{analysis}}));
+        await advertisingPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
+        await advertisingPage.getByRole('button',{name:'Paid advertising',exact:true}).click();
+        await advertisingPage.getByRole('button',{name:/^Describe the work/}).click();
+        await advertisingPage.locator('#description').fill(text);
+        await advertisingPage.getByRole('button',{name:/Organize my description/}).click();
+        await advertisingPage.waitForFunction(()=>AOCJourney.getState().step===3&&!AOCJourney.getState().working);
+        const restored=await advertisingPage.evaluate(()=>AOCJourney.getState().answers);
+        assert.equal(restored.capability_count,6);assert.equal(restored.delivery_mode,'managed');assert.equal(restored.monthly_outputs,24);
+        const go=step=>width<950?advertisingPage.locator('#section-picker').selectOption(String(step)):advertisingPage.locator('#sections > button').nth(step-1).click();
+        await go(7);await advertisingPage.locator('.check input').check();
+        await advertisingPage.getByRole('button',{name:/Confirm details & calculate/}).click();
+        await advertisingPage.waitForFunction(()=>!AOCJourney.getState().dirty&&!!AOCJourney.getState().result);
+        assert.equal(await advertisingPage.locator('.result-hero .money').textContent(),'$11,500');
+        assert.match(await advertisingPage.locator('.result-cost-summary').textContent(),/Quoted initial audit\$1,250.*Support fee to be quoted by AOC/);
+        assert.equal(await advertisingPage.getByText('ROI can be estimated after AOC quotes the support fee.',{exact:true}).count(),1);
+        assert.equal(await advertisingPage.getByRole('button',{name:'Review time & costs',exact:true}).count(),0);
+        const calculated=await advertisingPage.evaluate(()=>AOCJourney.getState().result);
+        assert.equal(calculated.audit,1250);assert.equal(calculated.net,null);assert.equal(calculated.credit.amount,null);
+        await advertisingPage.getByText('Project & ongoing costs',{exact:true}).click();
+        await advertisingPage.getByText('Project quote and payment amounts',{exact:true}).click();
+        assert.equal(await advertisingPage.getByText(/AOC still needs to confirm whether any audit fee can be credited toward the build/).isVisible(),true);
+        assert.equal(await advertisingPage.getByText('AOC will confirm after reviewing the work',{exact:true}).isVisible(),true);
+        await go(3);
+        if(!await advertisingPage.locator('#f_capability_count').isVisible())await advertisingPage.getByText('3. Marketing scope',{exact:true}).click();
+        await advertisingPage.locator('#f_capability_count').fill('5');await advertisingPage.locator('#f_delivery_mode').selectOption('maintenance');
+        await go(2);await advertisingPage.getByRole('button',{name:/Organize my description/}).click();
+        await advertisingPage.waitForFunction(()=>AOCJourney.getState().step===3&&!AOCJourney.getState().working);
+        const edited=await advertisingPage.evaluate(()=>AOCJourney.getState().answers);
+        assert.equal(edited.capability_count,5);assert.equal(edited.delivery_mode,'maintenance');
+        if(!await advertisingPage.locator('#f_capability_count').isVisible())await advertisingPage.getByText('3. Marketing scope',{exact:true}).click();
+        await advertisingPage.locator('#f_capability_count').fill('');await go(7);await advertisingPage.locator('.check input').check();
+        await advertisingPage.getByRole('button',{name:/Confirm details & calculate/}).click();
+        await advertisingPage.waitForFunction(()=>!AOCJourney.getState().dirty&&AOCJourney.getState().result?.provisionalBuild===null);
+        assert.equal(await advertisingPage.locator('.result-hero .money').textContent(),'Complete scope details');
+        assert.equal(await advertisingPage.getByRole('button',{name:/Review process & scope/}).count(),1);
+      }finally{await advertisingPage.close();}
     }
 
     // Optional scope questions can be added, removed and explicitly added again.

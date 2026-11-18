@@ -8,6 +8,7 @@
     { "source": "/", "has": [{ "type": "host", "value": "aoc-estimate-calculator-aocs-projects-b933e3ab.vercel.app" }], "destination": "https://estimate.alwaysopencommerce.com/", "permanent": false },
     { "source": "/", "has": [{ "type": "host", "value": "aoc-estimate-calculator-git-main-aocs-projects-b933e3ab.vercel.app" }], "destination": "https://estimate.alwaysopencommerce.com/", "permanent": false }
   ],
+  "rewrites": [{ "source": "/payment/status", "destination": "/index.html" }],
   "crons": [{ "path": "/api/client-profile/cleanup", "schedule": "0 3 * * *" }],
   "functions": {
     "api/client-profile.mjs": { "maxDuration": 30 },
@@ -17,7 +18,10 @@
     "api/voice/session.mjs": { "maxDuration": 60 },
     "api/journey/correct.mjs": { "maxDuration": 60 },
     "api/intake/analyze.mjs": { "maxDuration": 60 },
-    "api/intake/transcribe.mjs": { "maxDuration": 60 }
+    "api/intake/transcribe.mjs": { "maxDuration": 60 },
+    "api/payments/checkout.mjs": { "maxDuration": 60 },
+    "api/payments/status.mjs": { "maxDuration": 60 },
+    "api/payments/webhook.mjs": { "maxDuration": 60 }
   },
   "headers": [
     {

@@ -1,5 +1,6 @@
 import { hours, money, normalizeAnswers } from '../../lib/format.js';
 import { estimatorBank } from '../../lib/domain.js';
+import { describeEstimate } from '../../lib/estimate-display.js';
 import { Icon } from '../../components/Icon.jsx';
 
 function Metric({ title, value, note = '' }) {
@@ -11,7 +12,47 @@ function ResultGroup({ title, icon, children }) {
     <div className="result-group__body">{children}</div>
   </details>;
 }
-const reviewedMoney = (value, missing = 'Needs AOC review') => value === null || value === undefined ? missing : money(value);
+const reviewedMoney = (value, missing) => value == null ? missing : money(value);
+const hasAmount = value => value != null && value !== '';
+const feasibilityLabels = {
+  'Potential blocker': 'AOC needs to check a possible issue before work can proceed',
+  'Needs connection review': 'AOC needs to check what your apps can support',
+  'Action-level verification still required': 'AOC will check what each app can do and what access it needs',
+  'Needs verification': 'AOC needs to check the work and the apps involved',
+};
+
+function ProjectPayments({ answers, result }) {
+  const missing = [];
+  if (!hasAmount(answers.preparation_fee)) missing.push('the preparation fee');
+  if (!hasAmount(answers.implementation_fee)) missing.push('the implementation fee');
+  if (answers.live_training === 'yes' && !hasAmount(answers.live_training_fee)) missing.push('the live training fee');
+  if (!['yes', 'no'].includes(answers.live_training)) missing.push('whether additional live training is included');
+
+  let paymentNote = 'AOC needs to check the work and the amount before showing project payments.';
+  if (result.errors.length) paymentNote = 'Correct the values listed under “What still needs to be checked” to see the project payments.';
+  else if (!result.buildQuoted) paymentNote = result.credit.amount == null
+    ? 'AOC needs the full quote and confirmation of any audit credit to show the project payment amounts.'
+    : 'The project payment amounts will show once the full quote is available.';
+  else if (result.build == null) paymentNote = 'The project quote is recorded. Confirm the work and app connections before relying on the payment amounts.';
+  else if (result.credit.amount == null) paymentNote = 'The project quote is recorded. AOC still needs to confirm whether any audit fee can be credited toward the build before the payment amounts can be shown.';
+  else if (result.credit.amount > result.build) paymentNote = 'The audit credit is larger than the project quote. AOC needs to confirm how it will be applied.';
+
+  return <details>
+    <summary>Project quote and payment amounts</summary>
+    {!result.buildQuoted && <p>{missing.length
+      ? `AOC still needs to confirm ${new Intl.ListFormat('en').format(missing)}. If you already have those details from AOC, you can add them in Responsibilities and service.`
+      : 'AOC needs to confirm the full project quote.'}</p>}
+    {hasAmount(answers.preparation_fee) && <Metric title="Preparation and setup" value={money(answers.preparation_fee)} />}
+    {hasAmount(answers.implementation_fee) && <Metric title="Implementation, including agreed reusable training" value={money(answers.implementation_fee)} />}
+    {answers.live_training === 'no' && <Metric title="Additional live training" value="Not included" />}
+    {answers.live_training === 'yes' && hasAmount(answers.live_training_fee) && <Metric title="Additional live training" value={money(answers.live_training_fee)} />}
+    {result.projectBalance == null ? <p>{paymentNote}</p> : <>
+      <Metric title="Project balance after audit credit" value={money(result.projectBalance)} />
+      <Metric title="First project payment (50%)" value={money(result.firstProjectPayment)} />
+      <Metric title="Second project payment (remaining 50%)" value={money(result.secondProjectPayment)} note="These amounts show how the project balance would be split. AOC confirms the payment due date, which still applies if work finishes early." />
+    </>}
+  </details>;
+}
 
 function downloadSummary(state, area) {
   const scope = normalizeAnswers(state.answers);
@@ -40,135 +81,124 @@ function Result({ state, area, onNavigate }) {
     <div className="empty-stat"><span>One-time build</span><strong>—</strong></div>
     <div className="empty-stat"><span>Monthly costs</span><strong>—</strong></div>
     <div className="empty-stat"><span>Potential value</span><strong>—</strong></div>
-    <p className="result-empty__foot">USD · Indicative estimates, ready for your review.</p>
+    <p className="result-empty__foot">Prices are in USD. AOC confirms the final scope and price.</p>
   </div>;
   const monthlyProgram = result.route === 'monthly';
   const attention = [...result.errors, ...result.pending];
-  if (result.capacity === null) attention.push('Optional value estimate: add total team hours and average hourly cost in Section 6.');
-  if (result.cash === null) attention.push('Optional value estimate: confirm which provider fees or app costs would actually go away in Section 6.');
-  if (result.vendor === null) attention.push('Optional value estimate: add known software/usage costs in Section 6. Enter zero only if confirmed none.');
-  const needsValueDetails = result.capacity === null || result.cash === null || result.vendor === null;
+  const display = describeEstimate(result, state.answers);
+  const missingScope = result.build === null && result.provisionalBuild === null && !result.errors.length
+    && !['Potential blocker', 'Needs connection review'].includes(result.feasibility);
   const aocDetails = [
-    result.audit === null && 'audit price',
-    result.route === 'project' && !result.buildQuoted && 'project quote',
-    state.answers.management === 'yes' && result.monthly === null && 'support fee',
-    result.credit.amount === null && 'audit-credit eligibility',
-    state.answers.existing_client === 'yes' && !result.existingPlanReconciled && 'existing agreement changes',
+    result.audit === null && 'the audit fee',
+    result.route === 'project' && !result.buildQuoted && !display.paybackNote && 'the project quote',
+    result.credit.amount === null && result.net == null && 'audit credit eligibility',
+    display.agreementPending && 'changes to your existing agreement',
   ].filter(Boolean);
   const smallerBillingWorkflow = area.id === 'area0' && state.answers.solution === 'workflow' && ['simple', 'moderate'].includes(result.level);
   return <>
     {state.dirty && <p className="result-stale">Answers changed. Recalculate to update this estimate.</p>}
     <div className="result-hero">
     <h3>{state.analysis?.title || `${area.label} process`}</h3>
-    <div className="metric-title">{monthlyProgram ? 'Monthly build program' : 'Estimated one-time build'}</div>
-    <div className="money">{monthlyProgram ? result.planFee === null ? 'Choose a program' : `${money(result.planFee)} / month` : reviewedMoney(result.build)}</div>
+    <div className="metric-title">{monthlyProgram ? 'Monthly build program' : result.buildQuoted ? 'Project quote entered' : 'One-time build estimate'}</div>
+    <div className="money">{monthlyProgram ? result.planFee === null ? 'Choose a program' : `${money(result.planFee)} / month` : reviewedMoney(result.build, missingScope ? 'Complete scope details' : 'Needs AOC review')}</div>
     <p>{monthlyProgram
       ? 'Agreed assessment, builds and implementation support use the accepted combined human-hour allowance. No additional upfront fee for included builds.'
-      : result.buildQuoted ? 'Total from the entered project quote. AOC must confirm the amounts and scope.'
-        : result.build !== null ? `Planning range ${money(result.low)}–${money(result.high)}. Provisional estimate; AOC confirms the final scope and price.`
-          : 'Complete the material scope details or request AOC review. Known components are not a complete quote.'}</p>
+      : result.buildQuoted ? result.build === null ? 'Your project quote is saved. Review the missing scope or app details to show the total.' : 'Based on the project quote you entered. AOC will confirm the scope and price.'
+        : result.build !== null ? `Estimated range: ${money(result.low)}–${money(result.high)}. Agree the final scope and price with AOC.`
+          : 'Some scope or app details still need checking. The items below do not yet make a complete quote.'}</p>
     </div>
     <dl className="result-cost-summary">
-      <div><dt>Initial audit</dt><dd>{reviewedMoney(result.audit, 'Awaiting AOC quote')}</dd></div>
-      <div><dt>New ongoing costs <small>/ month</small></dt><dd>{result.recurring === null ? 'Needs cost details' : money(result.recurring)}</dd></div>
+      <div><dt>Quoted initial audit</dt><dd>{reviewedMoney(result.audit, 'Audit fee to be quoted by AOC')}</dd></div>
+      <div><dt>New ongoing costs <small>/ month</small></dt><dd>{display.ongoing}</dd></div>
     </dl>
-    <div className="result-highlights">
-      <div className="result-highlight">
+    {(result.net != null || display.payback || (monthlyProgram && result.comparisonMonths != null)) && <div className="result-highlights">
+      {result.net != null && <div className="result-highlight">
         <span>Estimated monthly value after costs</span>
-        <strong>{result.net === null ? 'Needs value details' : money(result.net)}</strong>
-        <small>Includes the value of staff time freed. Cash savings are shown separately.</small>
-      </div>
-      <div className="result-highlight">
-        <span>{monthlyProgram ? 'Comparison period' : 'Illustrative payback'}</span>
-        <strong>{monthlyProgram ? result.comparisonMonths === null ? '—' : `${result.comparisonMonths} months`
-          : result.payback === null ? result.net !== null && result.net <= 0 ? 'No payback' : 'Pending' : `${result.payback.toFixed(1)} months`}</strong>
-        <small>{monthlyProgram ? 'Based on the selected period' : result.payback === null
-          ? result.net !== null && result.net <= 0 ? 'No positive monthly benefit' : 'Needs quote and cost details'
-          : 'Time to recover the initial investment'}</small>
-      </div>
-    </div>
-    {attention.length > 0 && <section className="result-incomplete" aria-labelledby="result-next-steps">
-      <h4 id="result-next-steps">For the remaining figures</h4>
-      {needsValueDetails && <div>
-        <p><strong>You can add:</strong> time and cost details for the optional value estimate. Leave anything unknown blank.</p>
-        <button type="button" className="result-edit" onClick={() => onNavigate(6)}>Review time & costs <Icon name="chevron" /></button>
+        <strong>{money(result.net)}</strong>
+        <small>Includes the value of time saved. Actual cost savings are shown separately.</small>
       </div>}
-      {aocDetails.length > 0 && <p><strong>AOC will confirm:</strong> {aocDetails.join(', ')}. You don’t need to guess these details.</p>}
-      {!needsValueDetails && !aocDetails.length && <p>Review the outstanding scope or connection details below.</p>}
+      {(display.payback || (monthlyProgram && result.comparisonMonths != null)) && <div className="result-highlight">
+        <span>{monthlyProgram ? 'Comparison period' : 'Illustrative payback'}</span>
+        <strong>{monthlyProgram ? `${result.comparisonMonths} months` : display.payback}</strong>
+        {result.payback != null && <small>Estimated time to recover your upfront costs.</small>}
+      </div>}
+    </div>}
+    {(missingScope || display.roiNote || display.paybackNote || aocDetails.length > 0) && <section className="result-incomplete" aria-labelledby="result-next-steps">
+      <h4 id="result-next-steps">What affects the remaining figures</h4>
+      {missingScope && <div>
+        <p><strong>Complete the scope:</strong> review the missing process or app details listed below.</p>
+        <button type="button" className="result-edit" onClick={() => onNavigate(3)}>Review process & scope <Icon name="chevron" /></button>
+      </div>}
+      {display.roiNote && <p>{display.roiNote}</p>}
+      {display.optionalValueInputsMissing && <button type="button" className="result-edit" onClick={() => onNavigate(6)}>Review time & costs <Icon name="chevron" /></button>}
+      {display.paybackNote && <p>{display.paybackNote}</p>}
+      {aocDetails.length > 0 && <p><strong>AOC will confirm</strong> {aocDetails.join(', ')}.</p>}
     </section>}
     <ResultGroup title="Project & ongoing costs" icon="layers">
-    <Metric title="Paid initial audit" value={reviewedMoney(result.audit, 'Awaiting AOC quote')} note="AOC quotes its scope and fixed fee upfront for either implementation route. No build-percentage fee is assumed." />
-    <Metric title="Eligible audit credit" value={reviewedMoney(result.credit.amount, 'Needs credit details')} note={`${result.credit.reason}${result.credit.expiryDate ? ` Calendar-date deadline: ${result.credit.expiryDate}.` : ''} This calculator does not redeem a credit.`} />
-    {result.route === 'project' && <details>
-      <summary>Fixed-project quote and payment illustration</summary>
-      <Metric title="Preparation / foundation" value={reviewedMoney(state.answers.preparation_fee, 'Needs AOC quote')} />
-      <Metric title="Implementation including agreed reusable training" value={reviewedMoney(state.answers.implementation_fee, 'Needs AOC quote')} />
-      <Metric title="Additional purchased live training" value={state.answers.live_training === 'no' ? '$0' : reviewedMoney(state.answers.live_training_fee, state.answers.live_training === 'yes' ? 'Needs AOC quote' : 'Confirm if needed')} />
-      <Metric title="Project balance after eligible credit" value={reviewedMoney(result.projectBalance, 'Needs quote and credit details')} />
-      <Metric title="First project payment (50%)" value={reviewedMoney(result.firstProjectPayment, 'Needs quote and credit details')} />
-      <Metric title="Second project payment (remaining 50%)" value={reviewedMoney(result.secondProjectPayment, 'Needs quote and credit details')} note="Project-only illustration. AOC agrees the due date; early completion does not accelerate it. No invoice or payment is created here." />
-    </details>}
+    <Metric title="Quoted initial audit" value={reviewedMoney(result.audit, 'Audit fee to be quoted by AOC')} note="AOC gives you a separate fixed price for the audit before you pay." />
+    <Metric title="Audit credit toward the build" value={reviewedMoney(result.credit.amount, 'AOC will confirm whether a credit applies')} note={`${result.credit.reason}${result.credit.expiryDate ? ` Credit deadline ${result.credit.expiryDate}.` : ''}`} />
+    {result.route === 'project' && <ProjectPayments answers={state.answers} result={result} />}
     {monthlyProgram && <>
       <Metric title="Agreed combined human hours" value={result.agreedMonthlyHours === null ? 'Needs AOC agreement' : `${result.agreedMonthlyHours} hours / month`} />
       <Metric title="Agreed agency blend" value={result.agreedAgencyBlend === null ? 'Needs AOC agreement' : `${money(result.agreedAgencyBlend)} / hour`} note="One agreed client blend; founder direction and review are included. Actual staffing changes do not silently change accepted billing." />
-      <Metric title="First monthly invoice after eligible audit credit" value={reviewedMoney(result.monthlyInvoiceAfterCredit)} note="Illustration only; AOC must confirm invoice handling. Credit is not extra hours, and a route change cannot create a second credit." />
+      <Metric title="First monthly invoice after audit credit" value={reviewedMoney(result.monthlyInvoiceAfterCredit, 'AOC will confirm the monthly fee and any credit')} note="AOC confirms how the credit applies to the first invoice. The same credit can be used once across both routes." />
     </>}
-    <Metric title="Estimated delivery" value={smallerBillingWorkflow && !monthlyProgram ? 'Approximately 2–4 weeks' : 'Schedule needs scope review'} note="Starts after required access, approved information and scope are ready. No guaranteed monthly deliverable count or completion date." />
-    <Metric title="AOC monthly service" value={monthlyProgram ? result.planFee === null ? 'Select a program first' : 'Included in the program fee' : result.monthly === null ? 'Needs scope / quoted fee' : `${money(result.monthly)}${result.monthly === 0 ? '' : ' / month'}`} note={monthlyProgram
+    <Metric title="Estimated build timeline" value={smallerBillingWorkflow && !monthlyProgram ? 'Approximately 2–4 weeks' : 'AOC will confirm after reviewing the work'} note="Timing starts once AOC has agreed the work with you and has the information and access it needs." />
+    <Metric title="AOC monthly service" value={display.support} note={monthlyProgram
       ? 'The program fee above includes agreed implementation support; this is the same fee, not a second charge. Post-build maintenance is deferred.'
-      : result.monthly === 0 ? 'Client-operated. Ad hoc help: $150/hour, $150 minimum per ticket, subject to availability.'
-        : 'Optional project operation/support uses approved AOC pricing data only. Standard, Priority and Premier do not have automatic approved prices or staffed-response promises.'} />
-    {(result.monthly > 0 || state.answers.management === 'yes') && <details><summary>AOC monthly service scope</summary><p>{monthlyProgram ? 'Agreed assessment, implementation and support within accepted program hours.' : 'Operating scope, coverage and its fee require AOC agreement; no price or response target is implied.'} Software and usage remain separate. Shared work and oversight are counted once.</p></details>}
-    {state.answers.existing_client === 'yes' && <Metric title="Combined AOC monthly commitment" value={reviewedMoney(result.combinedMonthlyCommitment)} note="Confirmed retained existing agreement fee plus the new AOC monthly fee. No automatic plan replacement or overlapping work is assumed. This reconciliation does not add a second savings credit." />}
-    <Metric title="Added software / usage" value={result.vendor === null ? 'Needs cost details' : `${money(result.vendor)} / month`} note="Separate from AOC fees. Add known costs in Section 6; unknown costs prevent complete net ROI." />
+      : display.supportNotIncluded ? 'Ad hoc help: $150/hour, $150 minimum per ticket, subject to availability.'
+        : 'AOC agrees the scope and coverage separately.'} />
+    {(result.monthly > 0 || display.requestedSupport) && <details><summary>What monthly support would cover</summary><p>{monthlyProgram ? 'The program covers the agreed assessment, implementation and support within the agreed hours.' : 'AOC will confirm the work covered, support hours, response targets and monthly fee with you.'} Software and usage are priced separately. Shared work and oversight are counted once.</p></details>}
+    {state.answers.existing_client === 'yes' && <Metric title="Total AOC monthly fees" value={reviewedMoney(result.combinedMonthlyCommitment, 'AOC will confirm the existing and new fees')} note="This total adds the part of your current agreement you keep and the new AOC monthly fee. AOC checks for overlapping work." />}
+    <Metric title="Added software / usage" value={result.vendor === null ? 'Software costs not provided' : `${money(result.vendor)} / month`} note="Separate from AOC fees. Add known costs in Section 6 to include them in the estimate." />
     </ResultGroup>
     {!monthlyProgram && <details className="result-group">
-      <summary><span><Icon name="finance" />Build breakdown and assumptions</span></summary>
+      <summary><span><Icon name="finance" />How the build estimate was calculated</span></summary>
       <div className="result-group__body">
-      <p>Retained provisional scope model only—not additional subscription charges or an approved quote.</p>
+      <p>These items add up to the calculator’s estimate. AOC provides the final project quote separately.</p>
       {result.lines.map(line => <div className="line" key={line.label}><span>{line.label}</span><strong>{money(line.amount)}</strong></div>)}
-      <p>Known draft components: {money(result.known)}. Uncalibrated additions require review.</p>
+      <p>Subtotal of the items above: {money(result.known)}. AOC will review any work still needing a price.</p>
       {result.assumptions.map(assumption => <p key={assumption}>{assumption}</p>)}
       </div>
     </details>}
     <ResultGroup title="Potential monthly value" icon="chart">
-    <Metric title="Team capacity freed" value={result.freed === null ? 'Needs team hours' : hours(result.freed)} note={result.freed === null ? 'Add total team hours in Section 6 for the 80/20 planning illustration. Subject to audit, not a savings guarantee.' : `80% workflow planning illustration; ${hours(result.retained)} remains for checking and exceptions. Subject to audit, not a savings guarantee.`} />
-    <Metric title="Capacity value" value={money(result.capacity)} note={result.capacity === null ? 'Add team hours and average hourly cost in Section 6.' : 'Time available for other work—not automatic cash or payroll savings.'} />
-    <Metric title="Recurring cash savings" value={money(result.cash)} note={result.cash === null ? 'In Section 6, confirm which provider fees or app costs would actually go away. Choose Nothing if none.' : 'Only provider fees and app costs actually eliminated for comparable work; counted once.'} />
-    <Metric title="Total monthly ongoing costs" value={money(result.recurring)} note="New AOC monthly fee plus incremental software/usage. Existing agreement reconciliation is shown separately." />
-    <Metric title="Net monthly economic benefit" value={money(result.net)} note="Capacity and confirmed cash savings less ongoing costs. Unknown material inputs or unreconciled existing scope prevent a supported result." />
-    <details>
+    {result.freed != null && <Metric title="Team capacity freed" value={hours(result.freed)} note={`80% workflow planning illustration. ${hours(result.retained)} remains for checking and exceptions. Subject to audit.`} />}
+    {result.capacity != null && <Metric title="Capacity value" value={money(result.capacity)} note="The value of time available for other work. This may not reduce payroll costs." />}
+    {result.cash != null && <Metric title="Recurring cash savings" value={money(result.cash)} note="Includes confirmed provider fees and app costs that would be eliminated for comparable work." />}
+    {result.recurring != null && <Metric title="Total monthly ongoing costs" value={money(result.recurring)} note="New AOC monthly fee plus added software and usage. Any changes to an existing agreement are shown separately." />}
+    {result.net != null && <Metric title="Net monthly economic benefit" value={money(result.net)} note="The value of time saved and costs removed, minus new monthly costs." />}
+    {[result.freed, result.capacity, result.cash, result.recurring, result.net].every(value => value == null) && <p>Add time and cost details to see a potential value breakdown.</p>}
+    {([result.comparisonInvestment, result.comparisonGross, result.comparisonNet].some(value => value != null) || display.payback) && <details>
       <summary>{monthlyProgram ? 'Monthly-program value comparison' : 'First year and payback'}</summary>
       <p>{monthlyProgram ? 'Compare the same roadmap, accepted milestones and operating period. Included audit/build work is not charged twice.' : 'One-time spend includes the fixed audit plus project total, minus the eligible audit credit once. No assumed credit when eligibility is unknown.'}</p>
       <Metric title="Comparison period" value={result.comparisonMonths === null ? 'Choose comparison months' : `${result.comparisonMonths} ${monthlyProgram ? 'program' : 'operating'} months`} />
       {monthlyProgram && <Metric title="Months with operating benefits" value={result.benefitMonths === null ? 'Timing needs review' : `${result.benefitMonths} months within that period`} note="Program costs cover the whole chosen period; benefits are not assumed during implementation." />}
-      <Metric title={monthlyProgram ? 'Total investment over selected period' : 'First-year investment'} value={reviewedMoney(result.comparisonInvestment, 'Needs quote and cost details')} />
-      <Metric title="Gross economic benefit over that period" value={money(result.comparisonGross)} />
-      <Metric title="Net economic benefit over that period" value={money(result.comparisonNet)} />
-      {!monthlyProgram && <Metric title="Illustrative payback" value={result.payback !== null ? `${result.payback.toFixed(1)} months` : result.net !== null && result.net <= 0 ? 'No payback under these assumptions' : 'Incomplete inputs'} note="From operation; no supported payback until quote, audit/credit treatment and material costs are known." />}
-    </details>
+      {result.comparisonInvestment != null && <Metric title={monthlyProgram ? 'Total investment over selected period' : 'First-year investment'} value={money(result.comparisonInvestment)} />}
+      {result.comparisonGross != null && <Metric title="Gross economic benefit over that period" value={money(result.comparisonGross)} />}
+      {result.comparisonNet != null && <Metric title="Net economic benefit over that period" value={money(result.comparisonNet)} />}
+    </details>}
     </ResultGroup>
     {attention.length > 0 && <details className="result-group result-review" open={result.errors.length > 0}>
-      <summary><span>Details to confirm <b className="result-review__count">({attention.length})</b></span></summary>
+      <summary><span>What still needs to be checked <b className="result-review__count">({attention.length})</b></span></summary>
       <div className="result-group__body"><ul>{attention.map(item => <li key={item}>{item}</li>)}</ul></div>
     </details>}
     <details className="result-group">
-      <summary><span><Icon name="operations" />Recommended solution and connected scope</span></summary>
+      <summary><span><Icon name="operations" />What the project would cover</span></summary>
       <div className="result-group__body">
       <p><strong>{state.answers.solution === 'agent' ? 'AI agent' : 'Automated workflow'}</strong></p>
-      {state.routes.length ? <><p>Connected responsibilities included for review:</p><ul>{state.routes.map(route => <li key={route}>{route}</li>)}</ul></> : <p>No detailed responsibility selected yet; the description remains the scope starting point.</p>}
-      <p><strong>Included:</strong> reviewed connected scope, agreed app touchpoints, testing, rollout, reusable training and handover. Shared work is counted once.</p>
+      {state.routes.length ? <><p>Work included for review:</p><ul>{state.routes.map(route => <li key={route}>{route}</li>)}</ul></> : <p>Start with your work description, then confirm the tasks to include.</p>}
+      <p><strong>Included:</strong> the agreed work and app connections, testing, launch, reusable training and handover. Shared work is counted once.</p>
       <p><strong>Excluded unless separately accepted:</strong> unrelated outcomes, material expansion, additional live training, unsupported integrations and third-party subscriptions or usage.</p>
       </div>
     </details>
     <details className="result-group">
-      <summary><span><Icon name="clock" />Scope, readiness and next step</span></summary>
+      <summary><span><Icon name="clock" />What happens next</span></summary>
       <div className="result-group__body">
-      <p><strong>{result.feasibility}</strong></p>
+      <p><strong>{feasibilityLabels[result.feasibility] || result.feasibility}.</strong></p>
       {result.warnings.map(warning => <p key={warning}>{warning}</p>)}
       <p>{result.commercialNotice}</p>
       <p>If Make is needed, you own its account and billing and pay Make directly for subscriptions and usage. AOC receives authorized access for the agreed work and does not rebill Make credits.</p>
-      <p>You provide business rules, required access and timely reviews. AOC checks blockers before recommending paid discovery. Download this review and send it to your AOC contact. No audit purchase is enabled in this test version.</p>
+      <p>If you want to proceed, share this estimate with AOC. AOC checks whether the work is feasible before offering a paid audit. You and AOC then agree what the work includes, the access needed and any remaining prices.</p>
       </div>
     </details>
   </>;
@@ -188,8 +218,8 @@ export function EstimateSidebar({ state, area, onNavigate }) {
       {state.result && <div className="estimate-card__footer">
         <button type="button" className="result-download" onClick={() => downloadSummary(state, area)}><Icon name="download" />Download estimate summary</button>
         <p className="result-verification">{state.calculationSource === 'server'
-          ? `Server-verified arithmetic · rules ${estimatorBank.version}. Quote and business terms still require AOC confirmation.`
-          : 'Local preview only · server verification is required before relying on these calculations.'}</p>
+          ? 'Calculated from your answers. Confirm the final scope and prices with AOC.'
+          : 'This is a local estimate. Ask AOC to verify the figures before relying on them.'}</p>
       </div>}
     </div>
     <p className="aside-note">One connected system can include several tasks. More tasks do not automatically mean another agent or full build fee.</p>

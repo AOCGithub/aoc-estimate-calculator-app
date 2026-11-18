@@ -55,6 +55,23 @@ export function createHandoffStore(filename) {
       VALUES(?,?,?,?,?,?,?,?)`).run(id,parent.id,price.amount,price.currency,price.id,price.name,now,now);
     return { purchase: purchase(id), submission: parent };
   }
+  // Both signed webhooks and a server-verified Stripe refresh use the same
+  // transaction rules. A refresh is not recorded as a fabricated Stripe event.
+  function updateOutcome({purchaseId,sessionId,paymentId,outcome,receiptUrl,checkoutState}) {
+    const current=purchase(purchaseId);
+    if(!current || current.checkout_reference!==sessionId)throw new Error('checkout_conflict');
+    const finalOutcome=current.outcome==='paid'?'paid':outcome;
+    db.prepare(`UPDATE g2_purchases SET outcome=?,payment_reference=COALESCE(?,payment_reference),
+      receipt_url=COALESCE(?,receipt_url),checkout_state=?,updated_at=?,paid_at=COALESCE(paid_at,?) WHERE id=?`)
+      .run(finalOutcome,paymentId||null,receiptUrl||null,checkoutState,new Date().toISOString(),
+        finalOutcome==='paid'?new Date().toISOString():null,purchaseId);
+    if(finalOutcome==='paid'){
+      db.prepare(`UPDATE g2_submissions SET audit_intake_reference=COALESCE(audit_intake_reference,?),
+        paid_purchase_reference=COALESCE(paid_purchase_reference,?) WHERE id=?`)
+        .run(randomUUID(),purchaseId,current.submission_reference);
+    }
+    return {purchase:purchase(purchaseId),submission:submission(current.submission_reference)};
+  }
   return {
     prepare({ ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference }) {
       return transaction(() => {
@@ -84,8 +101,8 @@ export function createHandoffStore(filename) {
     bindCheckout(id, session) {
       const current = purchase(id);
       if (!current || (current.checkout_reference && current.checkout_reference !== session.id)) throw new Error('checkout_conflict');
-      db.prepare(`UPDATE g2_purchases SET checkout_reference=?,checkout_url=?,checkout_state=?,updated_at=? WHERE id=?`)
-        .run(session.id,session.url || null,session.status || 'open',new Date().toISOString(),id);
+      db.prepare(`UPDATE g2_purchases SET checkout_reference=?,checkout_url=?,checkout_state=?,price_reference=?,updated_at=? WHERE id=?`)
+        .run(session.id,session.url || null,session.status || 'open',session.line_items.data[0].price.id,new Date().toISOString(),id);
     },
     closeExpiredCheckout(id) {
       db.prepare(`UPDATE g2_purchases SET checkout_state='expired',outcome=CASE WHEN outcome='paid' THEN 'paid' ELSE 'incomplete' END,updated_at=? WHERE id=?`)
@@ -93,6 +110,9 @@ export function createHandoffStore(filename) {
     },
     setReceipt(id,url) {
       db.prepare("UPDATE g2_purchases SET receipt_url=? WHERE id=? AND outcome='paid'").run(url,id);
+    },
+    reconcileCheckout(details) {
+      return transaction(()=>updateOutcome(details));
     },
     applyEvent({ eventId, type, objectId, purchaseId, sessionId, paymentId, outcome, receiptUrl, checkoutState }) {
       return transaction(() => {
@@ -105,17 +125,9 @@ export function createHandoffStore(filename) {
         }
         db.prepare(`INSERT INTO g2_stripe_events(id,purchase_reference,event_type,object_reference,outcome,processed_at)
           VALUES(?,?,?,?,?,?)`).run(eventId,purchaseId,type,objectId,outcome,new Date().toISOString());
-        const finalOutcome = current.outcome === 'paid' ? 'paid' : outcome;
-        db.prepare(`UPDATE g2_purchases SET outcome=?,checkout_reference=?,payment_reference=COALESCE(?,payment_reference),
-          receipt_url=COALESCE(?,receipt_url),checkout_state=?,updated_at=?,paid_at=COALESCE(paid_at,?) WHERE id=?`)
-          .run(finalOutcome,sessionId,paymentId || null,receiptUrl || null,checkoutState,new Date().toISOString(),
-            finalOutcome==='paid'?new Date().toISOString():null,purchaseId);
-        if (finalOutcome === 'paid') {
-          db.prepare(`UPDATE g2_submissions SET audit_intake_reference=COALESCE(audit_intake_reference,?),
-            paid_purchase_reference=COALESCE(paid_purchase_reference,?) WHERE id=?`)
-            .run(randomUUID(),purchaseId,current.submission_reference);
-        }
-        return { duplicate: false, purchase: purchase(purchaseId), submission: submission(current.submission_reference) };
+        // An event can arrive before the checkout creation response is bound.
+        if(!current.checkout_reference)db.prepare('UPDATE g2_purchases SET checkout_reference=? WHERE id=?').run(sessionId,purchaseId);
+        return {duplicate:false,...updateOutcome({purchaseId,sessionId,paymentId,outcome,receiptUrl,checkoutState})};
       });
     },
     counts: () => ({

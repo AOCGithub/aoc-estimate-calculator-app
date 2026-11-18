@@ -22,7 +22,7 @@ try {
   server = await createServer({
     configFile: false, root, envDir: root, cacheDir: path.join(root, '.vite'), logLevel: 'silent',
     optimizeDeps: { noDiscovery: true, include: [] },
-    server: { host: '127.0.0.1', port: 0, strictPort: true, fs: { strict: true, allow: [root], deny } },
+    server: { host: '127.0.0.1', port: 5181, strictPort: false, fs: { strict: true, allow: [root], deny } },
   });
   await server.listen();
   const origin = 'http://127.0.0.1:' + server.httpServer.address().port;

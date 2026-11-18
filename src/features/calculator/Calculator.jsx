@@ -16,7 +16,7 @@ import { LiveContext } from '../../components/LiveContext.jsx';
 import { RestartDialog } from '../../components/RestartDialog.jsx';
 import { CompanyProfilePanel } from '../profiles/CompanyProfilePanel.jsx';
 import { Brand } from '../../components/Brand.jsx';
-import { TestPurchase } from '../payments/TestPurchase.jsx';
+import { AuditCheckout } from '../payments/AuditCheckout.jsx';
 
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
@@ -136,7 +136,7 @@ export default function Calculator({ access, profiles }) {
           }}>End session</button>
         )}
       </header>
-      <main className="calculator-main">
+      <main className="calculator-main calculator-main--ready">
         {access.intakeOnly && <p className="session-saving-note" role="note">{access.saveData
           ? `Data saving is on. Your details${access.recordsEnabled ? ' and calculated estimates' : ''} are saved privately with AOC.`
           : profiles.enabled ? 'Estimate recording is off. Company profile details are saved separately only when you choose to remember them.'
@@ -195,7 +195,7 @@ export default function Calculator({ access, profiles }) {
           <EstimateSidebar state={state} area={selectedArea || { label: 'AI Commerce' }} onNavigate={actions.goTo} />
         </div>
         {import.meta.env.VITE_AOC_STRIPE_TEST_HANDOFF_ENABLED === 'true'
-          && <TestPurchase state={state} profile={access.currentProfile} onNavigate={actions.goTo} />}
+          && <AuditCheckout state={state} profile={access.currentProfile} onNavigate={actions.goTo} />}
         <footer>
           <span>Always Open Commerce · USD · Estimates only</span>
           <span>{estimatorBank.version}</span>

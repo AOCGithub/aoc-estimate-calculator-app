@@ -1,0 +1,50 @@
+.payment-status {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.payment-status__header { border-bottom: 1px solid var(--line); background: white; }
+.payment-status__header > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  max-width: 1060px;
+  margin: auto;
+  padding: 17px 24px;
+}
+.payment-status__header > div > a:last-child { flex-shrink: 0; font-size: 12px; text-underline-offset: 4px; }
+.payment-status__main { max-width: 776px; margin: auto; padding: clamp(24px, 7vh, 64px) 20px 42px; }
+.payment-status__card.g2-purchase { margin: 0; padding: 0; overflow: hidden; }
+.payment-status__banner {
+  padding: clamp(22px, 4vw, 36px);
+  border-bottom: 1px solid var(--line);
+  background: #f3f6f4;
+}
+.payment-status__banner[data-outcome="paid"] { background: #edf6ef; }
+.payment-status__banner[data-outcome="failed"] { background: #faf2ef; }
+.payment-status__banner .eyebrow { margin: 0 0 9px; }
+.payment-status__banner h1 { margin: 0 0 9px; font-size: clamp(25px, 4.3vw, 36px); overflow-wrap: anywhere; }
+.payment-status__banner p:last-child { margin: 0; max-width: 53ch; }
+.payment-status__body { padding: 22px clamp(18px, 4vw, 36px) 26px; }
+.payment-status__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+  margin: 0;
+}
+.payment-status__summary dt { font-size: 12px; color: var(--muted); }
+.payment-status__summary dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 500; }
+.payment-status__body .g2-purchase__actions--documents { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g2-purchase__actions a.payment-status__receipt { border-color: var(--teal); background: var(--teal); color: white; }
+.g2-purchase__actions a.payment-status__receipt:hover { border-color: var(--forest); background: var(--forest); }
+.payment-status__details { margin-top: 20px; border-top: 1px solid var(--line); }
+.payment-status__details > details { border-bottom: 1px solid var(--line); }
+.payment-status__description { white-space: pre-wrap; }
+@media (max-width: 640px) {
+  .payment-status__body .g2-purchase__actions--documents { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 440px) {
+  .payment-status__header > div { padding-inline: 16px; }
+  .payment-status__main { padding-inline: 12px; }
+  .payment-status__summary { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}

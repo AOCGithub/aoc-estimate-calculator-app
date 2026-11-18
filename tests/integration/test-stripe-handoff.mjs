@@ -7,10 +7,11 @@ import fixture from '../fixtures/commercial.cjs';
 import { createHandoffStore } from '../../server/payments/handoff-store.mjs';
 import { createG2Payments,handleG2Payment } from '../../server/payments/stripe-handoff.mjs';
 import { handleAccessVerification } from '../../server/api-handlers.mjs';
+import { auditService } from '../../server/payments/audit-service.mjs';
 
 const origin='http://localhost:5173';
 const env={AOC_STRIPE_TEST_HANDOFF_ENABLED:'true',STRIPE_SECRET_KEY:'sk_test_synthetic_fixture_not_a_real_key',
-  STRIPE_TEST_AUDIT_PRICE_ID:'price_g2_fixture',STRIPE_WEBHOOK_SECRET:'whsec_'+('s'.repeat(40)),
+  STRIPE_WEBHOOK_SECRET:'whsec_'+('s'.repeat(40)),
   AOC_ACCESS_GATE_ENABLED:'true',AOC_INTAKE_ONLY_ENABLED:'true',AOC_ACCESS_SESSION_SECRET:'g2-access-fixture-'.repeat(4),
   AOC_ACCESS_REQUESTS_ENABLED:'false',AOC_ESTIMATE_RECORDS_ENABLED:'false',AOC_RECAPTCHA_ENABLED:'false'};
 const profile={name:'Synthetic G2 Tester',company:'Synthetic G2 Company',website:'example.com',role:'Tester',businessEmail:'g2@example.com'};
@@ -26,15 +27,24 @@ async function cookie(){
 }
 function stripeFixture(){
  const sessions=new Map(),byKey=new Map();let serial=0;const calls={create:0,retrieve:0};
- const stripe={webhooks:Stripe.webhooks,prices:{retrieve:async()=>({id:env.STRIPE_TEST_AUDIT_PRICE_ID,livemode:false,active:true,type:'one_time',currency:'usd',unit_amount:10000,product:{name:'Initial audit — G2 test'}})},
+ const stripe={webhooks:Stripe.webhooks,
   checkout:{sessions:{
    async create(params,options){
     calls.create++;assert.equal(params.payment_intent_data.metadata.recording_reference,params.metadata.recording_reference);
-    assert.equal(params.line_items[0].price,env.STRIPE_TEST_AUDIT_PRICE_ID);
+    assert.equal(params.line_items[0].price,undefined);
+    assert.equal(params.line_items[0].price_data.currency,'usd');
+    assert.equal(params.line_items[0].price_data.product_data.description,auditService.description);
+    assert.equal(params.payment_method_types,undefined);assert.deepEqual(params.allowed_payment_method_types,['card']);
+    for(const [value,outcome] of [[params.success_url,'success'],[params.cancel_url,'cancelled']]){
+     const redirect=new URL(value);
+     assert.equal(redirect.origin,origin);assert.equal(redirect.pathname,'/payment/status');
+     assert.equal(redirect.searchParams.get('purchase_reference'),params.metadata.purchase_reference);
+     assert.equal(redirect.searchParams.get('checkout_result'),outcome);
+    }
     if(byKey.has(options.idempotencyKey))return structuredClone(byKey.get(options.idempotencyKey));
     const id='cs_test_fixture_'+(++serial),session={id,livemode:false,mode:'payment',metadata:params.metadata,
-     client_reference_id:params.client_reference_id,amount_total:10000,currency:'usd',url:'https://checkout.stripe.com/c/pay/'+id,
-     status:'open',payment_status:'unpaid',line_items:{data:[{price:{id:env.STRIPE_TEST_AUDIT_PRICE_ID},quantity:1}]},
+     client_reference_id:params.client_reference_id,amount_total:params.line_items[0].price_data.unit_amount,currency:'usd',url:'https://checkout.stripe.com/c/pay/'+id,
+     status:'open',payment_status:'unpaid',line_items:{data:[{price:{id:'price_fixture_'+serial,livemode:false,type:'one_time',currency:'usd',unit_amount:params.line_items[0].price_data.unit_amount},quantity:1,amount_total:params.line_items[0].price_data.unit_amount,description:params.line_items[0].price_data.product_data.name}]},
      payment_intent:{id:'pi_fixture_'+serial,latest_charge:null}};
     sessions.set(id,session);byKey.set(options.idempotencyKey,session);return structuredClone(session);
    },
@@ -66,22 +76,43 @@ async function start(body=payload()){
 const checks=[];
 async function check(name,run){await run();checks.push(name);}
 try{
- await check('Disabled by default, and always disabled on Vercel or a non-local hostname',async()=>{
+ await check('Disabled by default and hosted mode requires the exact HTTPS origin and sandbox settings',async()=>{
   for(const [environment,url]of [[{},origin],[{...env,VERCEL:'1'},origin],[env,'https://production.example']]){
    const response=await handleG2Payment(new Request(url+'/api/payments/status'),environment);assert.equal((await response.json()).enabled,false);
   }
+  const hostedOrigin='https://estimate.example';
+  const hosted={...env,VERCEL:'1',AOC_G2_HOSTED_ORIGIN:hostedOrigin};
+  for(const url of ['https://preview.example','http://estimate.example',origin]){
+   const result=await handleG2Payment(new Request(url+'/api/payments/status'),hosted);
+   assert.equal((await result.json()).enabled,false);
+  }
+  const missingDatabase=await handleG2Payment(new Request(hostedOrigin+'/api/payments/status'),hosted);
+  assert.deepEqual(await missingDatabase.json(),{enabled:true,configured:false,settings:{testKey:true,webhook:true,storage:false}});
+  const badKey=await handleG2Payment(new Request(hostedOrigin+'/api/payments/webhook',{method:'POST'}),
+   {...hosted,POSTGRES_URL:'postgres://unused.invalid/g2',STRIPE_SECRET_KEY:'sk_live_fixture'});
+  assert.equal(badKey.status,503);
  });
  await check('Test configuration status exposes no credentials',async()=>{
-  const body=await (await send('/api/payments/status')).json();assert.equal(body.configured,true);assert.equal(body.offer.amount,10000);
+  const body=await (await send('/api/payments/status')).json();assert.equal(body.configured,true);assert.equal(body.pricing,'quoted_audit');assert.equal(body.offer,undefined);
+  assert.deepEqual(body.service,auditService);
   assert.equal(JSON.stringify(body).includes(env.STRIPE_SECRET_KEY),false);assert.equal(JSON.stringify(body).includes(env.STRIPE_WEBHOOK_SECRET),false);
+  const live=await handleG2Payment(request('/api/payments/status'),{...env,STRIPE_SECRET_KEY:'sk_live_synthetic_rejected'});
+  assert.equal((await live.json()).configured,false);
  });
  await check('Access, origin, consent, missing description, blocked scope and client price overrides are rejected',async()=>{
   assert.equal((await api.handle(request('/api/payments/checkout',{method:'POST',body:payload()}))).status,401);
   assert.equal((await send('/api/payments/checkout',{method:'POST',body:payload(),headers:{origin:'https://elsewhere.example'}})).status,403);
-  for(const change of [p=>p.consent=false,p=>p.description='',p=>p.amount=1,p=>p.calculation.confirmed=false,p=>p.calculation.answers.legacy_system_check='Restricted',p=>p.calculation.answers.steps_band=5,p=>p.calculation=null]){
+  for(const change of [p=>p.consent=false,p=>p.description='',p=>p.amount=1,p=>p.service={refund:'Unconditional refund'},p=>p.calculation.confirmed=false,p=>p.calculation.answers.legacy_system_check='Restricted',p=>p.calculation.answers.steps_band=5,p=>p.calculation=null]){
    const p=payload();change(p);assert.equal((await send('/api/payments/checkout',{method:'POST',body:p})).status,400);
   }
   assert.equal(store.counts().submissions,0);
+ });
+ await check('Missing, zero, fractional-cent and unsupported audit quotes cannot fall back to a percentage or sample price',async()=>{
+  for(const fee of [undefined,null,0,1.001,1000000]){
+   const body=payload();body.calculation.answers.audit_fee=fee;
+   assert.equal((await send('/api/payments/checkout',{method:'POST',body})).status,400);
+  }
+  assert.equal(store.counts().submissions,0);assert.equal(provider.calls.create,0);
  });
  const initial=await start();
  await check('Submission and reviewed text receive separate stable references; calculation is recomputed',async()=>{
@@ -89,6 +120,9 @@ try{
   assert.equal(initial.purchase.snapshot.description,initial.body.description);
   assert.deepEqual(initial.purchase.snapshot.answers,initial.body.calculation.answers);
   assert.equal(initial.purchase.snapshot.result.build,11500);
+  assert.equal(initial.purchase.amount,initial.purchase.snapshot.result.audit*100);
+  assert.equal(initial.purchase.amount,125000);
+  assert.deepEqual(initial.purchase.snapshot.service,auditService);
   assert.equal(initial.purchase.outcome,'pending');assert.equal(initial.purchase.auditIntakeReference,null);assert.equal(initial.purchase.receiptUrl,null);
  });
  await check('Duplicate checkout requests reuse the purchase and Stripe idempotency key',async()=>{
@@ -120,11 +154,14 @@ try{
   assert.equal(store.counts().events,0);
  });
  await check('Reference, amount and currency mismatches cannot create an intake',async()=>{
-  for(const change of [(e,s)=>s.amount_total=1,(e,s)=>s.currency='eur',(e,s)=>e.data.object.metadata.recording_reference=randomUUID()]){
-   const session=provider.sessions.get(initial.purchase.stripeCheckoutReference);session.amount_total=10000;session.currency='usd';
+  const original=structuredClone(provider.sessions.get(initial.purchase.stripeCheckoutReference));
+  for(const change of [(e,s)=>s.amount_total=1,(e,s)=>s.currency='eur',(e,s)=>e.data.object.metadata.recording_reference=randomUUID(),
+    (e,s)=>s.line_items.data[0].price.unit_amount=1,(e,s)=>s.line_items.data[0].price.id='price_wrong',
+    (e,s)=>s.line_items.data[0].description='Unrelated purchase']){
+   provider.sessions.set(original.id,structuredClone(original));
    const result=await event(initial.purchase,{change});assert.equal(result.status,400);
   }
-  const session=provider.sessions.get(initial.purchase.stripeCheckoutReference);session.amount_total=10000;session.currency='usd';
+  provider.sessions.set(original.id,original);
   assert.equal(store.counts().auditIntakes,0);
  });
  await check('Completed but unpaid remains processing, with no receipt or paid intake',async()=>{
@@ -204,6 +241,59 @@ try{
   assert.equal(bodies[0].purchase.purchaseReference,bodies[1].purchase.purchaseReference);
   assert.equal(store.counts().submissions,before.submissions+1);assert.equal(store.counts().purchases,before.purchases+1);
   assert.equal(provider.sessions.size,sessionsBefore+1);
+ });
+ await check('Different reviewed audit quotes create matching dynamic amounts without changing the build rules',async()=>{
+  for(const fee of [800,1800.25]){
+   const body=payload();body.calculation.answers.audit_fee=fee;
+   const started=await start(body),purchase=started.purchase;
+   assert.equal(purchase.amount,fee*100);
+   assert.equal(purchase.snapshot.result.build,11500);
+   const session=provider.sessions.get(purchase.stripeCheckoutReference);
+   assert.equal(session.amount_total,fee*100);
+   assert.equal(session.line_items.data[0].price.unit_amount,fee*100);
+   session.status='expired';await event(purchase,{type:'checkout.session.expired',outcome:'incomplete'});
+   const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:purchase.submissionReference}})).json();
+   assert.equal(retry.purchase.amount,fee*100);assert.equal(retry.purchase.recordingReference,purchase.recordingReference);
+  }
+ });
+ await check('Explicit refresh verifies Stripe, recovers a missed paid webhook and shares its single intake with later events',async()=>{
+  const {purchase}=await start(),before=store.counts();
+  const session=provider.sessions.get(purchase.stripeCheckoutReference);
+  Object.assign(session,{status:'complete',payment_status:'paid',payment_intent:{...session.payment_intent,latest_charge:{receipt_url:'https://pay.stripe.com/receipts/payment/fixture'}}});
+  const cached=await (await send('/api/payments/status?purchase_reference='+purchase.purchaseReference)).json();
+  assert.equal(cached.purchase.outcome,'pending');
+  const responses=await Promise.all([1,2].map(()=>send('/api/payments/status?purchase_reference='+purchase.purchaseReference+'&refresh=true')));
+  const bodies=await Promise.all(responses.map(async r=>{assert.equal(r.status,200);return r.json();}));
+  assert.equal(bodies[0].purchase.outcome,'paid');assert.ok(Date.parse(bodies[0].checkedAt));
+  assert.equal(bodies[0].purchase.receiptUrl,'https://pay.stripe.com/receipts/payment/fixture');
+  assert.equal(bodies[0].purchase.auditIntakeReference,bodies[1].purchase.auditIntakeReference);
+  assert.equal(store.counts().auditIntakes,before.auditIntakes+1);assert.equal(store.counts().events,before.events);
+  const later=await (await event(purchase)).json();assert.equal(later.auditIntakeReference,bodies[0].purchase.auditIntakeReference);
+  assert.equal(store.counts().auditIntakes,before.auditIntakes+1);
+  session.payment_status='unpaid';session.status='open';
+  assert.equal((await (await send('/api/payments/status?purchase_reference='+purchase.purchaseReference+'&refresh=true')).json()).purchase.outcome,'paid');
+ });
+ await check('Refresh cannot bypass ownership, trust a success URL, accept mismatched amounts or hide a Stripe outage',async()=>{
+  const {purchase}=await start(),route='/api/payments/status?purchase_reference='+purchase.purchaseReference+'&refresh=true';
+  const retrieved=provider.calls.retrieve;
+  assert.equal((await send(route,{cookie:otherAuth})).status,404);assert.equal(provider.calls.retrieve,retrieved);
+  assert.equal((await (await send(route+'&checkout_result=success')).json()).purchase.outcome,'pending');
+  const session=provider.sessions.get(purchase.stripeCheckoutReference),before=store.counts();session.amount_total=1;
+  assert.equal((await send(route)).status,409);assert.deepEqual(store.counts(),before);
+  session.amount_total=purchase.amount;
+  const broken=createG2Payments({environment:env,store,stripe:{...provider.stripe,checkout:{sessions:{retrieve(){throw new Error('synthetic_outage');}}}}});
+  const response=await broken.handle(request(route,{cookie:auth}));assert.equal(response.status,502);
+  assert.match((await response.json()).error,/could not check Stripe/);
+  assert.equal(store.purchase(purchase.purchaseReference).outcome,'pending');assert.deepEqual(store.counts(),before);
+ });
+ await check('Refresh distinguishes processing and expired unpaid sessions without creating a paid intake',async()=>{
+  const {purchase}=await start(),session=provider.sessions.get(purchase.stripeCheckoutReference),before=store.counts();
+  const route='/api/payments/status?purchase_reference='+purchase.purchaseReference+'&refresh=true';
+  session.status='complete';session.payment_status='unpaid';
+  assert.equal((await (await send(route)).json()).purchase.outcome,'processing');
+  session.status='expired';
+  assert.equal((await (await send(route)).json()).purchase.outcome,'incomplete');
+  assert.equal(store.counts().auditIntakes,before.auditIntakes);assert.equal(store.counts().events,before.events);
  });
  console.log('PASS: '+checks.length+' G2 checks: '+checks.join('; ')+'.');
  console.log('These are local database/HTTP-handler tests with signed fixtures and mocked Stripe API responses; no real Stripe purchase, Supabase write or email was made.');

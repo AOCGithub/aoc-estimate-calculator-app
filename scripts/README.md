@@ -20,7 +20,7 @@ npm test
 
 The profile preview uses local SQLite by default. `npm run dev` and commands wrapped in `vercel env run -e production` use the linked project's server settings; they can call real providers or persist opted-in information. Database/deployment scripts are operator tools, not build steps. Do not run setup/configuration scripts as part of routine UI changes.
 
-`npm run dev:g2` starts the isolated G2 purchase rehearsal on port 5173, reads the Git-ignored `.env.stripe.local`, uses local SQLite and disables live Supabase recording. It accepts Stripe test keys only and requires the local Stripe webhook listener. See [G2 setup](../docs/features/G2-STRIPE-HANDOFF.md). It does not enable hosted/live billing.
+`npm run dev:g2` starts G2 on port 5173 with the existing Vercel server settings, AI prefill and optional Supabase saving. Saving details/estimates and remembering profiles still require their separate unchecked consents. Payment rehearsal records remain in local SQLite. The Git-ignored `.env.stripe.local` overrides inherited Stripe credentials and must contain a sandbox key. Run `npm run dev:g2:stripe` in a separate terminal for sandbox webhooks. Checkout uses the reviewed audit quote; no fixed Price ID is needed. See [G2 setup](../docs/features/G2-STRIPE-HANDOFF.md). Neither command deploys or enables real billing.
 
 For approved workbook changes, run `node scripts/build/compile-approved.cjs`, review the generated files and run `npm test`. Keep sample pricing isolated to `npm run preview:test-pricing`; it does not replace missing AOC prices.
 

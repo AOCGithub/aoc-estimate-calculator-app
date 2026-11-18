@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "npm run dev:access",
-    "dev:g2": "node scripts/dev/dev-g2.mjs",
+    "dev:g2": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-g2.mjs",
+    "dev:g2:stripe": "node scripts/dev/stripe-listener.mjs",
     "dev:profiles": "node scripts/dev/dev-profiles.mjs",
     "dev:access": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-access.mjs",
     "dev:access:previous": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-access.mjs --previous",
@@ -21,8 +22,8 @@
     "build": "vite build",
     "build:worker": "npm run build && node scripts/build/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",
-    "test:domain": "node tests/unit/test-journey.cjs && node tests/unit/test-commercial.cjs && node tests/unit/test-document-rules.cjs",
-    "test:g2": "node tests/integration/test-stripe-handoff.mjs && node tests/browser/test-stripe-handoff-ui.mjs",
+    "test:domain": "node tests/unit/test-journey.cjs && node tests/unit/test-commercial.cjs && node tests/unit/test-document-rules.cjs && node tests/unit/test-marketing-prefill.cjs",
+    "test:g2": "node tests/integration/test-stripe-handoff.mjs && node tests/unit/test-purchase-pdf.mjs && node tests/browser/test-stripe-handoff-ui.mjs",
     "test:local-pricing": "node tests/unit/test-local-pricing.cjs && node tests/browser/test-local-pricing-ui.cjs",
     "test:worker": "node tests/integration/test-journey-worker.cjs",
     "test:intake": "node tests/integration/test-voice-server.cjs",
@@ -48,14 +49,17 @@
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
+    "postgres": "3.4.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "stripe": "23.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "pdfjs-dist": "^6.5.438",
     "playwright-core": "^1.64.1",
-    "postgres": "3.4.9",
     "vite": "^6.4.6"
   }
 }

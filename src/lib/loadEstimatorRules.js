@@ -1,5 +1,6 @@
 // Keep approved rules unchanged and load them only when the calculator is opened.
 let loading;
+let bankLoading;
 
 function loadScript(path, ready) {
   if (ready()) return Promise.resolve();
@@ -20,11 +21,19 @@ function loadScript(path, ready) {
   });
 }
 
+export function loadEstimatorBank() {
+  bankLoading ||= loadScript('/approved-bank.js', () => globalThis.AOCBank).catch(error => {
+    bankLoading = null;
+    throw error;
+  });
+  return bankLoading;
+}
+
 export function loadEstimatorRules() {
   if (!loading) {
     loading = Promise.all([
       loadScript('/engine.js', () => globalThis.AOC),
-      loadScript('/approved-bank.js', () => globalThis.AOCBank),
+      loadEstimatorBank(),
       loadScript('/approved-pricing.js', () => globalThis.AOCPricing),
       loadScript('/commercial.js', () => globalThis.AOCCommercial),
     ]).then(() => loadScript('/journey-engine.js', () => globalThis.AOCJourneyEngine));

@@ -66,12 +66,13 @@
     const expiryDate = deadline?.toISOString().slice(0, 10) || null;
     const result = (status, amount, reason) => ({ status, amount, expiryDate, reason });
     if (input.audit_credit_used === 'yes') return result('already_used', 0, 'The audit credit has already been applied; changing route does not create another credit.');
-    if (deadline && ((accepted && accepted > deadline) || (firstPaid && firstPaid > deadline))) return result('expired', 0, 'Acceptance and first implementation payment must both fall within the 30-calendar-day window.');
-    const today = date(asOf.toISOString().slice(0, 10));
-    if (deadline && today > deadline && (!accepted || !firstPaid)) return result('expired', 0, 'The credit window has expired without both qualifying events recorded.');
+    // A blank date can mean a past event is undocumented. Require both dates
+    // before deciding eligibility, as in Audit & Project Quote!B11:B12.
     if (!fee || paid === null || !sent || !accepted || !firstPaid || input.audit_credit_used !== 'no') return result('pending', null, 'AOC must confirm the quoted/paid audit, dates, and that the credit has not been used.');
     if (paid !== fee) return result(paid > fee ? 'review' : 'pending', null, 'The full paid audit fee must match the quoted fee; partial or excess payments need review.');
+    const today = date(asOf.toISOString().slice(0, 10));
     if (accepted < sent || firstPaid < sent || accepted > today || firstPaid > today || sent > today) return result('review', null, 'Use actual qualifying dates after the approved audit was sent; AOC must confirm chronology.');
+    if (accepted > deadline || firstPaid > deadline) return result('expired', 0, `Acceptance and first implementation payment must both fall within the ${rules.auditCreditDays}-calendar-day window.`);
     if (!['project','monthly'].includes(input.audit_accepted_route)) return result('pending', null, 'AOC must confirm which implementation route the actual acceptance and first-payment records belong to.');
     if (input.audit_accepted_route !== input.implementation_route) return result('review', null, 'These audit acceptance/payment records belong to a different route. Changing route does not authorize another credit; AOC must reconcile it.');
     return result('eligible', fee, 'Full paid audit fee eligible once toward the first accepted implementation route; AOC confirms invoice application.');
