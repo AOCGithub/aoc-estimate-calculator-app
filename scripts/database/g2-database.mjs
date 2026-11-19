@@ -12,16 +12,21 @@ const sql = postgres(connection, {prepare: false, max: 1, connect_timeout: 10, s
 
 try {
   if (command === 'setup') {
-    const migration = await readFile(new URL('../../supabase/migrations/20261118000100_g2_sandbox.sql', import.meta.url), 'utf8');
+    const migrations = await Promise.all([
+      new URL('../../supabase/migrations/20261118000100_g2_sandbox.sql', import.meta.url),
+      new URL('../../supabase/migrations/20261119000100_g2_payment_emails.sql', import.meta.url),
+    ].map(file => readFile(file, 'utf8')));
     await sql.begin(async db => {
       await db`SELECT pg_advisory_xact_lock(20261118, 2)`;
       const [existing] = await db`SELECT to_regnamespace('g2_sandbox') IS NOT NULL AS present`;
-      if (!existing.present) await db.unsafe(migration);
+      if (!existing.present) await db.unsafe(migrations[0]);
+      const [email] = await db`SELECT to_regclass('g2_sandbox.payment_emails') IS NOT NULL AS present`;
+      if (!email.present) await db.unsafe(migrations[1]);
     });
   }
   const tables = await sql`SELECT c.relname, c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE n.nspname = 'g2_sandbox' AND c.relkind = 'r' ORDER BY c.relname`;
-  assert.deepEqual(tables.map(row => row.relname), ['purchases', 'stripe_events', 'submissions']);
+  assert.deepEqual(tables.map(row => row.relname), ['payment_emails', 'purchases', 'stripe_events', 'submissions']);
   assert.ok(tables.every(row => row.relrowsecurity));
   for (const role of ['anon', 'authenticated', 'service_role']) {
     const [permissions] = await sql`SELECT has_schema_privilege(${role}, 'g2_sandbox', 'usage,create') AS allowed`;
@@ -71,6 +76,14 @@ async function verifyTransactions() {
     assert.equal(replay[0].submission.audit_intake_reference, replay[1].submission.audit_intake_reference);
     assert.equal((await second.bundle(purchaseId, ownerHash)).purchase.receipt_url, event.receiptUrl);
     assert.equal((await second.prepare(order)).purchase.id, purchaseId);
+    const mailClaims = await Promise.all([first.claimPaymentEmail(purchaseId, 'client'), second.claimPaymentEmail(purchaseId, 'client')]);
+    assert.equal(mailClaims.filter(Boolean).length, 1);
+    await first.finishPaymentEmail(purchaseId, 'client', 'sent');
+    assert.equal(await second.claimPaymentEmail(purchaseId, 'client'), false);
+    assert.equal(await second.claimPaymentEmail(purchaseId, 'support'), true);
+    await second.finishPaymentEmail(purchaseId, 'support', 'retry');
+    assert.equal(await first.claimPaymentEmail(purchaseId, 'support'), true);
+    assert.equal(await first.claimPaymentEmail(different.purchase.id, 'client'), false);
 
     const unpaidSession = sessionId();
     await first.bindCheckout(different.purchase.id, session(unpaidSession));
@@ -91,6 +104,8 @@ async function verifyTransactions() {
     await Promise.all([first.close(), second.close()]);
     // Remove only this run's synthetic fixtures.
     await sql.begin(async db => {
+      await db`DELETE FROM g2_sandbox.payment_emails e USING g2_sandbox.purchases p, g2_sandbox.submissions s
+        WHERE e.purchase_reference = p.id AND p.submission_reference = s.id AND s.owner_hash = ${ownerHash}`;
       await db`DELETE FROM g2_sandbox.stripe_events e USING g2_sandbox.purchases p, g2_sandbox.submissions s
         WHERE e.purchase_reference = p.id AND p.submission_reference = s.id AND s.owner_hash = ${ownerHash}`;
       await db`UPDATE g2_sandbox.submissions SET paid_purchase_reference = NULL, audit_intake_reference = NULL WHERE owner_hash = ${ownerHash}`;

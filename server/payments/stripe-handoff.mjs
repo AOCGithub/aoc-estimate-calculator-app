@@ -28,6 +28,11 @@ const safeUrl = (value,hosts) => {
 const checkoutUrl = value => safeUrl(value,['checkout.stripe.com']);
 const receiptUrl = value => safeUrl(value,['pay.stripe.com','receipts.stripe.com']);
 const readSnapshot = value => typeof value === 'string' ? JSON.parse(value) : value;
+function chargeDate(intent) {
+  const timestamp=intent?.latest_charge?.created;
+  return Number.isSafeInteger(timestamp) && timestamp>0 && timestamp<8640000000000
+    ? new Date(timestamp*1000).toISOString() : null;
+}
 
 async function rawBody(request,limit) {
   if (Number(request.headers.get('content-length') || 0) > limit) throw new Error('request_too_large');
@@ -55,7 +60,20 @@ function view(bundle) {
     snapshot:{...readSnapshot(s.snapshot),description:s.description,savedAt:s.created_at} };
 }
 
-export function createG2Payments({ environment:env,store,stripe,checkAccess=requireAccess }) {
+export function createG2Payments({ environment:env,store,stripe,checkAccess=requireAccess,notifyPaid }) {
+  let paymentEmailSender;
+  async function sendPaymentEmails(result, session) {
+    if (env.AOC_G2_PAYMENT_EMAILS_ENABLED !== 'true' || session.payment_status !== 'paid') return;
+    const purchase = view(result);
+    const verifiedReceipt = receiptUrl(session.payment_intent?.latest_charge?.receipt_url);
+    if (!purchase.receiptUrl && verifiedReceipt) {
+      await store.setReceipt(purchase.purchaseReference, verifiedReceipt);
+      purchase.receiptUrl = verifiedReceipt;
+    }
+    paymentEmailSender ||= notifyPaid || (await import('./payment-email.mjs')).configurePaymentEmailSender(env,store);
+    await paymentEmailSender(purchase,session.customer_details);
+  }
+
   function auditOffer(result) {
     // Current commercial rules use the explicitly quoted fixed audit fee, never a build percentage.
     const amount=Math.round(result.audit*100);
@@ -197,7 +215,15 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const intent=session.payment_intent;
       const result=await store.applyEvent({eventId:event.id,type:event.type,objectId:object.id,purchaseId:p.id,
         sessionId:session.id,paymentId:typeof intent==='string'?intent:intent?.id,
-        outcome,receiptUrl:outcome==='paid'?receiptUrl(intent?.latest_charge?.receipt_url):null,checkoutState:session.status});
+        outcome,receiptUrl:outcome==='paid'?receiptUrl(intent?.latest_charge?.receipt_url):null,checkoutState:session.status,
+        paidAt:outcome==='paid'?chargeDate(intent):null});
+      try {
+        // The paid record is committed first; retries only address outstanding emails.
+        await sendPaymentEmails(result,session);
+      } catch(error) {
+        console.warn('G2 payment email delivery pending.',{purchaseReference:p.id,code:error.code||error.name});
+        return json({error:'Payment was recorded. Retry email delivery.'},503);
+      }
       return json({received:true,duplicate:result.duplicate,outcome:result.purchase.outcome,auditIntakeReference:result.submission.audit_intake_reference});
     }catch(error){
       if(error.message==='purchase_mismatch')return json({error:'Stripe purchase details do not match the saved order.'},400);
@@ -230,7 +256,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
               :current.status==='complete'?'processing':stored.purchase.outcome==='failed'?'failed':'pending';
             const updated=await store.reconcileCheckout({purchaseId:reference,sessionId:current.id,
               paymentId:typeof intent==='string'?intent:intent?.id,outcome,checkoutState:current.status,
-              receiptUrl:outcome==='paid'?receiptUrl(intent?.latest_charge?.receipt_url):null});
+              receiptUrl:outcome==='paid'?receiptUrl(intent?.latest_charge?.receipt_url):null,
+              paidAt:outcome==='paid'?chargeDate(intent):null});
             return json({enabled:true,configured:true,purchase:view(updated),checkedAt:new Date().toISOString()});
           }catch(error){
             if(error.message==='purchase_mismatch')return json({error:'The payment details did not match your saved order. Contact AOC before trying another payment.'},409);

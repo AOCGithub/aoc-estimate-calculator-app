@@ -15,9 +15,9 @@ const actionModes={draft:'Prepare drafts for a person to approve',approved:'Make
 
 // One AOC template, filled only from the immutable purchase snapshot. It never
 // recalculates prices or uses the visitor's later calculator edits.
-export function createPurchasePdf(purchase,{regularFont,boldFont,logo}={}) {
+export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBank=globalThis.AOCBank}={}) {
   if(!regularFont||!boldFont)throw new Error('PDF fonts are required.');
-  const estimatorBank=globalThis.AOCBank;
+  const estimatorBank=questionBank;
   if(!estimatorBank)throw new Error('The calculator questions could not be loaded.');
   const doc=new jsPDF({unit:'mm',format:'a4',compress:true,putOnlyUsedFonts:true});
   doc.addFileToVFS('NotoSans-Regular.ttf',regularFont);doc.addFont('NotoSans-Regular.ttf','NotoSans','normal');

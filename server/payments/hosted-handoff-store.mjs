@@ -16,7 +16,7 @@ export function createHostedHandoffStore(connection) {
   }
 
   async function recordOutcome(details, event) {
-    const {purchaseId, sessionId, paymentId, outcome, receiptUrl, checkoutState} = details;
+    const {purchaseId, sessionId, paymentId, outcome, receiptUrl, checkoutState, paidAt} = details;
     return sql.begin(async db => {
       const initial = await purchase(purchaseId, db);
       if (!initial) throw new Error('checkout_conflict');
@@ -45,7 +45,7 @@ export function createHostedHandoffStore(connection) {
         checkout_state = CASE WHEN outcome = 'paid' THEN checkout_state ELSE ${checkoutState} END,
         payment_reference = COALESCE(${paymentId || null}, payment_reference),
         receipt_url = COALESCE(receipt_url, ${receiptUrl || null}),
-        paid_at = CASE WHEN ${outcome} = 'paid' THEN COALESCE(paid_at, now()) ELSE paid_at END,
+        paid_at = CASE WHEN ${outcome} = 'paid' THEN COALESCE(paid_at, ${paidAt || null}::timestamptz, now()) ELSE paid_at END,
         updated_at = now()
         WHERE id = ${purchaseId} RETURNING *`;
       if (updated.outcome !== 'paid' || parent.audit_intake_reference) {
@@ -113,6 +113,17 @@ export function createHostedHandoffStore(connection) {
     },
     reconcileCheckout: details => recordOutcome(details),
     applyEvent: event => recordOutcome(event, event),
+    async claimPaymentEmail(purchaseId, audience) {
+      const claimed = await sql`INSERT INTO g2_sandbox.payment_emails (purchase_reference, audience, state)
+        SELECT id, ${audience}, 'sending' FROM g2_sandbox.purchases WHERE id = ${purchaseId} AND outcome = 'paid'
+        ON CONFLICT (purchase_reference, audience) DO UPDATE SET state = 'sending', updated_at = now()
+        WHERE payment_emails.state = 'retry' RETURNING state`;
+      return claimed.length > 0;
+    },
+    async finishPaymentEmail(purchaseId, audience, state) {
+      await sql`UPDATE g2_sandbox.payment_emails SET state = ${state}, updated_at = now()
+        WHERE purchase_reference = ${purchaseId} AND audience = ${audience} AND state = 'sending'`;
+    },
     close: () => sql.end({timeout: 5}),
   };
 }

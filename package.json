@@ -48,9 +48,11 @@
     "dev:profiles:database": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-profiles.mjs --database"
   },
   "dependencies": {
+    "@react-email/render": "2.3.1",
     "@vercel/speed-insights": "^2.0.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
+    "nodemailer": "10.6.0",
     "postgres": "3.4.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

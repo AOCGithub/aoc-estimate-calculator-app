@@ -3,11 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { mkdir,rm } from 'node:fs/promises';
 import path from 'node:path';
 import Stripe from 'stripe';
+import nodemailer from 'nodemailer';
 import fixture from '../fixtures/commercial.cjs';
 import { createHandoffStore } from '../../server/payments/handoff-store.mjs';
 import { createG2Payments,handleG2Payment } from '../../server/payments/stripe-handoff.mjs';
 import { handleAccessVerification } from '../../server/api-handlers.mjs';
 import { auditService } from '../../server/payments/audit-service.mjs';
+import { createPaymentEmailSender } from '../../server/payments/payment-email.mjs';
 
 const origin='http://localhost:5173';
 const env={AOC_STRIPE_TEST_HANDOFF_ENABLED:'true',STRIPE_SECRET_KEY:'sk_test_synthetic_fixture_not_a_real_key',
@@ -58,7 +60,7 @@ const provider=stripeFixture();
 const api=createG2Payments({environment:env,store,stripe:provider.stripe});
 const send=(route,options={})=>api.handle(request(route,{cookie:auth,...options}));
 let eventCounter=0;
-async function event(purchase,{type='checkout.session.completed',id,outcome='paid',change=()=>{},timestamp}={}){
+async function event(purchase,{type='checkout.session.completed',id,outcome='paid',change=()=>{},timestamp,handler=api}={}){
  const session=provider.sessions.get(purchase.stripeCheckoutReference);
  if(outcome==='paid')Object.assign(session,{status:'complete',payment_status:'paid',payment_intent:{...session.payment_intent,latest_charge:{receipt_url:'https://pay.stripe.com/receipts/payment/fixture'}}});
  if(outcome==='processing')Object.assign(session,{status:'complete',payment_status:'unpaid'});
@@ -67,7 +69,7 @@ async function event(purchase,{type='checkout.session.completed',id,outcome='pai
  const object=type.startsWith('payment_intent.')?{id:session.payment_intent.id,livemode:false,metadata:session.metadata}:structuredClone(session);
  const value={id:id||'evt_fixture_'+(++eventCounter),livemode:false,type,data:{object}};change(value,session);
  const body=JSON.stringify(value),signature=Stripe.webhooks.generateTestHeaderString({payload:body,secret:env.STRIPE_WEBHOOK_SECRET,...(timestamp?{timestamp}:{})});
- return send('/api/payments/webhook',{method:'POST',body,headers:{'stripe-signature':signature}});
+ return handler.handle(request('/api/payments/webhook',{method:'POST',body,headers:{'stripe-signature':signature}}));
 }
 async function start(body=payload()){
  const response=await send('/api/payments/checkout',{method:'POST',body});assert.equal(response.status,200,await response.clone().text());
@@ -294,6 +296,82 @@ try{
   session.status='expired';
   assert.equal((await (await send(route)).json()).purchase.outcome,'incomplete');
   assert.equal(store.counts().auditIntakes,before.auditIntakes);assert.equal(store.counts().events,before.events);
+ });
+ await check('Paid webhooks send two separate messages with saved data and the PDF, retrying only the failed recipient',async()=>{
+  const attempts=[], messages=[];
+  const mime=nodemailer.createTransport({streamTransport:true,buffer:true});
+  const support='support@alwaysopencommerce.com',email='checkout-recipient@example.com';
+  let supportBusy=true;
+  const transport={async sendMail(message){
+   attempts.push(message.to.address);
+   if(message.to.address===support&&supportBusy){supportBusy=false;throw Object.assign(new Error('Synthetic SMTP response'),{responseCode:451});}
+   const rendered=await mime.sendMail(message);
+   assert.deepEqual(rendered.envelope.to,[message.to.address]);
+   messages.push({message,mime:rendered.message});
+   return {accepted:[message.to.address]};
+  }};
+  const notifyPaid=createPaymentEmailSender({store,transport,fromAddress:'audits@example.com'});
+  const handler=createG2Payments({environment:{...env,AOC_G2_PAYMENT_EMAILS_ENABLED:'true'},store,stripe:provider.stripe,notifyPaid});
+  const unpaid=await start();
+  assert.equal((await event(unpaid.purchase,{handler,outcome:'incomplete',type:'checkout.session.expired'})).status,200);
+  assert.deepEqual(attempts,[]);
+  const {purchase}=await start({...payload(),description:'Review draft invoices. <script>Keep client wording as text.</script>'});
+  const paidAt='2026-11-19T04:30:00.000Z';
+  const change=(_,session)=>{
+   session.customer_details={name:'Stripe Contact',email};
+   session.payment_intent.latest_charge.created=Date.parse(paidAt)/1000;
+  };
+  const id='evt_email_retry_fixture';
+  const first=await event(purchase,{handler,id,change});
+  assert.equal(first.status,503);
+  const saved=store.purchase(purchase.purchaseReference);
+  assert.equal(saved.outcome,'paid');assert.equal(saved.paid_at,paidAt);
+  const intake=store.submission(purchase.submissionReference).audit_intake_reference;
+  assert.ok(intake);
+  assert.equal((await event(purchase,{handler,id,change})).status,200);
+  const replays=await Promise.all([event(purchase,{handler,id,change}),event(purchase,{handler,change})]);
+  assert.ok(replays.every(response=>response.status===200));
+  assert.equal(store.submission(purchase.submissionReference).audit_intake_reference,intake);
+  assert.equal(attempts.filter(address=>address===support).length,2);
+  assert.equal(attempts.filter(address=>address===email).length,1);
+  assert.equal(messages.length,2);
+  const client=messages.find(entry=>entry.message.to.address===email);
+  assert.match(client.message.subject,/^\[Stripe test\]/);
+  assert.match(client.message.text,/Hi Synthetic,/);
+  assert.match(client.message.text,/USD\s+1,250\.00/);
+  assert.match(client.message.text,/Nov 19, 2026, 4:30 AM UTC/);
+  assert.match(client.message.text,/What Happens Next\?/i);
+  assert.match(client.message.text,/https:\/\/pay\.stripe\.com\/receipts\/payment\/fixture/);
+  assert.ok(client.message.html.includes('&lt;script&gt;')&&!client.message.html.includes('<script>'));
+  assert.equal(client.message.attachments[0].content.subarray(0,5).toString(),'%PDF-');
+  assert.ok(client.message.attachments[0].filename.includes(purchase.submissionReference));
+  assert.match(client.mime.toString(),/Content-Type: application\/pdf/);
+  assert.match(client.mime.toString(),/Content-Type: text\/plain/);
+  const internal=messages.find(entry=>entry.message.to.address===support).message;
+  assert.ok(internal.text.includes(intake)&&internal.text.includes(email));
+  assert.equal(internal.attachments,undefined);
+ });
+ await check('A late receipt can complete the client email and ambiguous SMTP acceptance is never retried automatically',async()=>{
+  const attempts=[];
+  const notifyPaid=createPaymentEmailSender({store,fromAddress:'audits@example.com',testClientAddress:'tester@example.com',
+   transport:{async sendMail({to}){
+    attempts.push(to.address);
+    if(to.address==='tester@example.com')throw Object.assign(new Error('Synthetic lost SMTP connection'),{command:'DATA'});
+    return {accepted:[to.address]};
+   }}});
+  const handler=createG2Payments({environment:{...env,AOC_G2_PAYMENT_EMAILS_ENABLED:'true'},store,stripe:provider.stripe,notifyPaid});
+  const {purchase}=await start();
+  const id='evt_late_receipt_fixture',email='synthetic-checkout@example.com';
+  const setCustomer=(_,session)=>{session.customer_details={email};};
+  const first=await event(purchase,{id,handler,change:(evt,session)=>{
+   setCustomer(evt,session);delete session.payment_intent.latest_charge.receipt_url;
+  }});
+  assert.equal(first.status,503);
+  assert.deepEqual(attempts,['support@alwaysopencommerce.com']);
+  assert.equal((await event(purchase,{id,handler,change:setCustomer})).status,200);
+  assert.equal((await event(purchase,{id,handler,change:setCustomer})).status,200);
+  assert.deepEqual(attempts,['support@alwaysopencommerce.com','tester@example.com']);
+  assert.ok(store.purchase(purchase.purchaseReference).receipt_url);
  });
  console.log('PASS: '+checks.length+' G2 checks: '+checks.join('; ')+'.');
  console.log('These are local database/HTTP-handler tests with signed fixtures and mocked Stripe API responses; no real Stripe purchase, Supabase write or email was made.');

@@ -30,6 +30,12 @@ export function createHandoffStore(filename) {
       id TEXT PRIMARY KEY, purchase_reference TEXT NOT NULL REFERENCES g2_purchases(id) ON DELETE RESTRICT,
       event_type TEXT NOT NULL, object_reference TEXT NOT NULL, outcome TEXT NOT NULL, processed_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS g2_payment_emails (
+      purchase_reference TEXT NOT NULL REFERENCES g2_purchases(id) ON DELETE RESTRICT,
+      audience TEXT NOT NULL CHECK(audience IN ('client','support')),
+      state TEXT NOT NULL CHECK(state IN ('sending','sent','retry','failed','uncertain')),
+      updated_at TEXT NOT NULL, PRIMARY KEY(purchase_reference,audience)
+    );
     CREATE VIEW IF NOT EXISTS g2_audit_intakes AS SELECT s.audit_intake_reference AS id,
       s.id AS submission_reference,s.recording_reference,s.paid_purchase_reference AS purchase_reference,
       p.paid_at AS created_at FROM g2_submissions s JOIN g2_purchases p ON p.id=s.paid_purchase_reference
@@ -57,14 +63,14 @@ export function createHandoffStore(filename) {
   }
   // Both signed webhooks and a server-verified Stripe refresh use the same
   // transaction rules. A refresh is not recorded as a fabricated Stripe event.
-  function updateOutcome({purchaseId,sessionId,paymentId,outcome,receiptUrl,checkoutState}) {
+  function updateOutcome({purchaseId,sessionId,paymentId,outcome,receiptUrl,checkoutState,paidAt}) {
     const current=purchase(purchaseId);
     if(!current || current.checkout_reference!==sessionId)throw new Error('checkout_conflict');
     const finalOutcome=current.outcome==='paid'?'paid':outcome;
     db.prepare(`UPDATE g2_purchases SET outcome=?,payment_reference=COALESCE(?,payment_reference),
       receipt_url=COALESCE(?,receipt_url),checkout_state=?,updated_at=?,paid_at=COALESCE(paid_at,?) WHERE id=?`)
       .run(finalOutcome,paymentId||null,receiptUrl||null,checkoutState,new Date().toISOString(),
-        finalOutcome==='paid'?new Date().toISOString():null,purchaseId);
+        finalOutcome==='paid'?(paidAt||new Date().toISOString()):null,purchaseId);
     if(finalOutcome==='paid'){
       db.prepare(`UPDATE g2_submissions SET audit_intake_reference=COALESCE(audit_intake_reference,?),
         paid_purchase_reference=COALESCE(paid_purchase_reference,?) WHERE id=?`)
@@ -114,7 +120,7 @@ export function createHandoffStore(filename) {
     reconcileCheckout(details) {
       return transaction(()=>updateOutcome(details));
     },
-    applyEvent({ eventId, type, objectId, purchaseId, sessionId, paymentId, outcome, receiptUrl, checkoutState }) {
+    applyEvent({ eventId, type, objectId, purchaseId, sessionId, paymentId, outcome, receiptUrl, checkoutState, paidAt }) {
       return transaction(() => {
         const current = purchase(purchaseId);
         if (!current || (current.checkout_reference && current.checkout_reference !== sessionId)) throw new Error('checkout_conflict');
@@ -127,8 +133,18 @@ export function createHandoffStore(filename) {
           VALUES(?,?,?,?,?,?)`).run(eventId,purchaseId,type,objectId,outcome,new Date().toISOString());
         // An event can arrive before the checkout creation response is bound.
         if(!current.checkout_reference)db.prepare('UPDATE g2_purchases SET checkout_reference=? WHERE id=?').run(sessionId,purchaseId);
-        return {duplicate:false,...updateOutcome({purchaseId,sessionId,paymentId,outcome,receiptUrl,checkoutState})};
+        return {duplicate:false,...updateOutcome({purchaseId,sessionId,paymentId,outcome,receiptUrl,checkoutState,paidAt})};
       });
+    },
+    claimPaymentEmail(purchaseId,audience) {
+      return db.prepare(`INSERT INTO g2_payment_emails(purchase_reference,audience,state,updated_at)
+        SELECT id,?,'sending',? FROM g2_purchases WHERE id=? AND outcome='paid'
+        ON CONFLICT(purchase_reference,audience) DO UPDATE SET state='sending',updated_at=excluded.updated_at
+        WHERE g2_payment_emails.state='retry'`).run(audience,new Date().toISOString(),purchaseId).changes===1;
+    },
+    finishPaymentEmail(purchaseId,audience,state) {
+      db.prepare(`UPDATE g2_payment_emails SET state=?,updated_at=?
+        WHERE purchase_reference=? AND audience=? AND state='sending'`).run(state,new Date().toISOString(),purchaseId,audience);
     },
     counts: () => ({
       submissions: db.prepare('SELECT count(*) AS n FROM g2_submissions').get().n,

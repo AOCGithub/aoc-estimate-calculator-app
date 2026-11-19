@@ -21,7 +21,7 @@
     "api/intake/transcribe.mjs": { "maxDuration": 60 },
     "api/payments/checkout.mjs": { "maxDuration": 60 },
     "api/payments/status.mjs": { "maxDuration": 60 },
-    "api/payments/webhook.mjs": { "maxDuration": 60 }
+    "api/payments/webhook.mjs": { "maxDuration": 60, "includeFiles": "public/{favicon.png,fonts/noto-sans/*.ttf}" }
   },
   "headers": [
     {
