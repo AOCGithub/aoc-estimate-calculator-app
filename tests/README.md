@@ -12,7 +12,7 @@ Run `npm test` from the repository root. It builds the current React client and 
 | `fixtures/` | Shared synthetic quotes and scenarios |
 | `database/` | Explicit real-Supabase and deployed saving checks |
 | `provider/` | Explicit paid AI/voice checks |
-| `legacy/` | Previous interfaces and pre-gate production AI checks; excluded from `npm test` |
+| `legacy/` | Historical pricing and pre-gate production AI checks, run separately from `npm test` |
 
 The current pricing checks preserve historical arithmetic as explicit regressions. They also verify the fixed-project overlay, audit/credit boundaries, optional quoted support, existing agreements, changed/cleared answers, 12-area ROI eligibility, 10,000 exact-cent payment splits and unknown-price handling. Fixture amounts are synthetic, not approved customer prices.
 

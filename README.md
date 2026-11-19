@@ -45,7 +45,7 @@ This builds the app and retained Worker, then runs local pricing, access, profil
 | `tests/` | Unit, integration, browser, database, provider and historical checks |
 | `docs/` | Current guides, feature references and historical reports |
 | `worker/` | Retained Worker deployment adapter |
-| `legacy/` | Historical interfaces, excluded from the active app build |
+| `legacy/` | Pricing modules used by the workbook compiler and historical calculation checks |
 
 `dist/` is generated output, `artifacts/` contains local test reports/screenshots, and `node_modules/` contains installed dependencies. These are ignored by Git. Local environment files and `.vercel/` are private configuration, also ignored.
 
