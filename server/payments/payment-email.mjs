@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import questionBank from '../../public/approved-bank.js';
 import { createPurchasePdf } from '../../src/features/payments/purchase-pdf.js';
 import { renderPaymentEmail, supportEmail } from './payment-email-templates.mjs';
+import { createMicrosoftMailTransport } from './microsoft-mail.mjs';
 
 function emailAddress(value) {
   const address = typeof value === 'string' ? value.trim() : '';
@@ -50,7 +51,7 @@ export function createPaymentEmailSender({store, transport, fromAddress, testCli
       const result = await transport.sendMail(message);
       state = result.accepted?.length === 1 ? 'sent' : 'failed';
     } catch (error) {
-      state = smtpFailure(error);
+      state = error.deliveryState || smtpFailure(error);
     }
     await store.finishPaymentEmail(id, audience, state);
     if (state === 'retry') throw new Error('payment_email_retry');
@@ -74,15 +75,33 @@ export function createPaymentEmailSender({store, transport, fromAddress, testCli
   };
 }
 
+function smtpTransport(environment) {
+  const port = Number(environment.AOC_G2_SMTP_PORT || 587);
+  const {AOC_G2_SMTP_HOST: host, AOC_G2_SMTP_USER: user, AOC_G2_SMTP_PASSWORD: pass} = environment;
+  if (!host || !user || !pass || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('payment_email_config_incomplete');
+  }
+  return nodemailer.createTransport({host, port, secure: port === 465, requireTLS: port !== 465,
+    auth: {user, pass}, connectionTimeout: 6000, greetingTimeout: 8000, socketTimeout: 12000,
+    disableFileAccess: true, disableUrlAccess: true});
+}
+
 export function configurePaymentEmailSender(environment, store) {
   const fromAddress = emailAddress(environment.AOC_G2_EMAIL_FROM);
   const testClientAddress = emailAddress(environment.AOC_G2_EMAIL_TEST_CLIENT_TO);
-  const port = Number(environment.AOC_G2_SMTP_PORT || 587);
-  const {AOC_G2_SMTP_HOST: host, AOC_G2_SMTP_USER: user, AOC_G2_SMTP_PASSWORD: pass} = environment;
-  if (!fromAddress || !host || !user || !pass || !Number.isInteger(port) || port < 1 || port > 65535 ||
-      (environment.AOC_G2_EMAIL_TEST_CLIENT_TO && !testClientAddress)) throw new Error('payment_email_config_incomplete');
-  const transport = nodemailer.createTransport({host, port, secure: port === 465, requireTLS: port !== 465,
-    auth: {user, pass}, connectionTimeout: 6000, greetingTimeout: 8000, socketTimeout: 12000,
-    disableFileAccess: true, disableUrlAccess: true});
+  if (!fromAddress || (environment.AOC_G2_EMAIL_TEST_CLIENT_TO && !testClientAddress)) {
+    throw new Error('payment_email_config_incomplete');
+  }
+  const provider = environment.AOC_G2_EMAIL_PROVIDER || (environment.VERCEL ? 'microsoft365' : 'smtp');
+  let transport;
+  if (provider === 'microsoft365') {
+    transport = createMicrosoftMailTransport({tenantId: environment.AOC_G2_MS_TENANT_ID,
+      clientId: environment.AOC_G2_MS_CLIENT_ID, clientSecret: environment.AOC_G2_MS_CLIENT_SECRET,
+      mailboxId: environment.AOC_G2_MS_MAILBOX_ID});
+  } else if (provider === 'smtp') {
+    transport = smtpTransport(environment);
+  } else {
+    throw new Error('payment_email_provider_invalid');
+  }
   return createPaymentEmailSender({store, transport, fromAddress, testClientAddress});
 }
