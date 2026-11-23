@@ -15,6 +15,10 @@ The payable audit fee no longer comes from an editable calculator answer. The cl
 
 This implements the current instruction that AOC screens feasibility and quotes a fixed audit fee for the agreed departments, systems and material volume before payment. The current agreement is still marked for internal review, so this remains a Stripe test-mode flow and does not enable live charging.
 
+### Temporary fictional quote for live sandbox testing
+
+The live internal test version may set `AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS=125000`. In Stripe test mode only, submitting a reviewed scope then attaches a clearly labelled fictional **$1,250 USD** quote so the team can exercise Checkout, webhooks, receipts, PDFs and emails. This is synthetic acceptance data, not approved AOC pricing, and creates no real charge or audit booking. Remove the environment value and this temporary section before client release. Repository builds and pushes display a reminder while this test fixture remains in the codebase.
+
 The local implementation covers a reviewed submission, saved work-description reference, Stripe sandbox checkout, purchase outcomes, receipt link and one audit intake per submission. Checkout uses the reviewed fixed audit quote, recalculated on the server. No manually created Price ID or sample payment amount is required. Automated fixture tests and actual Stripe sandbox checks are recorded separately below.
 
 ## Local flow

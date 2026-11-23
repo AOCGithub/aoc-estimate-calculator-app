@@ -37,6 +37,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   const auditAmount = quoteRequest?.status === 'quoted' && Number.isSafeInteger(quoteRequest.amount)
     ? quoteRequest.amount : null;
   const quotedAudit = auditAmount > 0 && auditAmount <= 99999999 && quoteRequest?.currency === 'usd';
+  const fictionalQuote = quoteRequest?.synthetic === true || (!quoteRequest && Boolean(configuration.syntheticAuditQuote));
   const savedScope = quoteRequest?.scope || null;
   const blockers = [];
   if (!state.description?.trim()) blockers.push('Add your work description.');
@@ -144,7 +145,9 @@ export function AuditCheckout({ state, profile, onNavigate }) {
     {!configuration.configured ? <p role="status">Checkout is unavailable right now. You can still edit your estimate.</p> : <>
       {!ready && <div className="g2-purchase__requirements" role="status" aria-live="polite">
         <strong>{quoteRequest?.status === 'pending' ? 'Audit review requested' : estimateReady ? 'Your estimate is ready for audit review' : 'Audit review is not ready yet'}</strong>
-        {!quoteRequest && estimateReady && <p className="g2-purchase__quote-pending">Submit the saved scope for AOC to check and price. The audit fee is fixed for that reviewed scope; it is not entered by the client or calculated as a percentage of the build estimate.</p>}
+        {!quoteRequest && estimateReady && (configuration.syntheticAuditQuote
+          ? <p className="g2-purchase__quote-pending"><strong>{money(configuration.syntheticAuditQuote.amount / 100)} USD fictional sandbox quote.</strong> This temporary amount is for Stripe testing only. It is not approved AOC pricing and creates no real charge.</p>
+          : <p className="g2-purchase__quote-pending">Submit the saved scope for AOC to check and price. The audit fee is fixed for that reviewed scope; it is not entered by the client or calculated as a percentage of the build estimate.</p>)}
         {quoteRequest?.status === 'pending' && <p><strong>Review requested.</strong> Submission reference: <code>{quoteRequest.submissionReference}</code></p>}
         {displayedBlockers.length > 0 && <>
           <span>Complete the following before continuing:</span>
@@ -163,6 +166,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
         <p>{(savedScope?.result || state.result)?.buildQuoted ? 'Project quote entered' : 'Build estimate'}: {money((savedScope?.result || state.result)?.buildQuoted ? (savedScope?.result || state.result).build : (savedScope?.result || state.result)?.provisionalBuild)}. The audit is priced and purchased separately.</p>
         <div className="g2-purchase__checkout">
           <div className="g2-purchase__total"><span>{quotedAudit ? 'Due today - one-time audit' : 'Audit fee'}</span><strong>{quotedAudit ? money(auditAmount / 100) + ' USD' : 'Quoted after AOC reviews the saved scope'}</strong></div>
+          {fictionalQuote && <p className="g2-purchase__fictional-quote" role="note"><strong>Fictional sandbox quote - test only.</strong> This is not an approved client price, real charge or audit booking.</p>}
           <label className="g2-purchase__consent">
             <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />
             <span><strong>Save my answers and work description for this audit.</strong>

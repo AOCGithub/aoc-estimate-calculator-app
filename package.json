@@ -21,6 +21,7 @@
     "g2:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/g2-database.mjs setup",
     "g2:audit-quote": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/payments/approve-audit-quote.mjs",
     "preview:test-pricing": "npm run build && node scripts/dev/local-test-pricing.cjs",
+    "prebuild": "node scripts/release/synthetic-quote-warning.mjs",
     "build": "vite build",
     "build:worker": "npm run build && node scripts/build/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",

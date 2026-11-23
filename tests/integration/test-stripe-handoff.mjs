@@ -119,6 +119,19 @@ try{
   assert.equal((await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:requested.submissionReference}})).status,409);
   assert.equal(store.counts().purchases,0);assert.equal(provider.calls.create,0);
  });
+ await check('The optional fictional quote is server-controlled, test-only and clearly identified',async()=>{
+  const syntheticStore=createHandoffStore(':memory:');
+  try{
+   const syntheticApi=createG2Payments({environment:{...env,AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS:'125000'},store:syntheticStore,stripe:provider.stripe});
+   const configuration=await (await syntheticApi.handle(request('/api/payments/status',{cookie:auth}))).json();
+   assert.deepEqual(configuration.syntheticAuditQuote,{amount:125000,currency:'usd',label:'Fictional sandbox quote - test only'});
+   const quoted=await requestQuote(payload(),syntheticApi);
+   assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,125000);assert.equal(quoted.synthetic,true);
+   assert.equal(syntheticStore.counts().quotes,1);assert.equal(syntheticStore.counts().purchases,0);
+   const liveKey=createG2Payments({environment:{...env,STRIPE_SECRET_KEY:'sk_live_fixture',AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS:'125000'},store:syntheticStore,stripe:provider.stripe});
+   assert.equal((await (await liveKey.handle(request('/api/payments/status',{cookie:auth}))).json()).configured,false);
+  }finally{syntheticStore.close();}
+ });
  const initial=await start();
  await check('Submission and reviewed text receive separate stable references; calculation is recomputed',async()=>{
   assert.notEqual(initial.purchase.submissionReference,initial.purchase.recordingReference);
