@@ -17,7 +17,7 @@ const description='Prepare invoice drafts in Wave. Staff review every invoice. T
 const purchase={testMode:true,submissionReference:randomUUID(),recordingReference:randomUUID(),purchaseReference:randomUUID(),
  auditIntakeReference:null,outcome:'pending',amount:result.audit*100,currency:'usd',item:auditService.name,receiptUrl:null,
  snapshot:{area,description,answers,result,service:auditService,calculatorVersion:'synthetic-ui-fixture',savedAt:'2026-11-17T10:00:00Z'}};
-let mode='review',outcome='pending',calls=0,refreshDelay=0,refreshError=false,refreshChecks=0,server,browser;
+let mode='review',outcome='pending',calls=0,quoteCalls=0,refreshDelay=0,refreshError=false,refreshChecks=0,server,browser;
 const errors=[];
 try{
  server=await createServer({configFile:false,root:process.cwd(),envDir:path.resolve('tests/fixtures'),logLevel:'silent',
@@ -44,6 +44,10 @@ try{
     }
     if(mode==='disabled'){respond({enabled:false});return;}
     if(mode==='setup'){respond({enabled:true,configured:false});return;}
+    if(url.searchParams.has('submission_reference')){
+     respond({enabled:true,configured:true,quoteRequest:{submissionReference:purchase.submissionReference,
+       recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
+    }
     if(['missing-return','invalid-return','expired-session','temporary-error'].includes(mode)&&url.searchParams.has('purchase_reference')){
      const code=mode==='invalid-return'?400:mode==='temporary-error'?503:mode==='expired-session'?401:404;
      res.writeHead(code,{'content-type':'application/json'}).end(JSON.stringify({error:code===503?'Payment details are temporarily unavailable.':'Purchase not found for this session.'}));return;
@@ -52,10 +56,15 @@ try{
       {enabled:true,configured:true,purchase:{...purchase,snapshot:mode==='legacy-return'?{...purchase.snapshot,service:undefined}:purchase.snapshot,outcome,auditIntakeReference:outcome==='paid'?'synthetic-intake-reference':null,
         paidAt:outcome==='paid'?'2026-11-17T10:01:00Z':null,receiptUrl:outcome==='paid'?'https://pay.stripe.com/receipts/payment/fixture':null}});return;
    }
+   if(url.pathname==='/api/payments/quote-request'){
+    let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);
+    assert.equal(body.consent,true);assert.equal(body.description,description);assert.equal(body.calculation.answers.implementation_fee,11500);
+    quoteCalls++;respond({quoteRequest:{submissionReference:purchase.submissionReference,
+      recordingReference:purchase.recordingReference,status:'pending',requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
+   }
    if(url.pathname==='/api/payments/checkout'){
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);assert.equal(body.consent,true);
-    if(!body.submissionReference){assert.equal(body.description,description);assert.equal(body.calculation.answers.implementation_fee,11500);}
-    else assert.deepEqual(body,{consent:true,submissionReference:purchase.submissionReference});
+    assert.deepEqual(body,{consent:true,submissionReference:purchase.submissionReference});
     calls++;respond({purchase:{...purchase,outcome}});return;
    }
    next();
@@ -65,8 +74,16 @@ try{
  assert.ok(executablePath,'Set CHROME_PATH to run the G2 browser check.');
  browser=await chromium.launch({executablePath,headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:1000}});page.on('pageerror',error=>errors.push(error.message));
- await page.goto(origin);await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
- const review=await page.getByRole('region',{name:'Audit payment'}).innerText();
+ await page.goto(origin);await page.getByRole('button',{name:'Submit for audit review',exact:true}).click();
+ let review=await page.getByRole('region',{name:'Audit payment'}).innerText();
+ assert.ok(review.includes('$11,500'));assert.ok(review.includes('Quoted after AOC reviews the saved scope'));
+ let consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
+ const submit=page.getByRole('button',{name:'Submit scope for AOC review',exact:true});
+ assert.equal(await submit.isDisabled(),true);await consent.check();assert.equal(await submit.isEnabled(),true);await submit.click();
+ assert.equal(quoteCalls,1);await page.getByText('Review requested.',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Check quote status',exact:true}).click();
+ await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
+ review=await page.getByRole('region',{name:'Audit payment'}).innerText();
  assert.ok(review.includes('$1,250'));assert.ok(review.includes('$11,500'));
  assert.ok(review.includes(auditService.excluded));
  assert.ok(review.includes('No real charge or audit booking'));
@@ -85,7 +102,7 @@ try{
  }
  await page.setViewportSize({width:1440,height:1000});
  const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
- const consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
+ consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
  assert.equal(await pay.isDisabled(),true);
  await page.getByText('Check the box above to continue.',{exact:true}).waitFor();
  await consent.check();assert.equal(await pay.isEnabled(),true);
@@ -210,13 +227,13 @@ try{
   assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),0);
   assert.ok((await page.getByRole('region',{name:'Audit payment'}).innerText()).includes('share your Stripe receipt with AOC'));
   await page.getByRole('link',{name:'Back to calculator',exact:true}).click();
-  await page.getByRole('button',{name:'Review audit payment',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Submit for audit review',exact:true}).waitFor();
   const clean=new URL(page.url());assert.equal(clean.searchParams.has('purchase_reference'),false);assert.equal(clean.searchParams.has('checkout_result'),false);
   assert.equal(clean.searchParams.get('keep'),'example');assert.equal(clean.hash,'#estimate');
   assert.equal(await page.getByText('This payment link is not available in this session.',{exact:true}).count(),0);
-  await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
+  await page.getByRole('button',{name:'Submit for audit review',exact:true}).click();
   assert.equal(await page.getByRole('checkbox',{name:/Save my answers and work description/}).isChecked(),false);
-  assert.equal(await page.getByRole('button',{name:'Continue to Stripe',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Submit scope for AOC review',exact:true}).isDisabled(),true);
   await page.getByText('Your work description',{exact:true}).click();
   assert.equal(await page.getByText(description,{exact:true}).isVisible(),true,'Current answers and description are preserved');
   assert.equal(calls,before,'Recovery makes no payment request');
@@ -227,16 +244,12 @@ try{
  assert.equal(await page.getByText('This payment link is not available in this session.',{exact:true}).count(),0);
  mode='return';outcome='paid';await page.getByRole('button',{name:'Refresh payment status',exact:true}).click();
  await page.getByRole('heading',{name:'Payment received',exact:true}).waitFor();
- mode='no-quote';await page.goto(origin);await page.getByText('Audit payment is waiting for an AOC quote',{exact:true}).waitFor();
- assert.equal(await page.getByText(/AOC has not provided a fixed audit fee.*Leave it blank unless AOC has quoted an amount/).isVisible(),true);
+ mode='no-quote';await page.goto(origin);await page.getByText('Your estimate is ready for audit review',{exact:true}).waitFor();
+ assert.equal(await page.getByText(/audit fee is fixed for that reviewed scope.*not entered by the client/).isVisible(),true);
  assert.equal(await page.getByText('Complete the following before continuing:',{exact:true}).count(),0,'An AOC quote is not described as a missing client answer');
- assert.equal(await page.getByRole('status').filter({hasText:'Audit payment is waiting for an AOC quote'}).count(),1);
- assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
- await page.getByRole('button',{name:'Add an existing AOC quote',exact:true}).click();
- assert.equal(await page.evaluate(()=>window.testNavigation),7,'A missing audit quote points to Responsibilities and service');
+ assert.equal(await page.getByRole('button',{name:'Submit for audit review',exact:true}).isEnabled(),true);
  mode='quote-edited';await page.goto(origin);await page.getByText('Recalculate after your latest changes.',{exact:true}).waitFor();
- assert.equal(await page.getByText('Add the fixed audit fee quoted by AOC.',{exact:true}).count(),0,'An entered quote is not described as missing while recalculation is pending');
- assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Submit for audit review',exact:true}).isDisabled(),true);
  mode='setup';await page.goto(origin);await page.getByText(/Checkout is unavailable right now/).waitFor();
  await page.goto(origin+'/payment/status');
  await page.getByText('Use the link from your checkout to see your payment details.',{exact:true}).waitFor();

@@ -266,8 +266,8 @@ const server = http.createServer((request, response) => {
     await page.locator('#f_implementation_route').selectOption('project');
     await page.locator('#f_existing_client').selectOption('no');
     await page.locator('#quote-details > summary').click();
-    await page.locator('#f_audit_fee').fill('1250');
     await page.getByText('Check an existing audit credit', {exact:true}).click();
+    await page.locator('#f_audit_fee').fill('1250');
     await page.locator('#f_audit_paid').fill('1250');
     await page.locator('#f_audit_sent_date').fill('2020-01-01');
     await page.locator('#f_implementation_acceptance_date').fill('2020-01-10');
@@ -695,6 +695,7 @@ const server = http.createServer((request, response) => {
     assert.equal(await prefillPage.locator('#f_monthly_plan').count(),0);
     await prefillPage.locator('#f_implementation_route').selectOption('project');
     await prefillPage.locator('#quote-details > summary').click();
+    await prefillPage.getByText('Check an existing audit credit', {exact:true}).click();
     await prefillPage.locator('#f_audit_fee').fill('1250');
     await prefillPage.locator('#section-picker').selectOption('2');
     await prefillPage.getByRole('button',{name:/Organize my description/}).click();

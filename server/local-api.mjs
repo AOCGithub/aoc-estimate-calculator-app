@@ -19,6 +19,7 @@ const routes = {
   '/api/client-profile/cleanup': handleProfileCleanup,
   '/api/payments/status': handlePayments,
   '/api/payments/checkout': handlePayments,
+  '/api/payments/quote-request': handlePayments,
   '/api/payments/webhook': handlePayments,
 };
 

@@ -15,6 +15,7 @@ try {
     const migrations = await Promise.all([
       new URL('../../supabase/migrations/20261118000100_g2_sandbox.sql', import.meta.url),
       new URL('../../supabase/migrations/20261119000100_g2_payment_emails.sql', import.meta.url),
+      new URL('../../supabase/migrations/20261123000100_g2_audit_quotes.sql', import.meta.url),
     ].map(file => readFile(file, 'utf8')));
     await sql.begin(async db => {
       await db`SELECT pg_advisory_xact_lock(20261118, 2)`;
@@ -22,11 +23,13 @@ try {
       if (!existing.present) await db.unsafe(migrations[0]);
       const [email] = await db`SELECT to_regclass('g2_sandbox.payment_emails') IS NOT NULL AS present`;
       if (!email.present) await db.unsafe(migrations[1]);
+      const [quotes] = await db`SELECT to_regclass('g2_sandbox.audit_quotes') IS NOT NULL AS present`;
+      if (!quotes.present) await db.unsafe(migrations[2]);
     });
   }
   const tables = await sql`SELECT c.relname, c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE n.nspname = 'g2_sandbox' AND c.relkind = 'r' ORDER BY c.relname`;
-  assert.deepEqual(tables.map(row => row.relname), ['payment_emails', 'purchases', 'stripe_events', 'submissions']);
+  assert.deepEqual(tables.map(row => row.relname), ['audit_quotes', 'payment_emails', 'purchases', 'stripe_events', 'submissions']);
   assert.ok(tables.every(row => row.relrowsecurity));
   for (const role of ['anon', 'authenticated', 'service_role']) {
     const [permissions] = await sql`SELECT has_schema_privilege(${role}, 'g2_sandbox', 'usage,create') AS allowed`;
@@ -50,18 +53,29 @@ async function verifyTransactions() {
   const first = createHostedHandoffStore(connection);
   const second = createHostedHandoffStore(connection);
   const ownerHash = `g2-fixture-${randomUUID()}`;
-  const order = {ownerHash, requestReference: randomUUID(), description: 'Synthetic G2 database check',
-    fingerprint: 'fixture', snapshot: {result: {audit: 1250}},
-    price: {id: 'inline_audit_quote', name: 'Initial audit', amount: 125000, currency: 'usd'}};
+  const request = {ownerHash, requestReference: randomUUID(), description: 'Synthetic G2 database check',
+    fingerprint: 'fixture', snapshot: {result: {audit: null}}};
   const sessionId = () => `cs_test_fixture_${randomUUID()}`;
   const session = id => ({id, status: 'open', line_items: {data: [{price: {id: 'price_fixture'}}]}});
   try {
+    const [savedLeft, savedRight] = await Promise.all([first.saveSubmission(request), second.saveSubmission(request)]);
+    assert.equal(savedLeft.submission.id, savedRight.submission.id);
+    await assert.rejects(second.saveSubmission({...request, fingerprint: 'changed'}), /snapshot_conflict/);
+    const approved = await first.approveQuote({submissionReference: savedLeft.submission.id, amount: 125000,
+      quotedBy: 'aoc-database-test@example.com'});
+    const order = {ownerHash, submissionReference: savedLeft.submission.id,
+      price: {id: 'audit_quote_' + approved.id, quoteReference: approved.id, name: 'Initial audit', amount: approved.amount, currency: approved.currency}};
     const [left, right] = await Promise.all([first.prepare(order), second.prepare(order)]);
     const purchaseId = left.purchase.id;
     assert.equal(right.purchase.id, purchaseId);
-    await assert.rejects(second.prepare({...order, fingerprint: 'changed'}), /snapshot_conflict/);
     assert.equal(await second.bundle(purchaseId, 'another-owner'), null);
-    const different = await second.prepare({...order, requestReference: randomUUID()});
+    const differentRequest = {...request, requestReference: randomUUID()};
+    const differentSaved = await second.saveSubmission(differentRequest);
+    const differentQuote = await second.approveQuote({submissionReference:differentSaved.submission.id,amount:125000,
+      quotedBy:'aoc-database-test@example.com'});
+    const differentOrder={ownerHash,submissionReference:differentSaved.submission.id,
+      price:{id:'audit_quote_'+differentQuote.id,quoteReference:differentQuote.id,name:'Initial audit',amount:differentQuote.amount,currency:differentQuote.currency}};
+    const different = await second.prepare(differentOrder);
     assert.notEqual(left.submission.id, different.submission.id);
     assert.notEqual(left.submission.recording_reference, different.submission.recording_reference);
 
@@ -94,7 +108,7 @@ async function verifyTransactions() {
     const expired = await second.reconcileCheckout({...unpaid, outcome: 'incomplete', checkoutState: 'expired'});
     assert.equal(expired.purchase.outcome, 'incomplete');
     assert.equal(expired.submission.audit_intake_reference, null);
-    const replacement = await second.prepare({...order, submissionReference: different.submission.id});
+    const replacement = await second.prepare(differentOrder);
     assert.notEqual(replacement.purchase.id, different.purchase.id);
     const [intakes] = await sql`SELECT count(*)::integer AS total FROM g2_sandbox.audit_intakes i
       JOIN g2_sandbox.submissions s ON s.id = i.submission_reference WHERE s.owner_hash = ${ownerHash}`;
@@ -111,6 +125,8 @@ async function verifyTransactions() {
       await db`UPDATE g2_sandbox.submissions SET paid_purchase_reference = NULL, audit_intake_reference = NULL WHERE owner_hash = ${ownerHash}`;
       await db`DELETE FROM g2_sandbox.purchases p USING g2_sandbox.submissions s
         WHERE p.submission_reference = s.id AND s.owner_hash = ${ownerHash}`;
+      await db`DELETE FROM g2_sandbox.audit_quotes q USING g2_sandbox.submissions s
+        WHERE q.submission_reference = s.id AND s.owner_hash = ${ownerHash}`;
       await db`DELETE FROM g2_sandbox.submissions WHERE owner_hash = ${ownerHash}`;
     });
   }

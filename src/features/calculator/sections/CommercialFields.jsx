@@ -30,10 +30,10 @@ export function CommercialFields({ answers, fields }) {
       <details className="compact-details" id="quote-details">
         <summary>AOC quote and audit-credit details (optional)</summary>
         <p className="helper">For an initial enquiry, leave unknown details blank. Enter only information already provided by AOC. Editing these values does not approve a quote or redeem a credit.</p>
-        {fields.input('audit_fee', 'Fixed initial audit fee quoted by AOC (USD)', 'Quoted separately for the agreed audit scope; never a percentage of the build.', 'number')}
         <details className="compact-details">
           <summary>Check an existing audit credit</summary>
           <p className="helper">Use actual calendar dates from the AOC records. Acceptance and the required first implementation payment must both be within 30 calendar days after the approved audit was sent. Exact deadlines and invoice treatment require AOC confirmation.</p>
+          {fields.input('audit_fee', 'Fee for the completed audit (USD)', 'Use the fixed audit fee already quoted by AOC for this completed audit. This does not set the price of a new audit.', 'number')}
           {fields.input('audit_paid', 'Audit fee actually paid (USD)', 'The full quoted audit fee must have been paid.', 'number')}
           {fields.input('audit_sent_date', 'Approved audit sent date', '', 'date')}
           {fields.input('implementation_acceptance_date', 'Project acceptance date', '', 'date')}

@@ -5,8 +5,9 @@ export function isPaymentStatusLocation(location) {
     || (location.pathname === '/' && new URLSearchParams(location.search).has('purchase_reference'));
 }
 
-export function paymentStatusUrl(reference) {
-  return paymentStatusPath + '?' + new URLSearchParams({ purchase_reference: reference });
+export function paymentStatusUrl(reference, submissionReference) {
+  return paymentStatusPath + '?' + new URLSearchParams({ purchase_reference: reference,
+    ...(submissionReference ? { audit_request: submissionReference } : {}) });
 }
 
 export function calculatorReturnUrl(location) {
@@ -40,6 +41,29 @@ export async function readPaymentStatus({ reference, refresh = false, signal } =
     throw error;
   }
   return body;
+}
+
+export async function readAuditQuote(submissionReference, { signal } = {}) {
+  const query = new URLSearchParams({ submission_reference: submissionReference });
+  const response = await fetch('/api/payments/status?' + query, {
+    credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store', signal,
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.quoteRequest) throw new Error(body?.error || 'We could not check the audit quote. Please try again.');
+  return body.quoteRequest;
+}
+
+export async function requestAuditQuote(body) {
+  const response = await fetch('/api/payments/quote-request', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.quoteRequest?.submissionReference) {
+    throw new Error(data?.error || 'The audit review request could not be saved. Please try again.');
+  }
+  return data.quoteRequest;
 }
 
 export async function startAuditCheckout(body) {
