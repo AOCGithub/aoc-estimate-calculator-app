@@ -81,8 +81,10 @@ export function AuditCheckout({ state, profile, onNavigate }) {
       const url = new URL(window.location.href);
       url.searchParams.set('audit_request', submitted.submissionReference);
       window.history.replaceState(null, '', url);
-      setReviewing(false);
-      setConsent(false);
+      const quoteReady = submitted.status === 'quoted' && Number.isSafeInteger(submitted.amount)
+        && submitted.amount > 0 && submitted.currency === 'usd';
+      setReviewing(quoteReady);
+      if (!quoteReady) setConsent(false);
     } catch (reason) {
       setError(reason.message);
     } finally {

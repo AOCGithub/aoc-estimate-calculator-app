@@ -83,7 +83,8 @@ try{
  const submit=page.getByRole('button',{name:'Submit scope for AOC review',exact:true});
  assert.equal(await submit.isDisabled(),true);await consent.check();assert.equal(await submit.isEnabled(),true);await submit.click();
  assert.equal(quoteCalls,1);
- await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
+ await page.getByText('Due today - one-time audit',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).count(),0,'An immediately quoted audit stays in the open review');
  review=await page.getByRole('region',{name:'Audit payment'}).innerText();
  assert.ok(review.includes('$1,250'));assert.ok(review.includes('$11,500'));
  assert.ok(review.includes(auditService.excluded));
@@ -104,9 +105,8 @@ try{
  await page.setViewportSize({width:1440,height:1000});
  const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
  consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
- assert.equal(await pay.isDisabled(),true);
- await page.getByText('Check the box above to continue.',{exact:true}).waitFor();
- await consent.check();assert.equal(await pay.isEnabled(),true);
+ assert.equal(await consent.isChecked(),true,'The consent just given remains valid when the server immediately returns the test quote');
+ assert.equal(await pay.isEnabled(),true,'The user can continue without repeating the audit review');
  await page.getByRole('button',{name:'Back to audit overview',exact:true}).click();
  await page.waitForFunction(()=>document.activeElement?.textContent==='Review audit payment');
  assert.equal(calls,0,'Closing the review makes no checkout request');
