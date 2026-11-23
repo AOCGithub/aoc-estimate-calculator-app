@@ -46,8 +46,8 @@ export function AuditCheckout({ state, profile, onNavigate }) {
       : 'Confirm that the listed apps can support the required work.');
   }
   if (state.result?.provisionalBuild === null) blockers.push('Complete the scope details needed for a build estimate.');
-  if (!validEnteredAudit) blockers.push('Add the fixed audit fee quoted by AOC.');
-  else if (state.result && !state.dirty && !quotedAudit) blockers.push('Recalculate to verify the audit fee.');
+  const quotePending = !validEnteredAudit;
+  if (!quotePending && state.result && !state.dirty && !quotedAudit) blockers.push('Recalculate to verify the audit fee.');
   if (!state.result) blockers.push('Calculate your estimate.');
   else if (state.dirty) blockers.push('Recalculate after your latest changes.');
   else if (state.calculationSource !== 'server') blockers.push('Recalculate while connected to the estimator service.');
@@ -119,10 +119,17 @@ export function AuditCheckout({ state, profile, onNavigate }) {
     <p className="helper">{service?.description || 'This payment covers the audit. We price the build and any monthly services separately.'}</p>
     {!configuration.configured ? <p role="status">Checkout is unavailable right now. You can still edit your estimate.</p> : <>
       {!ready && <div className="g2-purchase__requirements" role="status" aria-live="polite">
-        <strong>Audit payment isn’t ready yet</strong>
-        <span>Complete the following before continuing:</span>
-        <ul>{blockers.map(item => <li key={item}>{item}</li>)}</ul>
-        <button type="button" className="quiet" onClick={goToMissingDetails}>Go to missing details</button>
+        <strong>{quotePending && blockers.length === 0
+          ? 'Audit payment is waiting for an AOC quote'
+          : 'Audit payment isn’t ready yet'}</strong>
+        {quotePending && <p className="g2-purchase__quote-pending">AOC has not provided a fixed audit fee for this estimate. Leave it blank unless AOC has quoted an amount. You can still review the estimate, but payment cannot begin until the audit price is provided.</p>}
+        {blockers.length > 0 && <>
+          <span>Complete the following before continuing:</span>
+          <ul>{blockers.map(item => <li key={item}>{item}</li>)}</ul>
+        </>}
+        <button type="button" className="quiet" onClick={goToMissingDetails}>{quotePending && blockers.length === 0
+          ? 'Add an existing AOC quote'
+          : 'Go to missing details'}</button>
       </div>}
       {!reviewing ? <div className="g2-purchase__actions g2-purchase__actions--audit">
         <button ref={reviewButton} className="primary" type="button" disabled={!ready} onClick={beginReview}>Review audit payment</button>
