@@ -2,6 +2,19 @@
 
 Updated: 18 November 2026. Branch: `feature/g2-stripe-handoff`.
 
+## Documentation-aligned audit quote flow — 23 November 2026
+
+The payable audit fee no longer comes from an editable calculator answer. The client completes the estimate and explicitly submits the saved scope for AOC review. AOC then records the fixed USD audit fee against that submission's immutable fingerprint. Stripe checkout remains unavailable until that private quote exists, and the client reviews the saved scope and exact fee before continuing.
+
+- No audit amount is inferred from the preliminary build estimate or an automatic percentage.
+- `g2_sandbox.audit_quotes` stores the AOC reviewer, fixed amount and saved-scope fingerprint; browser roles have no access to the table.
+- A quote cannot be changed after a purchase record exists.
+- Stripe metadata carries the submission, work-description, quote and purchase references.
+- The original estimate, failed/incomplete payment handling, duplicate-event protection, receipt, PDF and payment emails remain unchanged.
+- An approved sandbox quote is recorded with `npm run g2:audit-quote -- <submission-reference> <amount> <AOC-reviewer>` after AOC reviews the saved scope.
+
+This implements the current instruction that AOC screens feasibility and quotes a fixed audit fee for the agreed departments, systems and material volume before payment. The current agreement is still marked for internal review, so this remains a Stripe test-mode flow and does not enable live charging.
+
 The local implementation covers a reviewed submission, saved work-description reference, Stripe sandbox checkout, purchase outcomes, receipt link and one audit intake per submission. Checkout uses the reviewed fixed audit quote, recalculated on the server. No manually created Price ID or sample payment amount is required. Automated fixture tests and actual Stripe sandbox checks are recorded separately below.
 
 ## Local flow

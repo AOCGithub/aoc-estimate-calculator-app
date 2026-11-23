@@ -18,7 +18,7 @@ export function createHandoffStore(filename) {
     CREATE TABLE IF NOT EXISTS g2_purchases (
       id TEXT PRIMARY KEY, submission_reference TEXT NOT NULL REFERENCES g2_submissions(id) ON DELETE RESTRICT,
       amount INTEGER NOT NULL CHECK(amount>0), currency TEXT NOT NULL CHECK(currency='usd'),
-      price_reference TEXT NOT NULL, item_name TEXT NOT NULL,
+      price_reference TEXT NOT NULL, quote_reference TEXT, item_name TEXT NOT NULL,
       checkout_reference TEXT UNIQUE, payment_reference TEXT,
       checkout_url TEXT, checkout_state TEXT NOT NULL DEFAULT 'creating',
       outcome TEXT NOT NULL DEFAULT 'pending' CHECK(outcome IN ('pending','processing','paid','failed','incomplete')),
@@ -26,6 +26,13 @@ export function createHandoffStore(filename) {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS g2_one_pending_purchase
       ON g2_purchases(submission_reference) WHERE outcome IN ('pending','processing');
+    CREATE TABLE IF NOT EXISTS g2_audit_quotes (
+      id TEXT PRIMARY KEY, submission_reference TEXT NOT NULL UNIQUE REFERENCES g2_submissions(id) ON DELETE RESTRICT,
+      scope_fingerprint TEXT NOT NULL, amount INTEGER NOT NULL CHECK(amount>0),
+      currency TEXT NOT NULL CHECK(currency='usd'), quoted_by TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'quoted' CHECK(status IN ('quoted','withdrawn')),
+      quoted_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS g2_stripe_events (
       id TEXT PRIMARY KEY, purchase_reference TEXT NOT NULL REFERENCES g2_purchases(id) ON DELETE RESTRICT,
       event_type TEXT NOT NULL, object_reference TEXT NOT NULL, outcome TEXT NOT NULL, processed_at TEXT NOT NULL
@@ -40,6 +47,9 @@ export function createHandoffStore(filename) {
       s.id AS submission_reference,s.recording_reference,s.paid_purchase_reference AS purchase_reference,
       p.paid_at AS created_at FROM g2_submissions s JOIN g2_purchases p ON p.id=s.paid_purchase_reference
       WHERE s.audit_intake_reference IS NOT NULL;`);
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('g2_purchases') WHERE name='quote_reference'").get()) {
+    db.exec('ALTER TABLE g2_purchases ADD COLUMN quote_reference TEXT REFERENCES g2_audit_quotes(id) ON DELETE RESTRICT');
+  }
 
   function transaction(run) {
     db.exec('BEGIN IMMEDIATE');
@@ -48,6 +58,9 @@ export function createHandoffStore(filename) {
   }
   function submission(id) { return db.prepare('SELECT * FROM g2_submissions WHERE id=?').get(id); }
   function purchase(id) { return db.prepare('SELECT * FROM g2_purchases WHERE id=?').get(id); }
+  function quote(submissionReference) {
+    return db.prepare("SELECT * FROM g2_audit_quotes WHERE submission_reference=? AND status='quoted'").get(submissionReference);
+  }
   function bundle(id, ownerHash) {
     const row = purchase(id);
     if (!row) return null;
@@ -57,8 +70,8 @@ export function createHandoffStore(filename) {
   }
   function newPurchase(parent, price) {
     const id = randomUUID(), now = new Date().toISOString();
-    db.prepare(`INSERT INTO g2_purchases(id,submission_reference,amount,currency,price_reference,item_name,created_at,updated_at)
-      VALUES(?,?,?,?,?,?,?,?)`).run(id,parent.id,price.amount,price.currency,price.id,price.name,now,now);
+    db.prepare(`INSERT INTO g2_purchases(id,submission_reference,amount,currency,price_reference,quote_reference,item_name,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run(id,parent.id,price.amount,price.currency,price.id,price.quoteReference,price.name,now,now);
     return { purchase: purchase(id), submission: parent };
   }
   // Both signed webhooks and a server-verified Stripe refresh use the same
@@ -79,6 +92,33 @@ export function createHandoffStore(filename) {
     return {purchase:purchase(purchaseId),submission:submission(current.submission_reference)};
   }
   return {
+    saveSubmission({ownerHash,requestReference,fingerprint,description,snapshot}) {
+      return transaction(() => {
+        let parent=db.prepare('SELECT * FROM g2_submissions WHERE owner_hash=? AND request_reference=?').get(ownerHash,requestReference);
+        if(parent&&parent.fingerprint!==fingerprint)throw new Error('snapshot_conflict');
+        if(!parent){
+          const id=randomUUID();
+          db.prepare(`INSERT INTO g2_submissions(id,recording_reference,owner_hash,request_reference,fingerprint,description,snapshot,created_at)
+            VALUES(?,?,?,?,?,?,?,?)`).run(id,randomUUID(),ownerHash,requestReference,fingerprint,description,JSON.stringify(snapshot),new Date().toISOString());
+          parent=submission(id);
+        }
+        return {submission:parent,quote:quote(parent.id)||null};
+      });
+    },
+    quote,
+    approveQuote({submissionReference,amount,currency='usd',quotedBy}) {
+      return transaction(() => {
+        const parent=submission(submissionReference);
+        if(!parent)throw new Error('submission_missing');
+        if(db.prepare('SELECT 1 FROM g2_purchases WHERE submission_reference=? LIMIT 1').get(submissionReference))throw new Error('quote_locked');
+        const now=new Date().toISOString(),existing=quote(submissionReference),id=existing?.id||randomUUID();
+        db.prepare(`INSERT INTO g2_audit_quotes(id,submission_reference,scope_fingerprint,amount,currency,quoted_by,status,quoted_at,updated_at)
+          VALUES(?,?,?,?,?,?,'quoted',?,?) ON CONFLICT(submission_reference) DO UPDATE SET
+          amount=excluded.amount,currency=excluded.currency,quoted_by=excluded.quoted_by,status='quoted',quoted_at=excluded.quoted_at,updated_at=excluded.updated_at`)
+          .run(id,submissionReference,parent.fingerprint,amount,currency,quotedBy,now,now);
+        return quote(submissionReference);
+      });
+    },
     prepare({ ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference }) {
       return transaction(() => {
         let parent;
@@ -148,6 +188,7 @@ export function createHandoffStore(filename) {
     },
     counts: () => ({
       submissions: db.prepare('SELECT count(*) AS n FROM g2_submissions').get().n,
+      quotes: db.prepare('SELECT count(*) AS n FROM g2_audit_quotes').get().n,
       purchases: db.prepare('SELECT count(*) AS n FROM g2_purchases').get().n,
       events: db.prepare('SELECT count(*) AS n FROM g2_stripe_events').get().n,
       auditIntakes: db.prepare('SELECT count(*) AS n FROM g2_audit_intakes').get().n,

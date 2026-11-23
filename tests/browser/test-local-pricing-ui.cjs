@@ -47,9 +47,9 @@ await page.locator('#f_software_replaced_portion').selectOption('none'); await p
     await page.getByRole('button',{name:/Continue/}).click();
     for (const [id,value] of Object.entries({delivery_intent:'limited',implementation_route:'project',existing_client:'no',responsibility_split:'aoc',action_mode:'approved',consequential:'yes'})) await page.locator(`#f_${id}`).selectOption(value);
     await page.locator('#quote-details > summary').click();
+    await page.getByText('Check an existing audit credit',{exact:true}).click();
     for (const [id,value] of Object.entries({audit_fee:'1250',preparation_fee:'0',implementation_fee:'11500'})) await page.locator(`#f_${id}`).fill(value);
     await page.locator('#f_live_training').selectOption('no');
-    await page.getByText('Check an existing audit credit',{exact:true}).click();
     for(const [id,value] of Object.entries({audit_paid:'1250',audit_sent_date:'2020-01-01',implementation_acceptance_date:'2020-01-10',first_implementation_payment_date:'2020-01-15'})) await page.locator(`#f_${id}`).fill(value);
     await page.locator('#f_audit_accepted_route').selectOption('project'); await page.locator('#f_audit_credit_used').selectOption('no');
     for(const [tier,fee] of Object.entries(fixture.supportPrices)) {

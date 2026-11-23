@@ -15,6 +15,12 @@ export function createHostedHandoffStore(connection) {
     return row;
   }
 
+  async function quote(submissionReference, db = sql) {
+    const [row] = await db`SELECT * FROM g2_sandbox.audit_quotes
+      WHERE submission_reference = ${submissionReference} AND status = 'quoted'`;
+    return row;
+  }
+
   async function recordOutcome(details, event) {
     const {purchaseId, sessionId, paymentId, outcome, receiptUrl, checkoutState, paidAt} = details;
     return sql.begin(async db => {
@@ -58,7 +64,33 @@ export function createHostedHandoffStore(connection) {
   }
 
   return {
-    purchase, submission,
+    purchase, submission, quote,
+    saveSubmission({ownerHash, requestReference, fingerprint, description, snapshot}) {
+      return sql.begin(async db => {
+        await db`INSERT INTO g2_sandbox.submissions (owner_hash, request_reference, fingerprint, description, snapshot)
+          VALUES (${ownerHash}, ${requestReference}, ${fingerprint}, ${description}, ${db.json(snapshot)})
+          ON CONFLICT (owner_hash, request_reference) DO NOTHING`;
+        const [parent] = await db`SELECT * FROM g2_sandbox.submissions
+          WHERE owner_hash = ${ownerHash} AND request_reference = ${requestReference} FOR UPDATE`;
+        if (parent.fingerprint !== fingerprint) throw new Error('snapshot_conflict');
+        return {submission: parent, quote: await quote(parent.id, db) || null};
+      });
+    },
+    approveQuote({submissionReference, amount, currency = 'usd', quotedBy}) {
+      return sql.begin(async db => {
+        const [parent] = await db`SELECT * FROM g2_sandbox.submissions WHERE id = ${submissionReference} FOR UPDATE`;
+        if (!parent) throw new Error('submission_missing');
+        const [locked] = await db`SELECT 1 AS present FROM g2_sandbox.purchases WHERE submission_reference = ${submissionReference} LIMIT 1`;
+        if (locked) throw new Error('quote_locked');
+        const [approved] = await db`INSERT INTO g2_sandbox.audit_quotes
+          (submission_reference, scope_fingerprint, amount, currency, quoted_by)
+          VALUES (${submissionReference}, ${parent.fingerprint}, ${amount}, ${currency}, ${quotedBy})
+          ON CONFLICT (submission_reference) DO UPDATE SET amount = EXCLUDED.amount, currency = EXCLUDED.currency,
+            quoted_by = EXCLUDED.quoted_by, status = 'quoted', quoted_at = now(), updated_at = now()
+          RETURNING *`;
+        return approved;
+      });
+    },
     async check() {
       await sql`SELECT 1 FROM g2_sandbox.purchases LIMIT 0`;
     },
@@ -91,8 +123,8 @@ export function createHostedHandoffStore(connection) {
           ORDER BY created_at DESC LIMIT 1`;
         if (current) return {submission: parent, purchase: current};
         const [created] = await db`INSERT INTO g2_sandbox.purchases
-          (submission_reference, amount, currency, price_reference, item_name)
-          VALUES (${parent.id}, ${price.amount}, ${price.currency}, ${price.id}, ${price.name}) RETURNING *`;
+          (submission_reference, amount, currency, price_reference, quote_reference, item_name)
+          VALUES (${parent.id}, ${price.amount}, ${price.currency}, ${price.id}, ${price.quoteReference}, ${price.name}) RETURNING *`;
         return {submission: parent, purchase: created};
       });
     },

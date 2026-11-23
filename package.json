@@ -18,6 +18,8 @@
     "access:db:test": "node scripts/database/access-database.mjs test",
     "estimates:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/estimate-database.mjs setup",
     "estimates:db:check": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/estimate-database.mjs check",
+    "g2:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/g2-database.mjs setup",
+    "g2:audit-quote": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/payments/approve-audit-quote.mjs",
     "preview:test-pricing": "npm run build && node scripts/dev/local-test-pricing.cjs",
     "build": "vite build",
     "build:worker": "npm run build && node scripts/build/build-worker.cjs",

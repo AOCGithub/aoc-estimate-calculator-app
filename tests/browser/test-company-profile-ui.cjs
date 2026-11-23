@@ -153,8 +153,8 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         await section(page, 7);
         for (const [id, value] of Object.entries({ responsibility_split: 'client', delivery_intent: 'limited', implementation_route: 'project', existing_client: 'no', action_mode: 'draft' })) await page.locator('#f_' + id).selectOption(value);
         await page.locator('#quote-details > summary').click();
-        await page.locator('#f_audit_fee').fill('1250');
         await page.getByText('Check an existing audit credit', { exact: true }).click();
+        await page.locator('#f_audit_fee').fill('1250');
         for (const [id, value] of Object.entries({ audit_paid: '1250', audit_sent_date: '2020-01-01', implementation_acceptance_date: '2020-01-10', first_implementation_payment_date: '2020-01-15', preparation_fee: '0', implementation_fee: '11500' })) await page.locator('#f_' + id).fill(value);
         for (const [id, value] of Object.entries({ audit_accepted_route: 'project', audit_credit_used: 'no', live_training: 'no' })) await page.locator('#f_' + id).selectOption(value);
         await page.locator('.check input').check();

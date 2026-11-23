@@ -74,12 +74,18 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     await paymentEmailSender(purchase,session.customer_details);
   }
 
-  function auditOffer(result) {
-    // Current commercial rules use the explicitly quoted fixed audit fee, never a build percentage.
-    const amount=Math.round(result.audit*100);
-    if(typeof result.audit!=='number' || !Number.isSafeInteger(amount) || amount<=0 || amount>99999999
-      || Math.abs(result.audit*100-amount)>0.000001)throw new Error('invalid_audit_quote');
-    return {id:'inline_audit_quote',amount,currency:'usd',name:auditService.name};
+  function auditOffer(quote) {
+    // A payable amount comes only from AOC's private quote record for this exact saved scope.
+    if(!quote || quote.status!=='quoted' || !uuid(quote.id) || !Number.isSafeInteger(quote.amount)
+      || quote.amount<=0 || quote.amount>99999999 || quote.currency!=='usd')throw new Error('audit_quote_pending');
+    return {id:'audit_quote_'+quote.id,quoteReference:quote.id,amount:quote.amount,currency:quote.currency,name:auditService.name};
+  }
+  function quoteView(saved,quote) {
+    const snapshot=readSnapshot(saved.snapshot);
+    return {submissionReference:saved.id,recordingReference:saved.recording_reference,
+      status:quote?'quoted':'pending',...(quote?{amount:quote.amount,currency:quote.currency}:{}),
+      requestedAt:saved.created_at,scope:{area:snapshot.area,answers:snapshot.answers,confirmed:snapshot.confirmed,
+        result:snapshot.result,calculatorVersion:snapshot.calculatorVersion,description:saved.description}};
   }
   async function owner(request) {
     if(env.AOC_ACCESS_GATE_ENABLED!=='true')return {response:json({error:'Enter the calculator before starting a test purchase.'},401)};
@@ -90,7 +96,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
   }
   async function references(p) {
     const submission=await store.submission(p.submission_reference);
-    return {submission_reference:p.submission_reference,recording_reference:submission.recording_reference,purchase_reference:p.id};
+    return {submission_reference:p.submission_reference,recording_reference:submission.recording_reference,purchase_reference:p.id,
+      ...(p.quote_reference?{quote_reference:p.quote_reference}:{})};
   }
   function verifySession(session,p,refs) {
     const metadata=session.metadata||{};
@@ -102,7 +109,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     const items=session.line_items?.data;
     const item=items?.[0],price=item?.price;
     if(!Array.isArray(items)||items.length!==1||item.quantity!==1||!/^price_/.test(price?.id||'')
-      || (p.price_reference!=='inline_audit_quote'&&price.id!==p.price_reference)
+      || ((/^price_/.test(p.price_reference)||!p.quote_reference)
+        &&p.price_reference!=='inline_audit_quote'&&price.id!==p.price_reference)
       || price.livemode!==false||price.type!=='one_time'||price.currency!==p.currency||price.unit_amount!==p.amount
       || item.amount_total!==p.amount||item.description!==p.item_name)throw new Error('purchase_mismatch');
     return session;
@@ -117,37 +125,19 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     try { body=JSON.parse((await rawBody(request,160000)).toString('utf8')); }
     catch(error){return json({error:'Send a bounded JSON purchase request.'},error.message==='request_too_large'?413:400);}
     if(!body || typeof body!=='object' || Array.isArray(body)
-      || Object.keys(body).some(key=>!['requestReference','consent','description','calculation','profile','submissionReference'].includes(key)))
-      return json({error:'Send only the reviewed submission fields.'},400);
+      || Object.keys(body).some(key=>!['consent','submissionReference'].includes(key)))
+      return json({error:'Start payment only from the saved AOC quote.'},400);
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
     let prepared;
     try {
-      let offer;
-      if(body.submissionReference){
-        if(!uuid(body.submissionReference))return json({error:'Invalid submission reference.'},400);
-        const saved=await store.submission(body.submissionReference);
-        if(!saved||saved.owner_hash!==ownerHash)return json({error:'Purchase not found for this session.'},404);
-        offer=auditOffer(readSnapshot(saved.snapshot).result);
-        prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
-        if(!prepared)return json({error:'Purchase not found for this session.'},404);
-      }else{
-        if(!uuid(body.requestReference)||typeof body.description!=='string'||!body.description.trim()||body.description.length>18000)
-          return json({error:'Add a reviewed work description of up to 18,000 characters before purchasing.'},400);
-        const {default:Calculation}=await import('../../public/journey-calculation.js');
-        let calculated;
-        try { calculated=Calculation.calculate(body.calculation); }
-        catch { return json({error:'Review the calculator answers and recalculate before the test purchase.'},400); }
-        if(!body.calculation.confirmed || calculated.result.errors.length || calculated.result.provisionalBuild===null
-          || body.calculation.answers.legacy_system_check!=='Standard')return json({error:'Confirm a complete, unblocked scope and recalculate before the test purchase.'},400);
-        offer=auditOffer(calculated.result);
-        let profile=null;
-        if(body.profile){const checked=validateAccessProfile(body.profile);if(checked.error)return json({error:checked.error},400);profile=checked.profile;}
-        const snapshot={area:body.calculation.area,answers:body.calculation.answers,confirmed:true,result:calculated.result,
-          calculatorVersion:calculated.version,profile,service:auditService};
-        const input={description:body.description.trim(),calculation:body.calculation,profile};
-        prepared=await store.prepare({ownerHash,requestReference:body.requestReference,fingerprint:hash(JSON.stringify(input)),
-          description:input.description,snapshot,price:offer});
-      }
+      if(!uuid(body.submissionReference))return json({error:'Submit the estimate for AOC review before payment.'},400);
+      const saved=await store.submission(body.submissionReference);
+      if(!saved||saved.owner_hash!==ownerHash)return json({error:'Audit quote not found for this session.'},404);
+      const quote=await store.quote(saved.id);
+      if(quote?.scope_fingerprint!==saved.fingerprint)throw new Error('snapshot_conflict');
+      const offer=auditOffer(quote);
+      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
+      if(!prepared)return json({error:'Audit quote not found for this session.'},404);
       if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
       if(prepared.purchase.checkout_reference){
         const session=await retrieve(prepared.purchase);
@@ -166,8 +156,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
         allowed_payment_method_types:['card'],adaptive_pricing:{enabled:false},automatic_tax:{enabled:false},allow_promotion_codes:false,
         client_reference_id:prepared.submission.id,metadata:refs,payment_intent_data:{metadata:refs},
         ...(snapshot.profile?.businessEmail?{customer_email:snapshot.profile.businessEmail}:{}),
-        success_url:`${origin}/payment/status?purchase_reference=${p.id}&checkout_result=success`,
-        cancel_url:`${origin}/payment/status?purchase_reference=${p.id}&checkout_result=cancelled`},
+        success_url:`${origin}/payment/status?purchase_reference=${p.id}&audit_request=${prepared.submission.id}&checkout_result=success`,
+        cancel_url:`${origin}/payment/status?purchase_reference=${p.id}&audit_request=${prepared.submission.id}&checkout_result=cancelled`},
         {idempotencyKey:'g2-checkout-'+p.id});
       if(result.livemode!==false || !String(result.id).startsWith('cs_test_')||!checkoutUrl(result.url))throw new Error('invalid_test_checkout');
       verifySession(result,p,refs);
@@ -175,11 +165,45 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const stored=await store.bundle(p.id,ownerHash);
       return json({purchase:view(stored),...(stored.purchase.outcome==='paid'?{}:{checkoutUrl:checkoutUrl(result.url)})});
     }catch(error){
-      if(error.message==='invalid_audit_quote')return json({error:'Enter the positive fixed audit fee explicitly quoted by AOC, in USD with no more than two decimal places. No audit amount is inferred from the build estimate.'},400);
+      if(error.message==='audit_quote_pending')return json({error:'AOC has not attached a fixed audit quote to this saved scope yet.'},409);
       if(error.message==='snapshot_conflict')return json({error:'This submission has changed. Review it as a new test purchase.'},409);
       if(error.message==='purchase_mismatch')return json({error:'Stripe references or amounts need review; no new purchase was created.'},409);
       console.warn('Stripe sandbox checkout failed.',{type:error.type||error.name,code:error.code||null,param:error.param||null});
       return json({error:'Could not open Stripe test checkout. Your saved submission is retained; retry safely.'},502);
+    }
+  }
+
+  async function quoteRequest(request,ownerHash) {
+    if(request.method!=='POST')return json({error:'Method not allowed.'},405);
+    if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required.'},415);
+    let body;
+    try { body=JSON.parse((await rawBody(request,160000)).toString('utf8')); }
+    catch(error){return json({error:'Send a bounded JSON quote request.'},error.message==='request_too_large'?413:400);}
+    if(!body||typeof body!=='object'||Array.isArray(body)
+      ||Object.keys(body).some(key=>!['requestReference','consent','description','calculation','profile'].includes(key)))
+      return json({error:'Send only the reviewed estimate fields.'},400);
+    if(body.consent!==true)return json({error:'Confirm that AOC may save and review this estimate.'},400);
+    if(!uuid(body.requestReference)||typeof body.description!=='string'||!body.description.trim()||body.description.length>18000)
+      return json({error:'Add a reviewed work description of up to 18,000 characters.'},400);
+    try {
+      const {default:Calculation}=await import('../../public/journey-calculation.js');
+      let calculated;
+      try { calculated=Calculation.calculate(body.calculation); }
+      catch { return json({error:'Review the calculator answers and recalculate before requesting an audit quote.'},400); }
+      if(!body.calculation.confirmed||calculated.result.errors.length||calculated.result.provisionalBuild===null
+        ||body.calculation.answers.legacy_system_check!=='Standard')
+        return json({error:'Confirm a complete, unblocked scope and recalculate before requesting an audit quote.'},400);
+      let profile=null;
+      if(body.profile){const checked=validateAccessProfile(body.profile);if(checked.error)return json({error:checked.error},400);profile=checked.profile;}
+      const snapshot={area:body.calculation.area,answers:body.calculation.answers,confirmed:true,result:calculated.result,
+        calculatorVersion:calculated.version,profile,service:auditService};
+      const input={description:body.description.trim(),calculation:body.calculation,profile};
+      const saved=await store.saveSubmission({ownerHash,requestReference:body.requestReference,
+        fingerprint:hash(JSON.stringify(input)),description:input.description,snapshot});
+      return json({quoteRequest:quoteView(saved.submission,saved.quote)});
+    }catch(error){
+      if(error.message==='snapshot_conflict')return json({error:'This saved request no longer matches the current estimate. Submit it as a new review request.'},409);
+      return json({error:'The audit review request could not be saved. Your estimate is unchanged.'},503);
     }
   }
 
@@ -239,11 +263,22 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       if(path==='/api/payments/webhook')return webhook(request);
       if(request.headers.get('origin')&&request.headers.get('origin')!==new URL(request.url).origin)return json({error:'Use this estimator page.'},403);
       if(request.headers.get('sec-fetch-site')==='cross-site')return json({error:'Use this estimator page.'},403);
-      if(path==='/api/payments/checkout'&&request.headers.get('origin')!==new URL(request.url).origin)return json({error:'Use this estimator page.'},403);
+      if(['/api/payments/checkout','/api/payments/quote-request'].includes(path)
+        &&request.headers.get('origin')!==new URL(request.url).origin)return json({error:'Use this estimator page.'},403);
       const identity=await owner(request);if(identity.response)return identity.response;
+      if(path==='/api/payments/quote-request')return quoteRequest(request,identity.hash);
       if(path==='/api/payments/checkout')return checkout(request,identity.hash);
       if(path!=='/api/payments/status'||request.method!=='GET')return json({error:'Method not allowed.'},405);
-      const reference=new URL(request.url).searchParams.get('purchase_reference');
+      const url=new URL(request.url);
+      const submissionReference=url.searchParams.get('submission_reference');
+      if(submissionReference){
+        if(!uuid(submissionReference))return json({error:'Invalid submission reference.'},400);
+        const saved=await store.submission(submissionReference);
+        if(!saved||saved.owner_hash!==identity.hash)return json({error:'Audit review request not found for this session.'},404);
+        const quote=await store.quote(submissionReference);
+        return json({enabled:true,configured:true,quoteRequest:quoteView(saved,quote)});
+      }
+      const reference=url.searchParams.get('purchase_reference');
       if(reference){
         if(!uuid(reference))return json({error:'Invalid purchase reference.'},400);
         const stored=await store.bundle(reference,identity.hash);
