@@ -32,8 +32,23 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   const auditAmount = typeof state.result?.audit === 'number' ? Math.round(state.result.audit * 100) : null;
   const quotedAudit = Number.isSafeInteger(auditAmount) && auditAmount > 0 && auditAmount <= 99999999
     && Math.abs(state.result.audit * 100 - auditAmount) <= 0.000001;
-  const ready = Boolean(state.result && !state.dirty && state.confirmed && state.calculationSource === 'server'
-    && state.description?.trim() && state.result.provisionalBuild !== null && state.answers.legacy_system_check === 'Standard' && quotedAudit);
+  const blockers = [];
+  if (!state.description?.trim()) blockers.push('Add your work description.');
+  if (!state.confirmed) blockers.push('Complete the required questions and confirm your answers.');
+  if (state.answers.legacy_system_check !== 'Standard') {
+    blockers.push(state.answers.legacy_system_check
+      ? 'Resolve the app or access restriction with AOC.'
+      : 'Confirm that the listed apps can support the required work.');
+  }
+  if (state.result?.provisionalBuild === null) blockers.push('Complete the scope details needed for a build estimate.');
+  if (!quotedAudit) blockers.push('Add the fixed audit fee quoted by AOC.');
+  if (!state.result) blockers.push('Calculate your estimate.');
+  else if (state.dirty) blockers.push('Recalculate after your latest changes.');
+  else if (state.calculationSource !== 'server') blockers.push('Recalculate while connected to the estimator service.');
+  const ready = blockers.length === 0;
+  const reviewStep = !state.description?.trim() ? 2
+    : state.answers.legacy_system_check !== 'Standard' ? 4
+      : state.result?.provisionalBuild === null ? 3 : 7;
 
   async function checkout() {
     if (busy || !ready || !consent) return;
@@ -79,8 +94,12 @@ export function AuditCheckout({ state, profile, onNavigate }) {
     </div>
     <p className="helper">{service?.description || 'This payment covers the audit. We price the build and any monthly services separately.'}</p>
     {!configuration.configured ? <p role="status">Checkout is unavailable right now. You can still edit your estimate.</p> : <>
-      {!quotedAudit && <p role="status">Add the audit fee quoted by AOC in Responsibilities and service, then calculate again.</p>}
-      {quotedAudit && !ready && <p className="helper">Review your description and answers, then calculate to continue. <button type="button" className="quiet" onClick={() => onNavigate(2)}>Review description</button></p>}
+      {!ready && <div className="g2-purchase__requirements" role="status" aria-live="polite">
+        <strong>Audit payment isn’t ready yet</strong>
+        <span>Complete the following before continuing:</span>
+        <ul>{blockers.map(item => <li key={item}>{item}</li>)}</ul>
+        <button type="button" className="quiet" onClick={() => onNavigate(reviewStep)}>Go to missing details</button>
+      </div>}
       {!reviewing ? <div className="g2-purchase__actions g2-purchase__actions--audit">
         <button ref={reviewButton} className="primary" type="button" disabled={!ready} onClick={beginReview}>Review audit payment</button>
       </div> : <>
