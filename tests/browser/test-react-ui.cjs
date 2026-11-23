@@ -426,6 +426,13 @@ const server = http.createServer((request, response) => {
     // Canceling Start over preserves even a calculated estimate; accepting resets it.
     const assertRestart = async (targetPage, accept) => {
       const before = await targetPage.evaluate(() => globalThis.AOCJourney.getState());
+      await targetPage.evaluate(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('audit_request', '00000000-0000-4000-8000-000000000001');
+        url.searchParams.set('purchase_reference', '00000000-0000-4000-8000-000000000002');
+        url.searchParams.set('checkout_result', 'cancelled');
+        window.history.replaceState(null, '', url);
+      });
       await targetPage.locator('#restart').click();
       const dialog = targetPage.getByRole('dialog', { name: 'Start over?', exact: true });
       await dialog.waitFor({ state: 'visible' });
@@ -439,6 +446,8 @@ const server = http.createServer((request, response) => {
       assert.equal(await targetPage.evaluate(() => document.body.style.overflow), '', 'background scrolling is restored');
       if (!accept) {
         assert.deepEqual(await targetPage.evaluate(() => globalThis.AOCJourney.getState()), before, 'Cancel leaves all estimate state unchanged');
+        assert.equal(await targetPage.evaluate(() => new URLSearchParams(location.search).get('audit_request')),
+          '00000000-0000-4000-8000-000000000001', 'Cancel preserves the current audit reference');
         return;
       }
       await targetPage.waitForFunction(() => !globalThis.AOCJourney.getState().area);
@@ -460,6 +469,8 @@ const server = http.createServer((request, response) => {
       assert.equal(after.calculating, false);
       assert.equal(after.analysisError, '');
       assert.equal(after.calculationSource, '');
+      assert.deepEqual(await targetPage.evaluate(() => [...new URLSearchParams(location.search).keys()]), [],
+        'A confirmed reset clears the previous audit and payment URL references');
       assert.equal(await targetPage.locator('#toast').count(), 0, 'reset also clears any stale notification');
     };
     await page.setViewportSize({ width: 1440, height: 1000 });
