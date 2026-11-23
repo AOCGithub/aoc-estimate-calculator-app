@@ -223,8 +223,12 @@ try{
  assert.equal(await page.getByText('This payment link is not available in this session.',{exact:true}).count(),0);
  mode='return';outcome='paid';await page.getByRole('button',{name:'Refresh payment status',exact:true}).click();
  await page.getByRole('heading',{name:'Payment received',exact:true}).waitFor();
- mode='no-quote';await page.goto(origin);await page.getByText(/Add the audit fee quoted by AOC/).waitFor();
+ mode='no-quote';await page.goto(origin);await page.getByText('Audit payment isn’t ready yet',{exact:true}).waitFor();
+ assert.equal(await page.getByText('Add the fixed audit fee quoted by AOC.',{exact:true}).isVisible(),true);
+ assert.equal(await page.getByRole('status').filter({hasText:'Audit payment isn’t ready yet'}).count(),1);
  assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
+ await page.getByRole('button',{name:'Go to missing details',exact:true}).click();
+ assert.equal(await page.evaluate(()=>window.testNavigation),7,'A missing audit quote points to Responsibilities and service');
  mode='setup';await page.goto(origin);await page.getByText(/Checkout is unavailable right now/).waitFor();
  await page.goto(origin+'/payment/status');
  await page.getByText('Use the link from your checkout to see your payment details.',{exact:true}).waitFor();
