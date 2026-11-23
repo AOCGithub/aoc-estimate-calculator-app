@@ -227,11 +227,12 @@ try{
  assert.equal(await page.getByText('This payment link is not available in this session.',{exact:true}).count(),0);
  mode='return';outcome='paid';await page.getByRole('button',{name:'Refresh payment status',exact:true}).click();
  await page.getByRole('heading',{name:'Payment received',exact:true}).waitFor();
- mode='no-quote';await page.goto(origin);await page.getByText('Audit payment isn’t ready yet',{exact:true}).waitFor();
- assert.equal(await page.getByText('Add the fixed audit fee quoted by AOC.',{exact:true}).isVisible(),true);
- assert.equal(await page.getByRole('status').filter({hasText:'Audit payment isn’t ready yet'}).count(),1);
+ mode='no-quote';await page.goto(origin);await page.getByText('Audit payment is waiting for an AOC quote',{exact:true}).waitFor();
+ assert.equal(await page.getByText(/AOC has not provided a fixed audit fee.*Leave it blank unless AOC has quoted an amount/).isVisible(),true);
+ assert.equal(await page.getByText('Complete the following before continuing:',{exact:true}).count(),0,'An AOC quote is not described as a missing client answer');
+ assert.equal(await page.getByRole('status').filter({hasText:'Audit payment is waiting for an AOC quote'}).count(),1);
  assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
- await page.getByRole('button',{name:'Go to missing details',exact:true}).click();
+ await page.getByRole('button',{name:'Add an existing AOC quote',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.testNavigation),7,'A missing audit quote points to Responsibilities and service');
  mode='quote-edited';await page.goto(origin);await page.getByText('Recalculate after your latest changes.',{exact:true}).waitFor();
  assert.equal(await page.getByText('Add the fixed audit fee quoted by AOC.',{exact:true}).count(),0,'An entered quote is not described as missing while recalculation is pending');
