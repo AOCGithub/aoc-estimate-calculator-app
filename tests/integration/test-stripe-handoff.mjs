@@ -315,7 +315,7 @@ try{
   const unpaid=await start();
   assert.equal((await event(unpaid.purchase,{handler,outcome:'incomplete',type:'checkout.session.expired'})).status,200);
   assert.deepEqual(attempts,[]);
-  const {purchase}=await start({...payload(),description:'Review draft invoices. <script>Keep client wording as text.</script>'});
+  const {purchase}=await start({...payload(),description:'Review draft invoices.\n\n<script>Keep client wording as text.</script>'});
   const paidAt='2026-11-19T04:30:00.000Z';
   const change=(_,session)=>{
    session.customer_details={name:'Stripe Contact',email};
@@ -343,6 +343,7 @@ try{
   assert.match(client.message.text,/What Happens Next\?/i);
   assert.match(client.message.text,/https:\/\/pay\.stripe\.com\/receipts\/payment\/fixture/);
   assert.ok(client.message.html.includes('&lt;script&gt;')&&!client.message.html.includes('<script>'));
+  assert.match(client.message.html,/Review draft invoices\.<br\/?><br\/?>&lt;script&gt;/);
   assert.equal(client.message.attachments[0].content.subarray(0,5).toString(),'%PDF-');
   assert.ok(client.message.attachments[0].filename.includes(purchase.submissionReference));
   assert.match(client.mime.toString(),/Content-Type: application\/pdf/);
@@ -350,6 +351,13 @@ try{
   const internal=messages.find(entry=>entry.message.to.address===support).message;
   assert.ok(internal.text.includes(intake)&&internal.text.includes(email));
   assert.equal(internal.attachments,undefined);
+  for(const {html} of [client.message,internal]){
+   assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/about-us\/"[^>]*>About Us<\/a>/);
+   assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/contact-us\/"[^>]*>Contact Us<\/a>/);
+   assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/growth-services\/"[^>]*>Growth Services<\/a>/);
+   assert.match(html,/<!--\[if mso\]><table[^>]+width="600"[^>]*><tr><td><!\[endif\]-->/);
+   assert.match(html,/<!--\[if mso\]><\/td><\/tr><\/table><!\[endif\]-->/);
+  }
  });
  await check('A late receipt can complete the client email and ambiguous SMTP acceptance is never retried automatically',async()=>{
   const attempts=[];
