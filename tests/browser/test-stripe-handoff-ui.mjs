@@ -31,7 +31,11 @@ try{
       ${rules}<script type="module" src="/tests/fixtures/g2-purchase-ui.jsx"></script></html>`);
     res.writeHead(200,{'content-type':'text/html'}).end(html);return;
    }
-   if(url.pathname==='/__g2_fixture'){respond({state:{area,answers,description,confirmed:true,dirty:false,result:mode==='no-quote'?{...result,audit:null}:result,calculationSource:'server'}});return;}
+   if(url.pathname==='/__g2_fixture'){
+    const missingQuote=mode==='no-quote',quoteEdited=mode==='quote-edited';
+    respond({state:{area,answers:missingQuote?{...answers,audit_fee:null}:answers,description,confirmed:true,
+      dirty:quoteEdited,result:missingQuote||quoteEdited?{...result,audit:null}:result,calculationSource:'server'}});return;
+   }
    if(url.pathname==='/api/payments/status'){
     if(url.searchParams.get('refresh')==='true'){
      refreshChecks++;
@@ -229,6 +233,9 @@ try{
  assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
  await page.getByRole('button',{name:'Go to missing details',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.testNavigation),7,'A missing audit quote points to Responsibilities and service');
+ mode='quote-edited';await page.goto(origin);await page.getByText('Recalculate after your latest changes.',{exact:true}).waitFor();
+ assert.equal(await page.getByText('Add the fixed audit fee quoted by AOC.',{exact:true}).count(),0,'An entered quote is not described as missing while recalculation is pending');
+ assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
  mode='setup';await page.goto(origin);await page.getByText(/Checkout is unavailable right now/).waitFor();
  await page.goto(origin+'/payment/status');
  await page.getByText('Use the link from your checkout to see your payment details.',{exact:true}).waitFor();
