@@ -32,6 +32,11 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   const auditAmount = typeof state.result?.audit === 'number' ? Math.round(state.result.audit * 100) : null;
   const quotedAudit = Number.isSafeInteger(auditAmount) && auditAmount > 0 && auditAmount <= 99999999
     && Math.abs(state.result.audit * 100 - auditAmount) <= 0.000001;
+  const enteredAudit = Number(state.answers.audit_fee);
+  const enteredAuditCents = Math.round(enteredAudit * 100);
+  const validEnteredAudit = Number.isFinite(enteredAudit) && Number.isSafeInteger(enteredAuditCents)
+    && enteredAuditCents > 0 && enteredAuditCents <= 99999999
+    && Math.abs(enteredAudit * 100 - enteredAuditCents) <= 0.000001;
   const blockers = [];
   if (!state.description?.trim()) blockers.push('Add your work description.');
   if (!state.confirmed) blockers.push('Complete the required questions and confirm your answers.');
@@ -41,14 +46,33 @@ export function AuditCheckout({ state, profile, onNavigate }) {
       : 'Confirm that the listed apps can support the required work.');
   }
   if (state.result?.provisionalBuild === null) blockers.push('Complete the scope details needed for a build estimate.');
-  if (!quotedAudit) blockers.push('Add the fixed audit fee quoted by AOC.');
+  if (!validEnteredAudit) blockers.push('Add the fixed audit fee quoted by AOC.');
+  else if (state.result && !state.dirty && !quotedAudit) blockers.push('Recalculate to verify the audit fee.');
   if (!state.result) blockers.push('Calculate your estimate.');
   else if (state.dirty) blockers.push('Recalculate after your latest changes.');
   else if (state.calculationSource !== 'server') blockers.push('Recalculate while connected to the estimator service.');
-  const ready = blockers.length === 0;
+  const ready = Boolean(state.result && !state.dirty && state.confirmed && state.calculationSource === 'server'
+    && state.description?.trim() && state.result.provisionalBuild !== null
+    && state.answers.legacy_system_check === 'Standard' && quotedAudit);
   const reviewStep = !state.description?.trim() ? 2
     : state.answers.legacy_system_check !== 'Standard' ? 4
       : state.result?.provisionalBuild === null ? 3 : 7;
+
+  function goToMissingDetails() {
+    onNavigate(reviewStep);
+    if (reviewStep !== 7 || validEnteredAudit) return;
+    let attempts = 0;
+    const revealAuditFee = () => {
+      const details = document.getElementById('quote-details');
+      const field = document.getElementById('f_audit_fee');
+      if (details && field) {
+        details.open = true;
+        field.scrollIntoView({behavior: 'smooth', block: 'center'});
+        field.focus({preventScroll: true});
+      } else if (++attempts < 6) requestAnimationFrame(revealAuditFee);
+    };
+    requestAnimationFrame(revealAuditFee);
+  }
 
   async function checkout() {
     if (busy || !ready || !consent) return;
@@ -98,7 +122,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
         <strong>Audit payment isn’t ready yet</strong>
         <span>Complete the following before continuing:</span>
         <ul>{blockers.map(item => <li key={item}>{item}</li>)}</ul>
-        <button type="button" className="quiet" onClick={() => onNavigate(reviewStep)}>Go to missing details</button>
+        <button type="button" className="quiet" onClick={goToMissingDetails}>Go to missing details</button>
       </div>}
       {!reviewing ? <div className="g2-purchase__actions g2-purchase__actions--audit">
         <button ref={reviewButton} className="primary" type="button" disabled={!ready} onClick={beginReview}>Review audit payment</button>
