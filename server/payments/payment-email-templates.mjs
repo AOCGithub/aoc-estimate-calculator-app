@@ -6,6 +6,12 @@ export const supportEmail = 'support@alwaysopencommerce.com';
 const website = 'https://alwaysopencommerce.com';
 const assetBase = 'https://estimate.alwaysopencommerce.com/email-assets/';
 const font = 'Montserrat, Arial, sans-serif';
+const emailWidth = 600;
+const navigation = [
+  {label: 'Growth Services', href: website + '/growth-services/', width: 137},
+  {label: 'About Us', href: 'https://alwaysopencommerce.com/about-us/', width: 78},
+  {label: 'Contact Us', href: 'https://alwaysopencommerce.com/contact-us/', width: 92},
+];
 const colors = {
   ink: '#18191b', copy: '#343d50', muted: '#505d74', link: '#406bff',
   border: '#dce4f1', panel: '#f3f6fc', callout: '#e3e9ff', white: '#ffffff', black: '#000000',
@@ -13,7 +19,6 @@ const colors = {
 const fontImport = '@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400..700&display=swap");';
 const mobileStyles = [
   '@media screen and (max-width: 520px) {',
-  '  .email-nav-gap { padding-left: 14px !important; padding-right: 14px !important; }',
   '  .email-nav-link { font-size: 13px !important; }',
   '  .email-hero, .email-content { padding-left: 22px !important; padding-right: 22px !important; }',
   '  .email-label { width: 37% !important; }',
@@ -21,7 +26,6 @@ const mobileStyles = [
   '  .email-copyright { font-size: 13px !important; }',
   '}',
   '@media screen and (max-width: 400px) {',
-  '  .email-nav-gap { padding-left: 9px !important; padding-right: 9px !important; }',
   '  .email-doc { display: block !important; width: 100% !important; }',
   '  .email-doc-gap { display: block !important; height: 12px !important; }',
   '  .email-docs { table-layout: fixed !important; }',
@@ -39,10 +43,13 @@ const paragraph = (style, ...children) => h('p', {style: {margin: 0, ...style}},
 const heading = (text, size = 20) => h('h2', {style: {
   margin: 0, color: colors.ink, fontSize: size, fontWeight: 700, lineHeight: size === 20 ? '24px' : '1.5',
 }}, text);
-const gap = size => h('div', {'aria-hidden': true, style: {height: size, lineHeight: size + 'px', fontSize: 0}});
-const divider = size => h('div', {'aria-hidden': true, style: {
-  margin: size + 'px 0', borderTop: '1px solid ' + colors.border, fontSize: 0, lineHeight: 0,
-}});
+const spaceRow = (height, bgcolor) => tr(td({height, bgcolor, style: {
+  height, fontSize: 1, lineHeight: height + 'px', backgroundColor: bgcolor,
+}}, '\u00a0'));
+const gap = size => table({width: '100%', className: 'email-decoration', 'aria-hidden': true}, spaceRow(size));
+const divider = size => table({width: '100%', className: 'email-decoration', 'aria-hidden': true},
+  spaceRow(size), spaceRow(1, colors.border), spaceRow(size));
+const msoFrame = side => h('template', {'data-mso-frame': side});
 const link = (label, href, style) => h('a', {href, style: {
   color: colors.link, textDecoration: 'underline', ...style,
 }}, label);
@@ -54,20 +61,20 @@ function picture(file, alt, width, height, style) {
 }
 
 function emailHeader() {
-  const menu = [
-    ['Growth Services', '/growth-services/'], ['About Us', '/about-us/'], ['Contact Us', '/contact-us/'],
-  ];
-  return h('div', {className: 'email-branding'}, table({width: '100%'},
-    tr(td({align: 'center', bgcolor: colors.ink, height: 48, style: {backgroundColor: colors.ink}},
-      table({align: 'center'}, tr(...menu.map(([label, path], index) => td({key: path, valign: 'middle'},
-        table({}, tr(
-          index ? td({className: 'email-nav-gap', style: {padding: '0 32px'}},
+  return h('div', {className: 'email-branding'}, table({width: '100%', style: {tableLayout: 'fixed'}},
+    tr(td({align: 'center', bgcolor: colors.ink, height: 48, style: {
+      backgroundColor: colors.ink, padding: '0 8px',
+    }},
+      table({align: 'center', width: '100%', style: {maxWidth: 435, tableLayout: 'fixed'}},
+        tr(...navigation.flatMap(({label, href, width}, index) => [
+          index ? td({key: href + '-divider', align: 'center', width: '14.71%'},
             picture('nav-divider', '', 1, 25, {maxWidth: 'none'})) : null,
-          td({style: {whiteSpace: 'nowrap'}}, h('a', {className: 'email-nav-link',
-            href: website + path, style: {color: colors.white, textDecoration: 'none', fontWeight: 700, fontSize: 16},
-          }, label)),
-        )),
-      )))),
+          td({key: href, align: 'center', valign: 'middle', width: (width / 435 * 100) + '%'},
+            h('a', {className: 'email-nav-link', href, style: {
+              color: colors.white, textDecoration: 'none', fontWeight: 700, fontSize: 16,
+            }}, label)),
+        ])),
+      ),
     )),
     tr(td({align: 'center', valign: 'middle', height: 82, bgcolor: colors.black},
       h('a', {href: website, style: {display: 'block', maxWidth: 300, margin: '0 16px'}},
@@ -83,15 +90,16 @@ function emailFooter() {
     ['make-partners', 'Make Partners', 144, 18],
     ['review-badge', 'Reviewed by Clutch, 5.0 rating', 117, 23],
   ];
-  return table({width: '100%', className: 'email-branding', bgcolor: colors.black, style: {backgroundColor: colors.black}},
+  return table({width: '100%', className: 'email-branding', bgcolor: colors.black,
+    style: {backgroundColor: colors.black, tableLayout: 'fixed'}},
     tr(td({align: 'center', style: {padding: '24px 16px', color: colors.white}},
-      table({align: 'center', width: '100%'},
+      table({align: 'center', width: '100%', style: {tableLayout: 'fixed'}},
         tr(td({align: 'center', height: 50}, picture('aoc-footer', 'Always Open Commerce', 300, 47))),
         tr(td({height: 24, style: {lineHeight: 0, fontSize: 0}})),
         tr(td({align: 'center', height: 63},
           table({align: 'center', width: '100%', style: {maxWidth: 552, tableLayout: 'fixed'}},
             tr(...badges.flatMap(([file, alt, width, height], index) => [
-              index ? td({key: file + '-gap', className: 'email-footer-gap', width: 24}) : null,
+              index ? td({key: file + '-gap', className: 'email-footer-gap', width: '4.35%'}) : null,
               td({key: file, align: 'center', valign: 'middle', style: {width: (width / 552 * 100) + '%'}},
                 picture(file, alt, width, height)),
             ])),
@@ -132,16 +140,17 @@ function paymentHero(isClient, clientName) {
   }, ...content));
 }
 
-function detailRows(fields, spacing) {
+function detailRows(fields, spacing, labelWidth = '31.44%') {
   return table({width: '100%', style: {tableLayout: 'fixed'}}, ...fields.map(([label, value, compact], index) => {
     const rowStyle = {paddingTop: index ? spacing : 0, fontSize: compact ? 13 : 15,
       lineHeight: compact ? '20px' : '23px', fontWeight: compact ? 600 : 500};
     return h('tr', {key: index},
-      td({width: 166, className: 'email-label', valign: 'top', style: {
-        ...rowStyle, width: 166, color: colors.ink,
+      td({width: labelWidth, className: 'email-label', valign: 'top', style: {
+        ...rowStyle, width: labelWidth, color: colors.ink,
       }}, label),
       td({valign: 'top', style: {
-        ...rowStyle, color: colors.muted, paddingLeft: 14, overflowWrap: 'anywhere', wordBreak: 'break-word',
+        ...rowStyle, color: colors.muted, paddingLeft: 14, overflowWrap: 'anywhere',
+        wordWrap: 'break-word', wordBreak: 'break-word',
       }}, value),
     );
   }));
@@ -153,7 +162,10 @@ function paymentDetails(purchase) {
   }).format(purchase.amount / 100);
   const paidAt = new Intl.DateTimeFormat('en-US', {dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC'})
     .format(new Date(purchase.paidAt)) + ' UTC';
-  return {amount, paidAt, description: h('span', {style: {whiteSpace: 'pre-wrap'}}, purchase.snapshot.description)};
+  const lines = purchase.snapshot.description.split(/\r\n|\n|\r/);
+  const description = h('span', {style: {whiteSpace: 'pre-wrap'}},
+    ...lines.flatMap((line, index) => index ? [h('br', {key: index}), line] : [line]));
+  return {amount, paidAt, description};
 }
 
 function paidStatus() {
@@ -181,7 +193,7 @@ function documentCard(icon, title, detail, href) {
 
 function clientCopy(purchase, {amount, paidAt, description}) {
   return [
-    table({width: '100%', style: {borderCollapse: 'separate', border: '1px solid ' + colors.border,
+    table({width: '100%', bgcolor: colors.panel, style: {borderCollapse: 'separate', border: '1px solid ' + colors.border,
       borderRadius: 10, backgroundColor: colors.panel}},
     tr(td({className: 'email-summary', style: {padding: '19px 20px'}},
       heading('Payment Summary'), divider(12),
@@ -191,7 +203,7 @@ function clientCopy(purchase, {amount, paidAt, description}) {
         ['Audit Fee Paid:', amount],
         ['Payment Date:', paidAt],
         ['Payment Status:', paidStatus(), true],
-      ], 12),
+      ], 12, '34.16%'),
     ))),
     gap(24),
     heading('Your Documents'),
@@ -208,7 +220,7 @@ function clientCopy(purchase, {amount, paidAt, description}) {
     gap(10),
     paragraph({}, "Once we've reviewed the information, we'll contact you if we need any additional details or clarification."),
     gap(10),
-    table({width: '100%', style: {borderCollapse: 'separate', borderRadius: 6, backgroundColor: colors.callout}},
+    table({width: '100%', bgcolor: colors.callout, style: {borderCollapse: 'separate', borderRadius: 6, backgroundColor: colors.callout}},
       tr(td({style: {padding: '11px 14px', color: colors.muted, fontSize: 13, lineHeight: '20px'}},
         'Your purchase covers the AI Commerce Audit only. Any automation implementation would be quoted and approved separately.'))),
     divider(24),
@@ -271,14 +283,17 @@ export async function renderPaymentEmail({purchase, audience, clientName = '', c
   const isClient = audience === 'client';
   const fields = paymentDetails(purchase);
   const content = isClient ? clientCopy(purchase, fields) : supportCopy(purchase, clientName, checkoutEmail, fields);
-  const html = await render(h('html', {lang: 'en'},
+  const markup = await render(h('html', {lang: 'en'},
     h('head', null, h('meta', {name: 'viewport', content: 'width=device-width, initial-scale=1'}),
+      h('meta', {name: 'color-scheme', content: 'light'}),
+      h('meta', {name: 'supported-color-schemes', content: 'light'}),
       h('style', null, fontImport), h('style', null, mobileStyles)),
     h('body', {style: {margin: 0, padding: 0, fontFamily: font, color: colors.copy,
       fontSize: 16, fontWeight: 500, lineHeight: '24px'}},
-    table({width: '100%', style: {backgroundColor: colors.white}}, tr(td({align: 'center'},
-      table({className: 'payment-email', width: 600, align: 'center', bgcolor: colors.white, style: {
-        maxWidth: 600, width: '100%', textAlign: 'left', fontFamily: font,
+    table({width: '100%', bgcolor: colors.white, style: {backgroundColor: colors.white}}, tr(td({align: 'center'},
+      msoFrame('start'),
+      table({className: 'payment-email', width: '100%', align: 'center', bgcolor: colors.white, style: {
+        maxWidth: emailWidth, width: '100%', textAlign: 'left', fontFamily: font, tableLayout: 'fixed',
       }},
       tr(td({}, emailHeader())),
       paymentHero(isClient, clientName),
@@ -288,13 +303,22 @@ export async function renderPaymentEmail({purchase, audience, clientName = '', c
       tr(td({className: 'email-content', style: {padding: (isClient ? 30 : 29) + 'px 36px'}}, ...content)),
       tr(td({}, emailFooter())),
       ),
+      msoFrame('end'),
     )))
     ),
   ));
+  // Classic Outlook uses Word's layout engine, which ignores max-width on tables.
+  const html = markup
+    .replace('<template data-mso-frame="start"></template>', '<!--[if mso]><table role="presentation" align="center" width="' +
+      emailWidth + '" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->')
+    .replace('<template data-mso-frame="end"></template>', '<!--[if mso]></td></tr></table><![endif]-->');
   const prefix = purchase.testMode ? '[Stripe test] ' : '';
   const subject = isClient ? 'Your AI Commerce Audit payment is confirmed'
     : 'AI Commerce Audit paid · ' + purchase.submissionReference;
   return {subject: prefix + subject, html, text: toPlainText(html, {
-    selectors: [{selector: '.email-branding', format: 'skip'}],
+    selectors: [
+      {selector: '.email-branding', format: 'skip'},
+      {selector: '.email-decoration', format: 'skip'},
+    ],
   })};
 }
