@@ -1,8 +1,20 @@
 # G2 — local Stripe test-purchase handoff
 
-Updated: 18 November 2026. Branch: `feature/g2-stripe-handoff`.
+Updated: 24 November 2026. Branches synchronized with `main`.
 
-## Documentation-aligned audit quote flow — 23 November 2026
+## Confirmed 15% audit-fee rule — 24 November 2026
+
+The fictional $1,250 sandbox quote and manual audit-quote step have been removed. The current confirmed rule is:
+
+> Initial audit fee = 15% of the complete one-time project estimate.
+
+The project total uses the entered one-time project quote when all quoted components are supplied; otherwise it uses the calculator's complete build estimate. Monthly support, advertising spend, software subscriptions and other client-paid third-party costs remain separate. The server recalculates the project and audit amounts, saves the 15% fee against the immutable submission fingerprint, and rejects browser overrides or stale saved fees.
+
+Stripe remains in test mode. Sandbox receipts and emails still say that no real charge or audit booking occurred.
+
+## Superseded fixed-quote flow — 23 November 2026
+
+The following section is retained as history and is no longer the active calculation or payment flow. The 24 November confirmed 15% rule above replaces it.
 
 The payable audit fee no longer comes from an editable calculator answer. The client completes the estimate and explicitly submits the saved scope for AOC review. AOC then records the fixed USD audit fee against that submission's immutable fingerprint. Stripe checkout remains unavailable until that private quote exists, and the client reviews the saved scope and exact fee before continuing.
 
@@ -13,20 +25,16 @@ The payable audit fee no longer comes from an editable calculator answer. The cl
 - The original estimate, failed/incomplete payment handling, duplicate-event protection, receipt, PDF and payment emails remain unchanged.
 - An approved sandbox quote is recorded with `npm run g2:audit-quote -- <submission-reference> <amount> <AOC-reviewer>` after AOC reviews the saved scope.
 
-This implements the current instruction that AOC screens feasibility and quotes a fixed audit fee for the agreed departments, systems and material volume before payment. The current agreement is still marked for internal review, so this remains a Stripe test-mode flow and does not enable live charging.
+At the time, this implemented the earlier fixed-quote instruction. It is retained only to explain historical records and tests; it is not the current pricing flow.
 
-### Temporary fictional quote for live sandbox testing
-
-The live internal test version may set `AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS=125000`. In Stripe test mode only, submitting a reviewed scope then attaches a clearly labelled fictional **$1,250 USD** quote so the team can exercise Checkout, webhooks, receipts, PDFs and emails. This is synthetic acceptance data, not approved AOC pricing, and creates no real charge or audit booking. Remove the environment value and this temporary section before client release. Repository builds and pushes display a reminder while this test fixture remains in the codebase.
-
-The local implementation covers a reviewed submission, saved work-description reference, Stripe sandbox checkout, purchase outcomes, receipt link and one audit intake per submission. Checkout uses the reviewed fixed audit quote, recalculated on the server. No manually created Price ID or sample payment amount is required. Automated fixture tests and actual Stripe sandbox checks are recorded separately below.
+The local implementation covers a reviewed submission, saved work-description reference, server-calculated 15% audit fee, Stripe sandbox checkout, purchase outcomes, receipt link and one audit intake per submission. No manually created Price ID or sample payment amount is required. Automated fixture tests and actual Stripe sandbox checks are recorded separately below.
 
 ## Local flow
 
 1. Complete and calculate a reviewed, unblocked scope with a final work description.
 2. Open **Review audit payment** and explicitly consent to saving the submission and text for that purchase. Remembering a profile and saving ordinary estimates remain independent choices. Select **Continue to Stripe** to open Checkout.
 3. The server recalculates the answers and saves the exact reviewed description, answers, result and calculator version. Manual corrections are preserved; payment handling does not rerun AI extraction.
-4. The server creates Stripe-hosted Checkout with the positive **fixed audit fee explicitly quoted by AOC**, using inline USD pricing. Missing quotes and fractional-cent amounts block checkout; no percentage or sample price is substituted. It sends only submission, work-description and purchase reference IDs in metadata. The indicative build price is not charged.
+4. The server creates Stripe-hosted Checkout with exactly **15% of the saved one-time project estimate**, rounded to USD cents. Missing project totals, stale calculations and client-supplied price overrides block checkout. It sends only submission, work-description, saved audit-price and purchase reference IDs in metadata. The project estimate itself is not charged.
 5. A signed Stripe event is checked against the current Session, amount, currency, item and saved references. A completed-but-unpaid session is processing, not paid.
 6. Confirmed payment creates one audit intake. Duplicate/concurrent events and server restarts retain that intake. Failed/expired payments preserve the submission for retry without creating a paid intake.
 7. The return page shows the outcome, references, amount and confirmation time. Paid purchases can open Stripe's receipt when available. The saved estimate and purchase details can be downloaded; later calculator edits do not rewrite them.
@@ -35,7 +43,7 @@ This test flow does not approve customer scope, guarantee app compatibility, acc
 
 ## Stripe setup needed from Gino
 
-Use an AOC-owned account and its sandbox/test environment. Do not create a fixed product Price for this flow. The reviewed calculation must contain an explicitly quoted audit fee; sandbox examples are synthetic acceptance data, not new approved AOC prices.
+Use an AOC-owned account and its sandbox/test environment. Do not create a fixed product Price for this flow. Each Checkout uses the server-recalculated 15% audit fee for that saved project estimate.
 
 Add these server-only values to the Git-ignored `.env.stripe.local` file in the repository root:
 
@@ -58,7 +66,7 @@ The helper uses the configured sandbox key so events come from the same environm
 npm run dev:g2
 ```
 
-Open **http://localhost:5173/**. The G2 panel shows setup guidance until both settings exist, and purchase review is disabled until a valid audit quote is present in the current calculation. The CLI is not bundled with the app. Stripe keys must be test keys; real payments are rejected. The preserved `.env.stripe.live.local` is Git-ignored and is not loaded by either G2 development command.
+Open **http://localhost:5173/**. The G2 panel shows setup guidance until both settings exist, and purchase review is disabled until the current calculation has a complete one-time project estimate and its 15% audit fee. The CLI is not bundled with the app. Stripe keys must be test keys; real payments are rejected. The preserved `.env.stripe.live.local` is Git-ignored and is not loaded by either G2 development command.
 
 Use the checkout created by this app for the real sandbox demonstration. A generic CLI event without the saved app references is ignored and does not prove the handoff. Follow [Stripe testing guidance](https://docs.stripe.com/testing); no real card details are needed.
 
@@ -77,11 +85,11 @@ Stripe returns to **`/payment/status`** after checkout or cancellation. The page
 | Persistence failure | Retryable response; no falsely acknowledged result |
 | Replay after restart | Same persisted intake reference |
 | Invalid signature, live mode, wrong amount/currency/reference | Rejected; no paid intake |
-| Missing audit quote or unsupported precision | Checkout blocked; no inferred price |
-| Different audit quotes | Each checkout uses its own saved quote; retries retain it |
+| Missing/blocked project total or unsupported precision | Checkout blocked; no audit price is saved |
+| Different project totals | Each checkout uses exactly 15% of its immutable saved project estimate; retries retain it |
 | Another session | Cannot read or retry a purchase by guessing its ID |
 
-Stripe's hosted receipt and the downloaded estimate are separate. Test purchases do not automatically email receipts; no confirmation-email sending has been added. See [Stripe receipts](https://docs.stripe.com/receipts).
+Stripe's hosted receipt and the downloaded estimate are separate. A confirmed sandbox payment sends the separately configured AOC next-step emails; the Stripe receipt remains Stripe's own document. Failed, incomplete or duplicate events cannot create a new paid-order confirmation.
 
 ## Storage and limits
 

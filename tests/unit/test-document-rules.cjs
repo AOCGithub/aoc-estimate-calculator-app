@@ -36,8 +36,9 @@ for (const handover of ['one', 'group', 'multiple']) {
 const zeroImplementationQuote = { preparation_fee: 1000, implementation_fee: 0, audit_fee: 250, audit_paid: 250 };
 for (const implementation_fee of [0, '0', '0.00']) {
   const result = Calculation.calculate(request({ ...zeroImplementationQuote, implementation_fee })).result;
-  for (const [key, expected] of Object.entries({ build: 1000, buildQuoted: true, projectBalance: 750,
-    firstProjectPayment: 375, secondProjectPayment: 375, initialSpend: 1000, net: 1600, payback: .625 })) {
+  for (const [key, expected] of Object.entries({ build: 1000, buildQuoted: true, audit: 150, auditRate: .15,
+    projectBalance: 750, firstProjectPayment: 375, secondProjectPayment: 375,
+    initialSpend: 900, net: 1600, payback: .5625 })) {
     assert.equal(result[key], expected, key + ' with an explicit zero implementation component');
   }
 }
@@ -69,7 +70,7 @@ for (let index = 0; index < 12; index++) {
   const result = calc(changes);
   assert.equal(result.provider, eligible ? 900 : 0);
   assert.equal(result.net, eligible ? 2500 : 1600);
-  assert.equal(result.payback, 11500 / (eligible ? 2500 : 1600));
+  assert.equal(result.payback, 11975 / (eligible ? 2500 : 1600));
   assert.equal(calc({ ...changes, replacement_provider_cost: null, provider_replaced_portion: 'part', provider_removed_amount: 100 }).net, eligible ? null : 1600);
 }
 
@@ -96,6 +97,7 @@ for (const kind of ['software', 'provider']) {
 // Audit & Project Quote!B22:B23: ROUND(first half,2), then remaining cents.
 for (let balanceCents = 1; balanceCents <= 10000; balanceCents++) {
   const result = calc({ implementation_fee: (125000 + balanceCents) / 100 });
+  assert.equal(Math.round(result.audit * 100), Math.round(result.build * 15), '15% audit rounds to exact USD cents');
   const first = Math.ceil(balanceCents / 2);
   assert.equal(result.firstProjectPayment, first / 100);
   assert.equal(result.secondProjectPayment, (balanceCents - first) / 100);
@@ -113,9 +115,11 @@ for (const training of [0, 250]) for (const audit of [500, 1250]) for (const use
   const result = calc({ preparation_fee: prep, implementation_fee: implementation, live_training: training ? 'yes' : 'no',
     live_training_fee: training, audit_fee: audit, audit_paid: audit, audit_credit_used: used ? 'yes' : 'no', incremental_software_cost: vendor });
   const total = cents(prep) + cents(implementation) + cents(training), credit = used ? 0n : cents(audit);
-  const balance = total - credit, first = (balance + 1n) / 2n, initial = total + cents(audit) - credit;
+  const currentAudit = (total * 15n + 50n) / 100n;
+  const balance = total - credit, first = (balance + 1n) / 2n, initial = total + currentAudit - credit;
   const monthlyBenefit = 160000n - cents(vendor), investment = initial + 12n * cents(vendor);
-  const expected = { build: dollars(total), projectBalance: dollars(balance), firstProjectPayment: dollars(first),
+  const expected = { build: dollars(total), audit: dollars(currentAudit), auditRate: .15,
+    projectBalance: dollars(balance), firstProjectPayment: dollars(first),
     secondProjectPayment: dollars(balance - first), initialSpend: dollars(initial), freed: 32, retained: 8, capacity: 1600,
     net: dollars(monthlyBenefit), yearInvestment: dollars(investment), yearGross: 19200, yearNet: dollars(1920000n - investment) };
   for (const [key, value] of Object.entries(expected)) assert.equal(result[key], value, key);

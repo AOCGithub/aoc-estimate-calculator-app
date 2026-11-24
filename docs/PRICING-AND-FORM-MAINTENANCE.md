@@ -37,7 +37,7 @@ For entry fields, the two independent saving choices, Supabase record lookup and
 
 ## Current pricing status
 
-The deployed implementation uses a separately quoted fixed audit, one eligible credit under the existing 30-day conditions, and fixed-project balance/payments. The credit is deducted once before splitting the balance into two payments; the first rounds to cents and the second reconciles the remainder. An explicitly entered project quote is preserved. Standard/Priority/Premier support prices stay unknown because the sources do not supply them. The calculator does not approve quotes, redeem credits or take payments.
+The confirmed 24 November change replaces the separately quoted audit amount: the initial audit fee is now 15% of the complete one-time project estimate. An entered project quote is used when all quoted one-time components are supplied; otherwise the complete calculated build estimate is used. Monthly support, advertising spend, software subscriptions and other client-paid third-party costs remain separate. The existing one-time audit-credit checks and fixed-project balance/payment rules remain unchanged. Standard/Priority/Premier support prices stay unknown because the sources do not supply them.
 
 Quote components accept explicitly quoted zero amounts; blank means unknown. For comparison, `Web Calculator Test!B59,B68,B71` still need reconciliation with the written incremental-cost and accepted-quote rules. The app follows those written rules rather than adding retained unrelated costs to ROI or replacing an accepted quote with a draft estimate.
 

@@ -20,7 +20,7 @@ function payload(changes = {}) {
     const result = local.calculate(body).result;
     assert.equal(result.monthly, fee);
     assert.equal(result.net, 1600 - fee);
-    assert.equal(result.payback, 11500 / (1600 - fee));
+    assert.equal(result.payback, 11975 / (1600 - fee));
     assert.ok(result.commercialReady);
     assert.match(result.commercialNotice, /SYNTHETIC LOCAL TEST DATA/);
     assert.equal(normalCalculation.calculate(body).result.monthly, null, 'normal calculation still has no invented support fee');

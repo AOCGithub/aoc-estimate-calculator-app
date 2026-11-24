@@ -34,7 +34,9 @@ function SavedPurchaseDetails({ purchase }) {
     {snapshot.service && <details><summary>Audit details</summary><AuditDetails service={snapshot.service} /></details>}
     <details><summary>Work description and estimate</summary>
       <p className="payment-status__description">{snapshot.description}</p>
-      <p>{result.buildQuoted ? 'Project quote entered' : 'Build estimate'}: <strong>{money(build)}</strong>. The audit fee is separate from the cost of the build.</p>
+      <p>{result.buildQuoted ? 'Project quote entered' : 'Build estimate'}: <strong>{money(build)}</strong>. {result.auditRate === .15
+        ? 'The one-time audit fee was calculated at 15% of this saved project estimate.'
+        : 'The audit fee is separate from the cost of the build.'}</p>
       {result.lines.length > 0 && <>
         <p className="helper">Here’s how the calculator estimated the cost of the build.</p>
         <ul>{result.lines.map(line => <li key={line.label}>{line.label}: {money(line.amount)}</li>)}</ul>

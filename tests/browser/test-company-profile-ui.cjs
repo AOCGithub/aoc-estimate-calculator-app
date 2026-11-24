@@ -161,7 +161,7 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
         await page.waitForFunction(() => AOCJourney.getState().calculationSource === 'server' && !AOCJourney.getState().dirty);
         assert.equal(await page.evaluate(() => AOCJourney.getState().result.build), 11500);
-        assert.equal(await page.evaluate(() => AOCJourney.getState().result.audit), 1250);
+        assert.equal(await page.evaluate(() => AOCJourney.getState().result.audit), 1725);
         await page.locator('.result-download').scrollIntoViewIfNeeded();
         assert.equal(await page.locator('.result-download').evaluate(element => {
           const button = element.getBoundingClientRect();

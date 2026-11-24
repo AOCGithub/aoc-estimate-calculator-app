@@ -61,8 +61,8 @@ async function verifyTransactions() {
     const [savedLeft, savedRight] = await Promise.all([first.saveSubmission(request), second.saveSubmission(request)]);
     assert.equal(savedLeft.submission.id, savedRight.submission.id);
     await assert.rejects(second.saveSubmission({...request, fingerprint: 'changed'}), /snapshot_conflict/);
-    const approved = await first.approveQuote({submissionReference: savedLeft.submission.id, amount: 125000,
-      quotedBy: 'aoc-database-test@example.com'});
+    const approved = await first.approveQuote({submissionReference: savedLeft.submission.id, amount: 172500,
+      quotedBy: 'AOC calculator 15% project estimate'});
     const order = {ownerHash, submissionReference: savedLeft.submission.id,
       price: {id: 'audit_quote_' + approved.id, quoteReference: approved.id, name: 'Initial audit', amount: approved.amount, currency: approved.currency}};
     const [left, right] = await Promise.all([first.prepare(order), second.prepare(order)]);
@@ -71,8 +71,8 @@ async function verifyTransactions() {
     assert.equal(await second.bundle(purchaseId, 'another-owner'), null);
     const differentRequest = {...request, requestReference: randomUUID()};
     const differentSaved = await second.saveSubmission(differentRequest);
-    const differentQuote = await second.approveQuote({submissionReference:differentSaved.submission.id,amount:125000,
-      quotedBy:'aoc-database-test@example.com'});
+    const differentQuote = await second.approveQuote({submissionReference:differentSaved.submission.id,amount:172500,
+      quotedBy:'AOC calculator 15% project estimate'});
     const differentOrder={ownerHash,submissionReference:differentSaved.submission.id,
       price:{id:'audit_quote_'+differentQuote.id,quoteReference:differentQuote.id,name:'Initial audit',amount:differentQuote.amount,currency:differentQuote.currency}};
     const different = await second.prepare(differentOrder);

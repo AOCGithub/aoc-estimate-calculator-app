@@ -49,7 +49,7 @@ export async function readAuditQuote(submissionReference, { signal } = {}) {
     credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store', signal,
   });
   const body = await response.json().catch(() => null);
-  if (!response.ok || !body?.quoteRequest) throw new Error(body?.error || 'We could not check the audit quote. Please try again.');
+  if (!response.ok || !body?.quoteRequest) throw new Error(body?.error || 'We could not check the saved audit fee. Please try again.');
   return body.quoteRequest;
 }
 
