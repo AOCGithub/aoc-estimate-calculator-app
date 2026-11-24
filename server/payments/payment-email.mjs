@@ -20,7 +20,9 @@ async function estimateAttachment(purchase) {
   const [regularFont, boldFont, logo] = await pdfAssets;
   const doc = createPurchasePdf(purchase, {regularFont, boldFont, logo, questionBank});
   return {filename: `aoc-estimate-${purchase.submissionReference}.pdf`, contentType: 'application/pdf',
-    content: Buffer.from(doc.output('arraybuffer'))};
+    content: Buffer.from(doc.output('arraybuffer')),
+    cid: `aoc-estimate-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
+    contentDisposition: 'attachment'};
 }
 
 function smtpFailure(error) {
@@ -32,16 +34,17 @@ function smtpFailure(error) {
 }
 
 export function createPaymentEmailSender({store, transport, fromAddress, testClientAddress = ''}) {
-  async function deliver({purchase, audience, to, clientName, checkoutEmail}) {
+  async function deliver({purchase, audience, to, clientName, checkoutEmail, attachment}) {
     const id = purchase.purchaseReference;
     if (!(await store.claimPaymentEmail(id, audience))) return;
     let message;
     try {
-      const copy = await renderPaymentEmail({purchase, audience, clientName, checkoutEmail});
+      const copy = await renderPaymentEmail({purchase, audience, clientName, checkoutEmail,
+        estimatePdfHref: `cid:${attachment.cid}`});
       message = {...copy, to: {address: to, name: audience === 'client' ? clientName : 'AOC Support'},
         from: {address: fromAddress, name: 'Always Open Commerce'}, replyTo: supportEmail,
         messageId: `<aoc-audit-${id}-${audience}@${fromAddress.split('@')[1]}>`,
-        ...(audience === 'client' ? {attachments: [await estimateAttachment(purchase)]} : {})};
+        attachments: [attachment]};
     } catch {
       await store.finishPaymentEmail(id, audience, 'retry');
       throw new Error('payment_email_render_failed');
@@ -62,7 +65,8 @@ export function createPaymentEmailSender({store, transport, fromAddress, testCli
     if (purchase.outcome !== 'paid') return;
     const checkoutEmail = emailAddress(customerDetails?.email);
     const clientName = purchase.snapshot.profile?.name || customerDetails?.name || '';
-    const checkout = {purchase, clientName, checkoutEmail};
+    const attachment = await estimateAttachment(purchase);
+    const checkout = {purchase, clientName, checkoutEmail, attachment};
     const messages = [deliver({...checkout, audience: 'support', to: supportEmail})];
     // Stripe can report a paid session before the receipt URL is available.
     if (checkoutEmail && purchase.receiptUrl) {

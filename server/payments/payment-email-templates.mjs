@@ -174,7 +174,7 @@ function paidStatus() {
   }}, picture('paid-check', '', 12, 12, {display: 'inline-block', verticalAlign: '-1px', marginRight: 5}), 'Paid');
 }
 
-function documentCard(icon, title, detail, href) {
+function documentCard(icon, title, detail, href, ariaLabel = 'Open document') {
   return td({className: 'email-doc', valign: 'top'}, table({width: '100%',
     style: {borderCollapse: 'separate', border: '1px solid ' + colors.border, borderRadius: 8}},
     tr(td({style: {padding: '13px 15px'}},
@@ -182,16 +182,18 @@ function documentCard(icon, title, detail, href) {
         td({width: 24, valign: 'middle'}, picture(icon, '', 16, 16)),
         td({style: {fontSize: 13, lineHeight: '20px', fontWeight: 600, color: colors.ink}}, title),
         href ? td({width: 17, align: 'right'},
-          h('a', {href, 'aria-label': 'View Stripe receipt', tabIndex: -1}, picture('arrow', '', 17, 17))) : null,
+          h('a', {className: href.startsWith('cid:') ? 'email-attachment-link' : undefined,
+            href, 'aria-label': ariaLabel, tabIndex: -1}, picture('arrow', '', 17, 17))) : null,
       )),
       gap(7),
       paragraph({fontSize: 12, lineHeight: '18px', fontWeight: 600, color: colors.link},
-        href ? link(detail, href) : detail),
+        href ? h('a', {className: href.startsWith('cid:') ? 'email-attachment-link' : undefined,
+          href, style: {color: colors.link, textDecoration: 'underline'}}, detail) : detail),
     )),
   ));
 }
 
-function clientCopy(purchase, {amount, paidAt, description}) {
+function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref) {
   return [
     table({width: '100%', bgcolor: colors.panel, style: {borderCollapse: 'separate', border: '1px solid ' + colors.border,
       borderRadius: 10, backgroundColor: colors.panel}},
@@ -209,7 +211,7 @@ function clientCopy(purchase, {amount, paidAt, description}) {
     heading('Your Documents'),
     gap(12),
     table({width: '100%', className: 'email-docs', style: {tableLayout: 'fixed'}}, tr(
-      documentCard('pdf', 'Estimate PDF:', 'Attached to this email'),
+      documentCard('pdf', 'Estimate PDF:', 'Download attached PDF', estimatePdfHref, 'Download estimate PDF'),
       td({className: 'email-doc-gap', width: 12, style: {fontSize: 0, lineHeight: 0}}),
       documentCard('receipt', 'Payment Receipt:', 'View your Stripe receipt', purchase.receiptUrl),
     )),
@@ -238,7 +240,7 @@ function clientCopy(purchase, {amount, paidAt, description}) {
   ];
 }
 
-function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, description}) {
+function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, description}, estimatePdfHref) {
   return [
     heading('Client Information', 16),
     gap(8),
@@ -254,7 +256,8 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
       ['Estimate ID:', purchase.submissionReference],
       ['Work Description:', description],
       ['Audit Fee Paid:', amount],
-      ['Estimate PDF:', 'Included with the client confirmation', true],
+      ['Estimate PDF:', estimatePdfHref ? h('a', {className: 'email-attachment-link', href: estimatePdfHref,
+        style: {color: colors.link, textDecoration: 'underline'}}, 'Download attached PDF') : 'Attached to this email', true],
     ], 8),
     divider(20),
     heading('Payment Information', 16),
@@ -279,10 +282,11 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
   ];
 }
 
-export async function renderPaymentEmail({purchase, audience, clientName = '', checkoutEmail}) {
+export async function renderPaymentEmail({purchase, audience, clientName = '', checkoutEmail, estimatePdfHref = ''}) {
   const isClient = audience === 'client';
   const fields = paymentDetails(purchase);
-  const content = isClient ? clientCopy(purchase, fields) : supportCopy(purchase, clientName, checkoutEmail, fields);
+  const content = isClient ? clientCopy(purchase, fields, estimatePdfHref)
+    : supportCopy(purchase, clientName, checkoutEmail, fields, estimatePdfHref);
   const markup = await render(h('html', {lang: 'en'},
     h('head', null, h('meta', {name: 'viewport', content: 'width=device-width, initial-scale=1'}),
       h('meta', {name: 'color-scheme', content: 'light'}),
@@ -319,6 +323,7 @@ export async function renderPaymentEmail({purchase, audience, clientName = '', c
     selectors: [
       {selector: '.email-branding', format: 'skip'},
       {selector: '.email-decoration', format: 'skip'},
+      {selector: '.email-attachment-link', format: 'anchor', options: {ignoreHref: true}},
     ],
   })};
 }
