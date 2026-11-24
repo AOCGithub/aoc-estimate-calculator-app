@@ -146,6 +146,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       || Object.keys(body).some(key=>!['consent','purchaseAgreement','submissionReference'].includes(key)))
       return json({error:'Start payment only from the saved AOC quote.'},400);
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
+    if(!Object.hasOwn(body,'purchaseAgreement'))return json({error:'This checkout page is out of date. Refresh the calculator, review the audit again and accept both checkboxes.'},409);
     if(body.purchaseAgreement!==true)return json({error:'Review and accept the audit purchase agreement before continuing.'},400);
     let prepared;
     try {

@@ -121,9 +121,13 @@ try{
    const quoted=await requestQuote(payload(),isolatedApi);
    assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,172500);assert.equal(quoted.calculated,true);
    assert.equal(isolatedStore.counts().quotes,1);assert.equal(isolatedStore.counts().purchases,0);
-   for(const purchaseAgreement of [undefined,false,'true']){
+   const staleCheckout=await isolatedApi.handle(request('/api/payments/checkout',{method:'POST',cookie:auth,
+    body:{consent:true,submissionReference:quoted.submissionReference}}));
+   assert.equal(staleCheckout.status,409,'an older checkout page receives a refresh instruction');
+   assert.match((await staleCheckout.json()).error,/out of date.*Refresh/i);
+   for(const purchaseAgreement of [false,'true']){
     const rejectedAgreement=await isolatedApi.handle(request('/api/payments/checkout',{method:'POST',cookie:auth,
-     body:{consent:true,...(purchaseAgreement===undefined?{}:{purchaseAgreement}),submissionReference:quoted.submissionReference}}));
+     body:{consent:true,purchaseAgreement,submissionReference:quoted.submissionReference}}));
     assert.equal(rejectedAgreement.status,400,'checkout requires an explicit purchase agreement');
    }
    assert.equal(isolatedStore.counts().purchases,0);
