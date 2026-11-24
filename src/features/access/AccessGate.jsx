@@ -7,7 +7,7 @@ import { Brand } from '../../components/Brand.jsx';
 import { RecaptchaNotice } from './RecaptchaNotice.jsx';
 import { RecaptchaCheckbox } from './RecaptchaCheckbox.jsx';
 
-const auroraColors = ['#087E79', '#57C4A5', '#295C80'];
+const auroraColors = ['#0C41F8', '#406BFF', '#001F7F'];
 
 export function AccessGate({ access, profiles = { enabled: false, working: false } }) {
   const [profile, setProfile] = useState(emptyAccessProfile);
