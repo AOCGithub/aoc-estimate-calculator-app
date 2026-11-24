@@ -50,6 +50,12 @@ export function createHandoffStore(filename) {
   if (!db.prepare("SELECT 1 FROM pragma_table_info('g2_purchases') WHERE name='quote_reference'").get()) {
     db.exec('ALTER TABLE g2_purchases ADD COLUMN quote_reference TEXT REFERENCES g2_audit_quotes(id) ON DELETE RESTRICT');
   }
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('g2_purchases') WHERE name='purchase_agreement_version'").get()) {
+    db.exec('ALTER TABLE g2_purchases ADD COLUMN purchase_agreement_version TEXT');
+  }
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('g2_purchases') WHERE name='purchase_agreed_at'").get()) {
+    db.exec('ALTER TABLE g2_purchases ADD COLUMN purchase_agreed_at TEXT');
+  }
 
   function transaction(run) {
     db.exec('BEGIN IMMEDIATE');
@@ -68,10 +74,12 @@ export function createHandoffStore(filename) {
     if (!parent || parent.owner_hash !== ownerHash) return null;
     return { purchase: row, submission: parent };
   }
-  function newPurchase(parent, price) {
+  function newPurchase(parent, price, agreement) {
     const id = randomUUID(), now = new Date().toISOString();
-    db.prepare(`INSERT INTO g2_purchases(id,submission_reference,amount,currency,price_reference,quote_reference,item_name,created_at,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?)`).run(id,parent.id,price.amount,price.currency,price.id,price.quoteReference,price.name,now,now);
+    db.prepare(`INSERT INTO g2_purchases(id,submission_reference,amount,currency,price_reference,quote_reference,item_name,
+      purchase_agreement_version,purchase_agreed_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(id,parent.id,price.amount,price.currency,price.id,price.quoteReference,price.name,
+        agreement.version,agreement.acceptedAt,now,now);
     return { purchase: purchase(id), submission: parent };
   }
   // Both signed webhooks and a server-verified Stripe refresh use the same
@@ -119,7 +127,7 @@ export function createHandoffStore(filename) {
         return quote(submissionReference);
       });
     },
-    prepare({ ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference }) {
+    prepare({ ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference, agreement }) {
       return transaction(() => {
         let parent;
         if (submissionReference) {
@@ -138,9 +146,18 @@ export function createHandoffStore(filename) {
         const existing = db.prepare(`SELECT * FROM g2_purchases WHERE submission_reference=?
           AND (outcome IN ('pending','processing','paid') OR checkout_state='open')
           ORDER BY created_at DESC LIMIT 1`).get(parent.id);
-        if (existing) return { submission: parent, purchase: existing };
+        if (existing) {
+          if (existing.purchase_agreement_version && existing.purchase_agreement_version !== agreement.version) {
+            throw new Error('agreement_conflict');
+          }
+          if (!existing.purchase_agreement_version) {
+            db.prepare(`UPDATE g2_purchases SET purchase_agreement_version=?,purchase_agreed_at=?,updated_at=? WHERE id=?`)
+              .run(agreement.version,agreement.acceptedAt,new Date().toISOString(),existing.id);
+          }
+          return { submission: parent, purchase: purchase(existing.id) };
+        }
         if (parent.paid_purchase_reference) return { submission: parent, purchase: purchase(parent.paid_purchase_reference) };
-        return newPurchase(parent,price);
+        return newPurchase(parent,price,agreement);
       });
     },
     bundle, purchase, submission,

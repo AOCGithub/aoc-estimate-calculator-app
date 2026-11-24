@@ -107,6 +107,8 @@
   cursor: pointer;
 }
 .g2-purchase__consent small { display: block; margin-top: 3px; font-weight: 400; }
+.g2-purchase__checkout .g2-purchase__agreement { margin-top: 0; }
+.g2-purchase__checkout .g2-purchase__consent:has(input:checked) { border-color: #a7befa; }
 .g2-purchase__checkout-hint { margin: 0; font-size: 12px; }
 .g2-purchase__actions--audit { gap: 8px 12px; margin-top: 14px; }
 .g2-purchase__actions--audit > button { min-height: 44px; }

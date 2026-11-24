@@ -17,4 +17,8 @@ export const auditService = {
   delivery: 'We aim to deliver the audit within 5 business days after we confirm we have everything we need, unless we agree on a different timeline.',
   credit: `You can put the full audit fee you paid toward the build once. To qualify, accept the build quote and make the required first build payment within ${Pricing.commercial.auditCreditDays} calendar days after we send the approved audit. AOC confirms and applies the credit.`,
   refund: 'If we can’t confirm and deliver a workable approach for the work covered by your audit, we’ll refund the audit fee in full.',
+  purchaseAgreement: {
+    version: '2026-11-24-audit-purchase-v1',
+    text: 'I have reviewed the audit scope, one-time fee, delivery, credit and refund terms, and agree to purchase the AI Commerce Audit. Implementation and ongoing services are separate.',
+  },
 };

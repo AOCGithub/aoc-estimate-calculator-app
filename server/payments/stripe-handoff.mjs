@@ -55,6 +55,8 @@ function view(bundle) {
   const p=bundle.purchase,s=bundle.submission;
   return { testMode:true, submissionReference:s.id, recordingReference:s.recording_reference,
     purchaseReference:p.id, auditIntakeReference:s.audit_intake_reference,
+    purchaseAgreementVersion:p.purchase_agreement_version || null,
+    purchaseAgreedAt:p.purchase_agreed_at || null,
     outcome:p.outcome, amount:p.amount, currency:p.currency, item:p.item_name,paidAt:p.paid_at,
     stripeCheckoutReference:p.checkout_reference, stripePaymentReference:p.payment_reference,
     receiptUrl:p.outcome==='paid'?receiptUrl(p.receipt_url):null,
@@ -112,7 +114,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
   async function references(p) {
     const submission=await store.submission(p.submission_reference);
     return {submission_reference:p.submission_reference,recording_reference:submission.recording_reference,purchase_reference:p.id,
-      ...(p.quote_reference?{quote_reference:p.quote_reference}:{})};
+      ...(p.quote_reference?{quote_reference:p.quote_reference}:{}),
+      ...(p.purchase_agreement_version?{agreement_version:p.purchase_agreement_version}:{})};
   }
   function verifySession(session,p,refs) {
     const metadata=session.metadata||{};
@@ -140,9 +143,10 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     try { body=JSON.parse((await rawBody(request,160000)).toString('utf8')); }
     catch(error){return json({error:'Send a bounded JSON purchase request.'},error.message==='request_too_large'?413:400);}
     if(!body || typeof body!=='object' || Array.isArray(body)
-      || Object.keys(body).some(key=>!['consent','submissionReference'].includes(key)))
+      || Object.keys(body).some(key=>!['consent','purchaseAgreement','submissionReference'].includes(key)))
       return json({error:'Start payment only from the saved AOC quote.'},400);
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
+    if(body.purchaseAgreement!==true)return json({error:'Review and accept the audit purchase agreement before continuing.'},400);
     let prepared;
     try {
       if(!uuid(body.submissionReference))return json({error:'Save the calculated audit fee before payment.'},400);
@@ -151,14 +155,15 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const quote=await store.quote(saved.id);
       if(quote?.scope_fingerprint!==saved.fingerprint)throw new Error('snapshot_conflict');
       const offer=auditOffer(saved,quote);
-      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
+      const agreement={version:auditService.purchaseAgreement.version,acceptedAt:new Date().toISOString()};
+      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer,agreement});
       if(!prepared)return json({error:'Audit quote not found for this session.'},404);
       if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
       if(prepared.purchase.checkout_reference){
         const session=await retrieve(prepared.purchase);
         if(session.status==='expired'){
           await store.closeExpiredCheckout(prepared.purchase.id);
-          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer});
+          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer,agreement});
           if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
           if(prepared.purchase.checkout_reference)return json({purchase:view(prepared),waitingForPaymentEvent:true});
         }else if(session.status==='open' && checkoutUrl(session.url))return json({purchase:view(prepared),checkoutUrl:checkoutUrl(session.url)});
@@ -182,6 +187,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     }catch(error){
       if(error.message==='audit_quote_pending')return json({error:'The saved audit fee does not match 15% of this project estimate. Start a new audit review.'},409);
       if(error.message==='snapshot_conflict')return json({error:'This submission has changed. Review it as a new test purchase.'},409);
+      if(error.message==='agreement_conflict')return json({error:'The purchase agreement changed. Review the current terms before starting a new checkout.'},409);
       if(error.message==='purchase_mismatch')return json({error:'Stripe references or amounts need review; no new purchase was created.'},409);
       console.warn('Stripe sandbox checkout failed.',{type:error.type||error.name,code:error.code||null,param:error.param||null});
       return json({error:'Could not open Stripe test checkout. Your saved submission is retained; retry safely.'},502);

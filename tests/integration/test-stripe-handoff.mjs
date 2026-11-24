@@ -77,7 +77,7 @@ async function requestQuote(body=payload(),handler=api,cookieValue=auth){
 }
 async function start(body=payload()){
  const requested=await requestQuote(body);
- const response=await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:requested.submissionReference}});assert.equal(response.status,200,await response.clone().text());
+ const response=await send('/api/payments/checkout',{method:'POST',body:{consent:true,purchaseAgreement:true,submissionReference:requested.submissionReference}});assert.equal(response.status,200,await response.clone().text());
  const result=await response.json();assert.ok(result.checkoutUrl.startsWith('https://checkout.stripe.com/'));return {body,purchase:result.purchase};
 }
 const checks=[];
@@ -121,9 +121,15 @@ try{
    const quoted=await requestQuote(payload(),isolatedApi);
    assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,172500);assert.equal(quoted.calculated,true);
    assert.equal(isolatedStore.counts().quotes,1);assert.equal(isolatedStore.counts().purchases,0);
+   for(const purchaseAgreement of [undefined,false,'true']){
+    const rejectedAgreement=await isolatedApi.handle(request('/api/payments/checkout',{method:'POST',cookie:auth,
+     body:{consent:true,...(purchaseAgreement===undefined?{}:{purchaseAgreement}),submissionReference:quoted.submissionReference}}));
+    assert.equal(rejectedAgreement.status,400,'checkout requires an explicit purchase agreement');
+   }
+   assert.equal(isolatedStore.counts().purchases,0);
    isolatedStore.approveQuote({submissionReference:quoted.submissionReference,amount:1,quotedBy:'tamper@example.com'});
    const rejected=await isolatedApi.handle(request('/api/payments/checkout',{method:'POST',cookie:auth,
-    body:{consent:true,submissionReference:quoted.submissionReference}}));
+    body:{consent:true,purchaseAgreement:true,submissionReference:quoted.submissionReference}}));
    assert.equal(rejected.status,409,'a manual or stale amount cannot replace the calculated audit fee');
   }finally{isolatedStore.close();}
  });
@@ -134,6 +140,11 @@ try{
   assert.deepEqual(initial.purchase.snapshot.answers,initial.body.calculation.answers);
   assert.equal(initial.purchase.snapshot.result.build,11500);
   assert.equal(initial.purchase.amount,172500);
+  assert.equal(initial.purchase.purchaseAgreementVersion,auditService.purchaseAgreement.version);
+  assert.ok(Number.isFinite(Date.parse(initial.purchase.purchaseAgreedAt)));
+  assert.equal(store.purchase(initial.purchase.purchaseReference).purchase_agreement_version,auditService.purchaseAgreement.version);
+  assert.equal(provider.sessions.get(initial.purchase.stripeCheckoutReference).metadata.agreement_version,
+   auditService.purchaseAgreement.version);
   assert.deepEqual(initial.purchase.snapshot.service,auditService);
   assert.equal(initial.purchase.outcome,'pending');assert.equal(initial.purchase.auditIntakeReference,null);assert.equal(initial.purchase.receiptUrl,null);
   const quote=(await (await send('/api/payments/status?submission_reference='+initial.purchase.submissionReference)).json()).quoteRequest;
@@ -141,7 +152,7 @@ try{
   assert.throws(()=>store.approveQuote({submissionReference:initial.purchase.submissionReference,amount:1,quotedBy:'tamper@example.com'}),/quote_locked/);
  });
  await check('Duplicate checkout requests reuse the purchase and Stripe idempotency key',async()=>{
-  const checkoutBody={consent:true,submissionReference:initial.purchase.submissionReference};
+  const checkoutBody={consent:true,purchaseAgreement:true,submissionReference:initial.purchase.submissionReference};
   const results=await Promise.all([send('/api/payments/checkout',{method:'POST',body:checkoutBody}),send('/api/payments/checkout',{method:'POST',body:checkoutBody})]);
   for(const r of results)assert.equal((await r.json()).purchase.purchaseReference,initial.purchase.purchaseReference);
   assert.equal(store.counts().purchases,1);
@@ -153,7 +164,7 @@ try{
  });
  await check('A different session cannot read or retry another purchase',async()=>{
   assert.equal((await send('/api/payments/status?purchase_reference='+initial.purchase.purchaseReference,{cookie:otherAuth})).status,404);
-  assert.equal((await send('/api/payments/checkout',{method:'POST',cookie:otherAuth,body:{consent:true,submissionReference:initial.purchase.submissionReference}})).status,404);
+  assert.equal((await send('/api/payments/checkout',{method:'POST',cookie:otherAuth,body:{consent:true,purchaseAgreement:true,submissionReference:initial.purchase.submissionReference}})).status,404);
  });
  await check('Browser success URL alone does not create a paid intake',async()=>{
   const result=await send('/api/payments/status?purchase_reference='+initial.purchase.purchaseReference+'&checkout_result=success');
@@ -208,14 +219,14 @@ try{
   const before=store.counts().auditIntakes;
   const response=await event(failed.purchase,{type:'payment_intent.payment_failed',outcome:'failed'});
   assert.equal((await response.json()).outcome,'failed');assert.equal(store.counts().auditIntakes,before);
-  const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:failed.purchase.submissionReference}})).json();
+  const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,purchaseAgreement:true,submissionReference:failed.purchase.submissionReference}})).json();
   assert.equal(retry.purchase.purchaseReference,failed.purchase.purchaseReference);
   assert.equal(retry.purchase.recordingReference,failed.purchase.recordingReference);
  });
  const expired=await start();
  await check('Expired checkout creates no intake; a new attempt keeps the original submission and recording',async()=>{
   assert.equal((await event(expired.purchase,{type:'checkout.session.expired',outcome:'incomplete'})).status,200);
-  const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:expired.purchase.submissionReference}})).json();
+  const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,purchaseAgreement:true,submissionReference:expired.purchase.submissionReference}})).json();
   assert.notEqual(retry.purchase.purchaseReference,expired.purchase.purchaseReference);
   assert.equal(retry.purchase.submissionReference,expired.purchase.submissionReference);
   assert.equal(retry.purchase.recordingReference,expired.purchase.recordingReference);
@@ -240,7 +251,7 @@ try{
   try{
    let handler=createG2Payments({environment:env,store:disk,stripe:provider.stripe});
    const body=payload(),requested=await requestQuote(body,handler);
-   const created=await (await handler.handle(request('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:requested.submissionReference},cookie:auth}))).json();
+   const created=await (await handler.handle(request('/api/payments/checkout',{method:'POST',body:{consent:true,purchaseAgreement:true,submissionReference:requested.submissionReference},cookie:auth}))).json();
    const p=created.purchase,s=provider.sessions.get(p.stripeCheckoutReference);s.status='complete';s.payment_status='paid';
    const eventBody=JSON.stringify({id:'evt_durable_replay',livemode:false,type:'checkout.session.completed',data:{object:s}});
    const headers={'stripe-signature':Stripe.webhooks.generateTestHeaderString({payload:eventBody,secret:env.STRIPE_WEBHOOK_SECRET})};
@@ -254,7 +265,7 @@ try{
  await check('Simultaneous checkout requests create only one purchase and Stripe session for the approved quote',async()=>{
   const p=payload(),before=store.counts(),sessionsBefore=provider.sessions.size;
   const requested=await requestQuote(p);
-  const checkoutBody={consent:true,submissionReference:requested.submissionReference};
+  const checkoutBody={consent:true,purchaseAgreement:true,submissionReference:requested.submissionReference};
   const responses=await Promise.all([send('/api/payments/checkout',{method:'POST',body:checkoutBody}),send('/api/payments/checkout',{method:'POST',body:checkoutBody})]);
   const bodies=await Promise.all(responses.map(async response=>{assert.equal(response.status,200);return response.json();}));
   assert.equal(bodies[0].purchase.purchaseReference,bodies[1].purchase.purchaseReference);
@@ -272,7 +283,7 @@ try{
    assert.equal(session.amount_total,fee*100);
    assert.equal(session.line_items.data[0].price.unit_amount,fee*100);
    session.status='expired';await event(purchase,{type:'checkout.session.expired',outcome:'incomplete'});
-   const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:purchase.submissionReference}})).json();
+   const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,purchaseAgreement:true,submissionReference:purchase.submissionReference}})).json();
    assert.equal(retry.purchase.amount,fee*100);assert.equal(retry.purchase.recordingReference,purchase.recordingReference);
   }
  });

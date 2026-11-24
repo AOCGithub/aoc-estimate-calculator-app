@@ -141,7 +141,8 @@ export default function PaymentStatusPage() {
     setCheckError('');
     setCheckedAt('');
     try {
-      const data = await startAuditCheckout({ consent: true, submissionReference: purchase.submissionReference });
+      const data = await startAuditCheckout({ consent: true, purchaseAgreement: Boolean(purchase.purchaseAgreementVersion),
+        submissionReference: purchase.submissionReference });
       const destination = stripeLink(data.checkoutUrl, ['checkout.stripe.com']);
       if (destination || data.purchase.purchaseReference !== reference) {
         window.location.assign(destination || paymentStatusUrl(data.purchase.purchaseReference));
@@ -191,7 +192,8 @@ export default function PaymentStatusPage() {
   }
 
   const receipt = outcome === 'paid' && stripeLink(purchase.receiptUrl, ['pay.stripe.com', 'receipts.stripe.com']);
-  const canRetry = ['failed', 'incomplete', 'pending'].includes(outcome) && !(outcome === 'pending' && checkoutResult === 'success');
+  const canRetry = Boolean(purchase?.purchaseAgreementVersion)
+    && ['failed', 'incomplete', 'pending'].includes(outcome) && !(outcome === 'pending' && checkoutResult === 'success');
 
   return <div className="payment-status">
     <header className="payment-status__header"><div><Brand /><a href={returnUrl}>Back to calculator</a></div></header>

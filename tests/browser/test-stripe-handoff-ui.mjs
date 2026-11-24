@@ -16,6 +16,7 @@ const result=Calculation.calculate({area,confirmed:true,answers}).result;
 const description='Prepare invoice drafts in Wave. Staff review every invoice. These are the final manually corrected words.';
 const purchase={testMode:true,submissionReference:randomUUID(),recordingReference:randomUUID(),purchaseReference:randomUUID(),
  auditIntakeReference:null,outcome:'pending',amount:result.audit*100,currency:'usd',item:auditService.name,receiptUrl:null,
+ purchaseAgreementVersion:auditService.purchaseAgreement.version,purchaseAgreedAt:'2026-11-17T10:00:30Z',
  snapshot:{area,description,answers,result,service:auditService,calculatorVersion:'synthetic-ui-fixture',savedAt:'2026-11-17T10:00:00Z'}};
 let mode='review',outcome='pending',calls=0,quoteCalls=0,refreshDelay=0,refreshError=false,refreshChecks=0,server,browser;
 const errors=[];
@@ -64,7 +65,7 @@ try{
    }
    if(url.pathname==='/api/payments/checkout'){
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);assert.equal(body.consent,true);
-    assert.deepEqual(body,{consent:true,submissionReference:purchase.submissionReference});
+    assert.deepEqual(body,{consent:true,purchaseAgreement:true,submissionReference:purchase.submissionReference});
     calls++;respond({purchase:{...purchase,outcome}});return;
    }
    next();
@@ -78,6 +79,7 @@ try{
  let review=await page.getByRole('region',{name:'Audit payment'}).innerText();
  assert.ok(review.includes('$11,500'));assert.ok(review.includes('$1,725'));assert.ok(review.includes('15%'));
  let consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
+ assert.equal(await page.getByRole('checkbox',{name:/Purchase agreement/}).count(),0,'Purchase agreement appears only after the exact fee is saved');
  const submit=page.getByRole('button',{name:'Save audit and continue',exact:true});
  assert.equal(await submit.isDisabled(),true);await consent.check();assert.equal(await submit.isEnabled(),true);await submit.click();
  assert.equal(quoteCalls,1);
@@ -88,6 +90,13 @@ try{
  assert.ok(review.includes(auditService.excluded));
  assert.ok(review.includes('No real charge or audit booking'));
  assert.ok(review.includes('Due today'));assert.ok(review.includes(auditService.included[0]));
+ const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
+ let agreement=page.getByRole('checkbox',{name:/Purchase agreement/});
+ assert.equal(await page.getByText(auditService.purchaseAgreement.text,{exact:true}).isVisible(),true);
+ assert.equal(await agreement.isChecked(),false);
+ assert.equal(await pay.isDisabled(),true,'Checkout requires the separate purchase agreement');
+ await agreement.check();
+ assert.equal(await pay.isEnabled(),true);
  await page.getByText('Timing, audit credit and refunds',{exact:true}).click();
  for(const value of [auditService.delivery,auditService.credit,auditService.refund])assert.equal(await page.getByText(value,{exact:true}).isVisible(),true);
  await mkdir('artifacts/g2',{recursive:true});await page.screenshot({path:'artifacts/g2/audit-review-official-desktop.png',fullPage:true});
@@ -101,18 +110,20 @@ try{
   await page.screenshot({path:`artifacts/g2/audit-review-official-${width}.png`,fullPage:true});
  }
  await page.setViewportSize({width:1440,height:1000});
- const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
  consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
  assert.equal(await consent.isChecked(),true,'The consent just given remains valid when the server immediately returns the test quote');
- assert.equal(await pay.isEnabled(),true,'The user can continue without repeating the audit review');
+ assert.equal(await agreement.isChecked(),true,'The purchase agreement remains selected while this review stays open');
  await page.getByRole('button',{name:'Back to audit overview',exact:true}).click();
  await page.waitForFunction(()=>document.activeElement?.textContent==='Review audit payment');
  assert.equal(calls,0,'Closing the review makes no checkout request');
  await page.getByRole('button',{name:'Review audit payment',exact:true}).press('Enter');
  await page.waitForFunction(()=>document.activeElement?.tagName==='H2'&&document.activeElement.textContent==='Initial audit & roadmap');
  assert.equal(await consent.isChecked(),false,'Reopening requires fresh consent');
+ assert.equal(await agreement.isChecked(),false,'Reopening requires fresh purchase agreement');
  assert.equal(await pay.isDisabled(),true);
  await consent.check();
+ assert.equal(await pay.isDisabled(),true,'Saving consent alone cannot open Stripe');
+ await agreement.check();
  await page.getByText('You’ll review the total and pay on Stripe.',{exact:true}).waitFor();
  assert.equal(await pay.isEnabled(),true);
  await pay.click();await page.getByRole('heading',{name:'Payment not confirmed'}).waitFor();

@@ -11,6 +11,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   const [quoteRequest, setQuoteRequest] = useState(null);
   const [reviewing, setReviewing] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [purchaseAgreement, setPurchaseAgreement] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const requestReference = useRef(null);
@@ -109,11 +110,12 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   }
 
   async function checkout() {
-    if (busy || !ready || !consent) return;
+    if (busy || !ready || !consent || !purchaseAgreement) return;
     setBusy(true);
     setError('');
     try {
-      const data = await startAuditCheckout({ consent, submissionReference: quoteRequest.submissionReference });
+      const data = await startAuditCheckout({ consent, purchaseAgreement,
+        submissionReference: quoteRequest.submissionReference });
       const destination = stripeLink(data.checkoutUrl, ['checkout.stripe.com']);
       window.location.assign(destination || paymentStatusUrl(data.purchase.purchaseReference, quoteRequest.submissionReference));
     } catch (reason) {
@@ -125,6 +127,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   function beginReview() {
     if (!quoteRequest) requestReference.current = null;
     setConsent(false);
+    setPurchaseAgreement(false);
     setError('');
     setReviewing(true);
   }
@@ -135,7 +138,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
     requestAnimationFrame(() => reviewButton.current?.focus());
   }
 
-  const checkoutHint = quotedAudit && !consent ? 'Check the box above to continue.'
+  const checkoutHint = quotedAudit && (!consent || !purchaseAgreement) ? 'Select both checkboxes to continue to Stripe.'
     : !quotedAudit && !estimateReady ? 'Update your estimate before continuing.'
       : !consent ? 'Check the box above to continue.'
       : quotedAudit ? 'You’ll review the total and pay on Stripe.'
@@ -178,10 +181,17 @@ export function AuditCheckout({ state, profile, onNavigate }) {
                 : 'We will save your estimate and calculated audit fee for this payment.'} Remembering your company profile is a separate choice.</small>
             </span>
           </label>
+          {quotedAudit && <label className="g2-purchase__consent g2-purchase__agreement">
+            <input type="checkbox" checked={purchaseAgreement}
+              onChange={event => setPurchaseAgreement(event.target.checked)} />
+            <span><strong>Purchase agreement</strong>
+              <small>{service?.purchaseAgreement?.text || 'I have reviewed the audit details and agree to purchase the AI Commerce Audit. Implementation and ongoing services are separate.'}</small>
+            </span>
+          </label>}
           {error && <p role="alert" className="g2-purchase__error">{error}</p>}
           <p id={checkoutHintId} className="g2-purchase__checkout-hint">{checkoutHint}</p>
           <div className="g2-purchase__actions g2-purchase__actions--audit">
-            <button className="primary" type="button" disabled={(quotedAudit ? !ready : !estimateReady) || !consent || busy} aria-describedby={checkoutHintId} onClick={quotedAudit ? checkout : submitForReview}>{busy ? (quotedAudit ? 'Opening Stripe...' : 'Saving...') : (quotedAudit ? 'Continue to Stripe' : 'Save audit and continue')}</button>
+            <button className="primary" type="button" disabled={(quotedAudit ? !ready : !estimateReady) || !consent || (quotedAudit && !purchaseAgreement) || busy} aria-describedby={checkoutHintId} onClick={quotedAudit ? checkout : submitForReview}>{busy ? (quotedAudit ? 'Opening Stripe...' : 'Saving...') : (quotedAudit ? 'Continue to Stripe' : 'Save audit and continue')}</button>
             <button className="g2-purchase__back" type="button" disabled={busy} onClick={closeReview}>Back to audit overview</button>
           </div>
         </div>
