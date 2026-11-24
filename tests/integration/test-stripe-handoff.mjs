@@ -75,8 +75,8 @@ async function requestQuote(body=payload(),handler=api,cookieValue=auth){
  const response=await handler.handle(request('/api/payments/quote-request',{method:'POST',body,cookie:cookieValue}));
  assert.equal(response.status,200,await response.clone().text());return (await response.json()).quoteRequest;
 }
-async function start(body=payload(),amount=125000){
- const requested=await requestQuote(body);store.approveQuote({submissionReference:requested.submissionReference,amount,quotedBy:'aoc-test@example.com'});
+async function start(body=payload()){
+ const requested=await requestQuote(body);
  const response=await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:requested.submissionReference}});assert.equal(response.status,200,await response.clone().text());
  const result=await response.json();assert.ok(result.checkoutUrl.startsWith('https://checkout.stripe.com/'));return {body,purchase:result.purchase};
 }
@@ -100,7 +100,7 @@ try{
   assert.equal(badKey.status,503);
  });
  await check('Test configuration status exposes no credentials',async()=>{
-  const body=await (await send('/api/payments/status')).json();assert.equal(body.configured,true);assert.equal(body.pricing,'quoted_audit');assert.equal(body.offer,undefined);
+  const body=await (await send('/api/payments/status')).json();assert.equal(body.configured,true);assert.equal(body.pricing,'project_total_15_percent');assert.equal(body.auditRate,.15);assert.equal(body.offer,undefined);
   assert.deepEqual(body.service,auditService);
   assert.equal(JSON.stringify(body).includes(env.STRIPE_SECRET_KEY),false);assert.equal(JSON.stringify(body).includes(env.STRIPE_WEBHOOK_SECRET),false);
   const live=await handleG2Payment(request('/api/payments/status'),{...env,STRIPE_SECRET_KEY:'sk_live_synthetic_rejected'});
@@ -114,23 +114,18 @@ try{
   }
   assert.equal(store.counts().submissions,0);
  });
- await check('A saved estimate cannot check out until AOC records its fixed quote',async()=>{
-  const requested=await requestQuote();
-  assert.equal((await send('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:requested.submissionReference}})).status,409);
-  assert.equal(store.counts().purchases,0);assert.equal(provider.calls.create,0);
- });
- await check('The optional fictional quote is server-controlled, test-only and clearly identified',async()=>{
-  const syntheticStore=createHandoffStore(':memory:');
+ await check('The server calculates and locks the audit at 15% of the project estimate',async()=>{
+  const isolatedStore=createHandoffStore(':memory:');
   try{
-   const syntheticApi=createG2Payments({environment:{...env,AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS:'125000'},store:syntheticStore,stripe:provider.stripe});
-   const configuration=await (await syntheticApi.handle(request('/api/payments/status',{cookie:auth}))).json();
-   assert.deepEqual(configuration.syntheticAuditQuote,{amount:125000,currency:'usd',label:'Fictional sandbox quote - test only'});
-   const quoted=await requestQuote(payload(),syntheticApi);
-   assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,125000);assert.equal(quoted.synthetic,true);
-   assert.equal(syntheticStore.counts().quotes,1);assert.equal(syntheticStore.counts().purchases,0);
-   const liveKey=createG2Payments({environment:{...env,STRIPE_SECRET_KEY:'sk_live_fixture',AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS:'125000'},store:syntheticStore,stripe:provider.stripe});
-   assert.equal((await (await liveKey.handle(request('/api/payments/status',{cookie:auth}))).json()).configured,false);
-  }finally{syntheticStore.close();}
+   const isolatedApi=createG2Payments({environment:env,store:isolatedStore,stripe:provider.stripe});
+   const quoted=await requestQuote(payload(),isolatedApi);
+   assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,172500);assert.equal(quoted.calculated,true);
+   assert.equal(isolatedStore.counts().quotes,1);assert.equal(isolatedStore.counts().purchases,0);
+   isolatedStore.approveQuote({submissionReference:quoted.submissionReference,amount:1,quotedBy:'tamper@example.com'});
+   const rejected=await isolatedApi.handle(request('/api/payments/checkout',{method:'POST',cookie:auth,
+    body:{consent:true,submissionReference:quoted.submissionReference}}));
+   assert.equal(rejected.status,409,'a manual or stale amount cannot replace the calculated audit fee');
+  }finally{isolatedStore.close();}
  });
  const initial=await start();
  await check('Submission and reviewed text receive separate stable references; calculation is recomputed',async()=>{
@@ -138,11 +133,11 @@ try{
   assert.equal(initial.purchase.snapshot.description,initial.body.description);
   assert.deepEqual(initial.purchase.snapshot.answers,initial.body.calculation.answers);
   assert.equal(initial.purchase.snapshot.result.build,11500);
-  assert.equal(initial.purchase.amount,125000);
+  assert.equal(initial.purchase.amount,172500);
   assert.deepEqual(initial.purchase.snapshot.service,auditService);
   assert.equal(initial.purchase.outcome,'pending');assert.equal(initial.purchase.auditIntakeReference,null);assert.equal(initial.purchase.receiptUrl,null);
   const quote=(await (await send('/api/payments/status?submission_reference='+initial.purchase.submissionReference)).json()).quoteRequest;
-  assert.equal(quote.amount,125000);assert.equal(quote.scope.description,initial.body.description);
+  assert.equal(quote.amount,172500);assert.equal(quote.calculated,true);assert.equal(quote.scope.description,initial.body.description);
   assert.throws(()=>store.approveQuote({submissionReference:initial.purchase.submissionReference,amount:1,quotedBy:'tamper@example.com'}),/quote_locked/);
  });
  await check('Duplicate checkout requests reuse the purchase and Stripe idempotency key',async()=>{
@@ -245,7 +240,6 @@ try{
   try{
    let handler=createG2Payments({environment:env,store:disk,stripe:provider.stripe});
    const body=payload(),requested=await requestQuote(body,handler);
-   disk.approveQuote({submissionReference:requested.submissionReference,amount:125000,quotedBy:'aoc-test@example.com'});
    const created=await (await handler.handle(request('/api/payments/checkout',{method:'POST',body:{consent:true,submissionReference:requested.submissionReference},cookie:auth}))).json();
    const p=created.purchase,s=provider.sessions.get(p.stripeCheckoutReference);s.status='complete';s.payment_status='paid';
    const eventBody=JSON.stringify({id:'evt_durable_replay',livemode:false,type:'checkout.session.completed',data:{object:s}});
@@ -259,7 +253,7 @@ try{
  });
  await check('Simultaneous checkout requests create only one purchase and Stripe session for the approved quote',async()=>{
   const p=payload(),before=store.counts(),sessionsBefore=provider.sessions.size;
-  const requested=await requestQuote(p);store.approveQuote({submissionReference:requested.submissionReference,amount:125000,quotedBy:'aoc-test@example.com'});
+  const requested=await requestQuote(p);
   const checkoutBody={consent:true,submissionReference:requested.submissionReference};
   const responses=await Promise.all([send('/api/payments/checkout',{method:'POST',body:checkoutBody}),send('/api/payments/checkout',{method:'POST',body:checkoutBody})]);
   const bodies=await Promise.all(responses.map(async response=>{assert.equal(response.status,200);return response.json();}));
@@ -267,12 +261,13 @@ try{
   assert.equal(store.counts().submissions,before.submissions+1);assert.equal(store.counts().purchases,before.purchases+1);
   assert.equal(provider.sessions.size,sessionsBefore+1);
  });
- await check('Different server-approved audit quotes create matching dynamic amounts without changing the build rules',async()=>{
-  for(const fee of [800,1800.25]){
-   const body=payload();
-   const started=await start(body,fee*100),purchase=started.purchase;
+ await check('Different project totals create matching 15% audit amounts without client price control',async()=>{
+  for(const [projectTotal,fee] of [[8000,1200],[12001.67,1800.25]]){
+   const body=payload();body.calculation.answers.implementation_fee=projectTotal;
+   const started=await start(body),purchase=started.purchase;
    assert.equal(purchase.amount,fee*100);
-   assert.equal(purchase.snapshot.result.build,11500);
+   assert.equal(purchase.snapshot.result.build,projectTotal);
+   assert.equal(purchase.snapshot.result.auditRate,.15);
    const session=provider.sessions.get(purchase.stripeCheckoutReference);
    assert.equal(session.amount_total,fee*100);
    assert.equal(session.line_items.data[0].price.unit_amount,fee*100);
@@ -361,7 +356,7 @@ try{
   const client=messages.find(entry=>entry.message.to.address===email);
   assert.match(client.message.subject,/^\[Stripe test\]/);
   assert.match(client.message.text,/Hi Synthetic,/);
-  assert.match(client.message.text,/USD\s+1,250\.00/);
+  assert.match(client.message.text,/USD\s+1,725\.00/);
   assert.match(client.message.text,/Nov 19, 2026, 4:30 AM UTC/);
   assert.match(client.message.text,/What Happens Next\?/i);
   assert.match(client.message.text,/https:\/\/pay\.stripe\.com\/receipts\/payment\/fixture/);

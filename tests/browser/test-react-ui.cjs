@@ -356,7 +356,7 @@ const server = http.createServer((request, response) => {
     assert.equal(project.buildQuoted,true,'an explicit zero implementation component preserves the entered project quote');
     assert.equal(project.firstProjectPayment,375);
     assert.equal(project.secondProjectPayment,375);
-    assert.equal(project.payback,1.25);
+    assert.equal(project.payback,.65625,'payback includes the 15% audit and the eligible historical audit credit');
     assert.equal(await page.locator('.money').textContent(),'$2,000','the result shows the quoted project total rather than the provisional build');
     assert.equal(await page.locator('#f_implementation_fee').inputValue(),'0','the editable zero is retained');
     await page.locator('#f_preparation_fee').fill('0');
@@ -653,7 +653,7 @@ const server = http.createServer((request, response) => {
     if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-known-value-mobile-390.png') });
     const knownValueResult = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result);
     assert.equal(knownValueResult.build, partialBuild, 'time and cost inputs do not change the scope build estimate');
-    assert.equal(knownValueResult.audit, null, 'known ROI inputs do not invent an audit quote');
+    assert.equal(knownValueResult.audit, Math.round(partialBuild * .15 * 100) / 100, 'the audit remains 15% of the project estimate');
     assert.equal(knownValueResult.payback, null, 'unknown project and credit details still prevent a supported payback');
 
     await mobilePage.locator('#section-picker').selectOption('6');
@@ -680,7 +680,8 @@ const server = http.createServer((request, response) => {
     await mobilePage.locator('.check input').check();
     await mobilePage.getByRole('button',{name:/Confirm details & calculate/}).click();
     await mobilePage.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.route==='project';});
-    assert.equal((await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result)).audit,null,'mobile project does not invent an audit fee');
+    const ongoingProjectResult=await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result);
+    assert.equal(ongoingProjectResult.audit,Math.round(ongoingProjectResult.build*.15*100)/100,'mobile project keeps the 15% audit fee');
     assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'fixed-project form has no mobile overflow');
     await assertRestart(mobilePage, false);
     await assertRestart(mobilePage, true);
@@ -793,11 +794,11 @@ const server = http.createServer((request, response) => {
         await advertisingPage.getByRole('button',{name:/Confirm details & calculate/}).click();
         await advertisingPage.waitForFunction(()=>!AOCJourney.getState().dirty&&!!AOCJourney.getState().result);
         assert.equal(await advertisingPage.locator('.result-hero .money').textContent(),'$11,500');
-        assert.match(await advertisingPage.locator('.result-cost-summary').textContent(),/Quoted initial audit\$1,250.*Support fee to be quoted by AOC/);
+        assert.match(await advertisingPage.locator('.result-cost-summary').textContent(),/Initial audit fee\s*15% of project\$1,725.*Support fee to be quoted by AOC/);
         assert.equal(await advertisingPage.getByText('ROI can be estimated after AOC quotes the support fee.',{exact:true}).count(),1);
         assert.equal(await advertisingPage.getByRole('button',{name:'Review time & costs',exact:true}).count(),0);
         const calculated=await advertisingPage.evaluate(()=>AOCJourney.getState().result);
-        assert.equal(calculated.audit,1250);assert.equal(calculated.net,null);assert.equal(calculated.credit.amount,null);
+        assert.equal(calculated.audit,1725);assert.equal(calculated.auditRate,.15);assert.equal(calculated.net,null);assert.equal(calculated.credit.amount,null);
         await advertisingPage.getByText('Project & ongoing costs',{exact:true}).click();
         await advertisingPage.getByText('Project quote and payment amounts',{exact:true}).click();
         assert.equal(await advertisingPage.getByText(/AOC still needs to confirm whether any audit fee can be credited toward the build/).isVisible(),true);

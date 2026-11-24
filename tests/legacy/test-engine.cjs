@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');const {calculate:c,defaults}=require('../../public/engine.js');const r=structuredClone(defaults);let checks=0;function check(s,fn,rules=r){fn(c(s,rules));checks++;}
 const base={service:'workflow',level:'moderate',readiness:'partial',systems:3,controls:'no',people:4,departments:2,handover:'group',connectionType:'supported',management:'no',vendor:0,hours:20,rate:40};
-check({},x=>assert.equal(x.build,null));check(base,x=>{assert.equal(x.build,5000);assert.equal(x.audit,500);assert.equal(x.capacity,640);assert.equal(x.payback,7.8125);assert.equal(x.yearNet,2680);});
+check({},x=>assert.equal(x.build,null));check(base,x=>{assert.equal(x.build,5000);assert.equal(x.audit,750);assert.equal(x.capacity,640);assert.equal(x.payback,7.8125);assert.equal(x.yearNet,2680);});
 check({...base,service:'agent'},x=>assert.equal(x.build,7000));
 check({...base,systems:4},x=>assert.equal(x.build,5500));
 check({...base,volume:50000},x=>assert.equal(x.build,5000));
@@ -18,7 +18,7 @@ check(team,x=>assert.equal(x.build,3500));check({...team,service:'google',domain
 check({...team,people:11},x=>assert.equal(x.build,null));check({...team,people:11,scopeFee:750},x=>assert.equal(x.build,4250));
 check({...team,migration:'yes'},x=>assert.equal(x.build,null));check({...team,migration:'yes',migrationFee:1500},x=>assert.equal(x.build,5000));
 check({service:'knowledge'},x=>assert.equal(x.build,null));
-check({service:'knowledge',prepareFee:1000,developFee:2000,matrixFee:1000,retrievalFee:500,updateFee:1000,trainingFee:500},x=>{assert.equal(x.build,6000);assert.equal(x.audit,600);});
+check({service:'knowledge',prepareFee:1000,developFee:2000,matrixFee:1000,retrievalFee:500,updateFee:1000,trainingFee:500},x=>{assert.equal(x.build,6000);assert.equal(x.audit,900);});
 check({service:'migration',from:'M365',to:'Google',workloads:'email',planningFee:500,transferFee:1000,validationFee:500},x=>assert.equal(x.build,2000));
 check({...base,people:1.5},x=>assert.equal(x.build,null));check({...base,hours:-1},x=>assert.equal(x.build,null));
 let edited=structuredClone(r);edited.core.moderate=4500;check(base,x=>assert.equal(x.build,6000),edited);

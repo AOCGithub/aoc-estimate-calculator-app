@@ -160,7 +160,8 @@ vm.runInContext(code, context);
   const calculated = await response.json();
   assert.equal(calculated.source, 'server');
   assert.equal(calculated.result.build, 11500, 'the supplied fixed quote is preserved');
-  assert.equal(calculated.result.audit, 1250);
+  assert.equal(calculated.result.audit, 1725);
+  assert.equal(calculated.result.auditRate, 0.15);
   assert.equal(calculated.result.monthly, 0);
   for (const implementationFee of [0, '']) {
     response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
@@ -173,7 +174,7 @@ vm.runInContext(code, context);
     assert.equal(quoted.projectBalance, implementationFee === 0 ? 750 : null);
     assert.equal(quoted.firstProjectPayment, implementationFee === 0 ? 375 : null);
     assert.equal(quoted.secondProjectPayment, implementationFee === 0 ? 375 : null);
-    assert.equal(quoted.payback, implementationFee === 0 ? 1.25 : null);
+    assert.equal(quoted.payback, implementationFee === 0 ? .65625 : null);
   }
 
   const invalidCalculation = structuredClone(calculation);

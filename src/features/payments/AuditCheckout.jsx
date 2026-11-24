@@ -37,7 +37,9 @@ export function AuditCheckout({ state, profile, onNavigate }) {
   const auditAmount = quoteRequest?.status === 'quoted' && Number.isSafeInteger(quoteRequest.amount)
     ? quoteRequest.amount : null;
   const quotedAudit = auditAmount > 0 && auditAmount <= 99999999 && quoteRequest?.currency === 'usd';
-  const fictionalQuote = quoteRequest?.synthetic === true || (!quoteRequest && Boolean(configuration.syntheticAuditQuote));
+  const calculatedAudit = Number.isFinite(state.result?.audit) && state.result.audit > 0
+    && state.result?.auditRate === 0.15 && state.result?.auditPurchasable === true;
+  const displayedAudit = quotedAudit ? auditAmount / 100 : calculatedAudit ? state.result.audit : null;
   const savedScope = quoteRequest?.scope || null;
   const blockers = [];
   if (!state.description?.trim()) blockers.push('Add your work description.');
@@ -47,18 +49,19 @@ export function AuditCheckout({ state, profile, onNavigate }) {
       ? 'Resolve the app or access restriction with AOC.'
       : 'Confirm that the listed apps can support the required work.');
   }
-  if (state.result?.provisionalBuild === null) blockers.push('Complete the scope details needed for a build estimate.');
+  if (state.result?.build === null) blockers.push('Complete the scope details needed for the project estimate.');
+  else if (!calculatedAudit) blockers.push('Recalculate the 15% audit fee from the completed project estimate.');
   if (!state.result) blockers.push('Calculate your estimate.');
   else if (state.dirty) blockers.push('Recalculate after your latest changes.');
   else if (state.calculationSource !== 'server') blockers.push('Recalculate while connected to the estimator service.');
   const estimateReady = Boolean(state.result && !state.dirty && state.confirmed && state.calculationSource === 'server'
-    && state.description?.trim() && state.result.provisionalBuild !== null
+    && state.description?.trim() && state.result.build !== null && calculatedAudit
     && state.answers.legacy_system_check === 'Standard');
   const ready = quotedAudit && Boolean(savedScope);
   const displayedBlockers = quoteRequest ? [] : blockers;
   const reviewStep = !state.description?.trim() ? 2
     : state.answers.legacy_system_check !== 'Standard' ? 4
-      : state.result?.provisionalBuild === null ? 3 : 7;
+      : state.result?.build === null || !calculatedAudit ? 3 : 7;
 
   function goToMissingDetails() {
     onNavigate(reviewStep);
@@ -136,21 +139,19 @@ export function AuditCheckout({ state, profile, onNavigate }) {
     : !quotedAudit && !estimateReady ? 'Update your estimate before continuing.'
       : !consent ? 'Check the box above to continue.'
       : quotedAudit ? 'You’ll review the total and pay on Stripe.'
-        : 'AOC will review this saved scope and provide the fixed audit fee.';
+        : 'Save the reviewed scope and its 15% audit fee to continue.';
 
   return <section className="g2-purchase g2-purchase--checkout" aria-label="Audit payment">
     <div className="g2-purchase__heading">
       <div><p className="eyebrow">YOUR AUDIT</p><h2 ref={reviewHeading} tabIndex={-1}>{service?.name || 'Initial audit & roadmap'}</h2></div>
       {quotedAudit && <strong>{money(auditAmount / 100)} USD <small>One-time audit fee</small></strong>}
     </div>
-    <p className="helper">{service?.description || 'This payment covers the audit. We price the build and any monthly services separately.'}</p>
+    <p className="helper">{service?.description || 'This payment covers the audit. The fee is 15% of the complete one-time project estimate; monthly services are separate.'}</p>
     {!configuration.configured ? <p role="status">Checkout is unavailable right now. You can still edit your estimate.</p> : <>
       {!ready && <div className="g2-purchase__requirements" role="status" aria-live="polite">
-        <strong>{quoteRequest?.status === 'pending' ? 'Audit review requested' : estimateReady ? 'Your estimate is ready for audit review' : 'Audit review is not ready yet'}</strong>
-        {!quoteRequest && estimateReady && (configuration.syntheticAuditQuote
-          ? <p className="g2-purchase__quote-pending"><strong>{money(configuration.syntheticAuditQuote.amount / 100)} USD fictional sandbox quote.</strong> This temporary amount is for Stripe testing only. It is not approved AOC pricing and creates no real charge.</p>
-          : <p className="g2-purchase__quote-pending">Submit the saved scope for AOC to check and price. The audit fee is fixed for that reviewed scope; it is not entered by the client or calculated as a percentage of the build estimate.</p>)}
-        {quoteRequest?.status === 'pending' && <p><strong>Review requested.</strong> Submission reference: <code>{quoteRequest.submissionReference}</code></p>}
+        <strong>{quoteRequest?.status === 'pending' ? 'This saved audit needs recalculation' : estimateReady ? 'Your estimate is ready for audit payment' : 'Audit payment is not ready yet'}</strong>
+        {!quoteRequest && estimateReady && <p className="g2-purchase__quote-pending"><strong>{money(state.result.audit)} USD audit fee.</strong> This is 15% of the {money(state.result.build)} one-time project estimate.</p>}
+        {quoteRequest?.status === 'pending' && <p>Start a new audit review so the saved amount follows the current 15% rule.</p>}
         {displayedBlockers.length > 0 && <>
           <span>Complete the following before continuing:</span>
           <ul>{displayedBlockers.map(item => <li key={item}>{item}</li>)}</ul>
@@ -160,27 +161,27 @@ export function AuditCheckout({ state, profile, onNavigate }) {
         {error && <p role="alert" className="g2-purchase__error">{error}</p>}
       </div>}
       {!reviewing ? <div className="g2-purchase__actions g2-purchase__actions--audit">
-        <button ref={reviewButton} className="primary" type="button" disabled={quotedAudit ? false : !estimateReady || quoteRequest?.status === 'pending'} onClick={beginReview}>{quotedAudit ? 'Review audit payment' : 'Submit for audit review'}</button>
+        <button ref={reviewButton} className="primary" type="button" disabled={quotedAudit ? false : !estimateReady || quoteRequest?.status === 'pending'} onClick={beginReview}>Review audit payment</button>
       </div> : <>
         <p className="g2-purchase__scope">Business area: <strong>{estimatorBank.areas.find(area => area.id === (savedScope?.area || state.area))?.label || 'Your agreed project'}</strong></p>
         <AuditDetails service={service} />
         <details><summary>Your work description</summary><p>{savedScope?.description || state.description}</p></details>
         <p>{(savedScope?.result || state.result)?.buildQuoted ? 'Project quote entered' : 'Build estimate'}: {money((savedScope?.result || state.result)?.buildQuoted ? (savedScope?.result || state.result).build : (savedScope?.result || state.result)?.provisionalBuild)}. The audit is priced and purchased separately.</p>
         <div className="g2-purchase__checkout">
-          <div className="g2-purchase__total"><span>{quotedAudit ? 'Due today - one-time audit' : 'Audit fee'}</span><strong>{quotedAudit ? money(auditAmount / 100) + ' USD' : 'Quoted after AOC reviews the saved scope'}</strong></div>
-          {fictionalQuote && <p className="g2-purchase__fictional-quote" role="note"><strong>Fictional sandbox quote - test only.</strong> This is not an approved client price, real charge or audit booking.</p>}
+          <div className="g2-purchase__total"><span>Due today - one-time audit</span><strong>{displayedAudit === null ? 'Complete the project estimate' : money(displayedAudit) + ' USD'}</strong></div>
+          {displayedAudit !== null && <p className="g2-purchase__quote-pending"><strong>Calculated at 15%.</strong> Based on the complete one-time project estimate shown above.</p>}
           <label className="g2-purchase__consent">
             <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />
             <span><strong>Save my answers and work description for this audit.</strong>
               <small>{profile
-                ? 'We will save your estimate and the contact details you entered. Stripe receives your email only after a quote is ready and you continue to checkout.'
-                : 'We will save your estimate so AOC can review the scope and prepare the audit quote.'} Remembering your company profile is a separate choice.</small>
+                ? 'We will save your estimate and the contact details you entered. Stripe receives your email only when you continue to checkout.'
+                : 'We will save your estimate and calculated audit fee for this payment.'} Remembering your company profile is a separate choice.</small>
             </span>
           </label>
           {error && <p role="alert" className="g2-purchase__error">{error}</p>}
           <p id={checkoutHintId} className="g2-purchase__checkout-hint">{checkoutHint}</p>
           <div className="g2-purchase__actions g2-purchase__actions--audit">
-            <button className="primary" type="button" disabled={(quotedAudit ? !ready : !estimateReady) || !consent || busy} aria-describedby={checkoutHintId} onClick={quotedAudit ? checkout : submitForReview}>{busy ? (quotedAudit ? 'Opening Stripe...' : 'Submitting...') : (quotedAudit ? 'Continue to Stripe' : 'Submit scope for AOC review')}</button>
+            <button className="primary" type="button" disabled={(quotedAudit ? !ready : !estimateReady) || !consent || busy} aria-describedby={checkoutHintId} onClick={quotedAudit ? checkout : submitForReview}>{busy ? (quotedAudit ? 'Opening Stripe...' : 'Saving...') : (quotedAudit ? 'Continue to Stripe' : 'Save audit and continue')}</button>
             <button className="g2-purchase__back" type="button" disabled={busy} onClick={closeReview}>Back to audit overview</button>
           </div>
         </div>

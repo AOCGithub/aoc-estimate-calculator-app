@@ -44,7 +44,7 @@ Object.assign(answers, { capability_count: 6, brand_count: 1, language_count: 1,
   responsibility_split: 'shared', tier: 'standard', audit_paid: 0, audit_sent_date: null,
   implementation_acceptance_date: null, first_implementation_payment_date: null, incremental_software_cost: 80 });
 const result = Calculation.calculate({ area: 'area10', answers, confirmed: true }).result;
-assert.equal(result.build, 11500); assert.equal(result.audit, 1250);
+assert.equal(result.build, 11500); assert.equal(result.audit, 1725); assert.equal(result.auditRate, 0.15);
 assert.equal(result.monthly, null); assert.equal(result.net, null); assert.equal(result.credit.amount, null);
 assert.equal(result.errors.length, 0);
 console.log('PASS: Explicit paid-advertising counts and production survive AI omissions; unknown, negated, ranged and conflicting scope stays blank; quoted build is restored without inventing support prices or credit.');

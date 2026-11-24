@@ -55,9 +55,10 @@ try {
   const result = await response.json();
   assert.equal(result.source, 'server');
   assert.equal(result.result.build, 11500);
-  assert.equal(result.result.audit, 1250);
+  assert.equal(result.result.audit, 1725);
+  assert.equal(result.result.auditRate, 0.15);
   assert.equal(result.result.monthly, null,'unapproved project-support price stays pending');
-  assert.equal(result.version, '2026-10-29-fixed-project-v1');
+  assert.equal(result.version, '2026-11-24-project-audit-15-percent-v1');
   for (const implementationFee of [0, '']) {
     response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {
       method: 'POST', headers: { origin, 'content-type': 'application/json' },
@@ -69,7 +70,7 @@ try {
     assert.equal(quoted.projectBalance, implementationFee === 0 ? 750 : null);
     assert.equal(quoted.firstProjectPayment, implementationFee === 0 ? 375 : null);
     assert.equal(quoted.secondProjectPayment, implementationFee === 0 ? 375 : null);
-    assert.equal(quoted.payback, implementationFee === 0 ? 1.25 : null);
+    assert.equal(quoted.payback, implementationFee === 0 ? .65625 : null);
   }
   const monthlyRequest = { ...calculation, answers: { ...calculation.answers, implementation_route:'monthly', audit_accepted_route:'monthly', delivery_intent:'ongoing', monthly_plan:'level2', comparison_months:12, benefit_months:6 } };
   response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(monthlyRequest)}));

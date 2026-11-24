@@ -1,5 +1,12 @@
 # Form UX Updates
 
+### Confirmed audit-fee calculation — 24 November 2026
+
+- Replaced the temporary fictional $1,250 Stripe-test quote and manual audit-quote step with the confirmed rule: the initial audit fee is 15% of the complete one-time project estimate.
+- The server recalculates and locks the fee to the saved estimate before Stripe Checkout. Browser-supplied amounts, stale saved fees and duplicate events cannot change the payable amount.
+- Recurring support, advertising spend, software subscriptions and other client-paid third-party costs are not included in the one-time project total.
+- Stripe remains in sandbox mode; no real charging was enabled by this pricing change.
+
 Last updated: 17 November 2026
 Status: the loading/refactor work, clearer result explanations, documented zero-implementation-quote correction and defensive fixes were deployed on 11 November 2026. The monthly-value wording was also published and verified that day. The full local suite, live asset/security checks and a local replay of the published browser build passed. Manager feedback reported on 17 November confirms live reCAPTCHA and the main calculator flow worked and the results were clearer. See the [production test results](PRODUCTION-TEST-RESULTS.md) for the separate AI/saving and physical-device coverage still to record. The existing pricing coefficients and optional saving choices remain active. Earlier local test notes below describe work subsequently released; they are not current deployment holds.
 

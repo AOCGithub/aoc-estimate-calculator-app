@@ -65,6 +65,7 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   if(purchase.outcome!=='paid')paragraph('Payment hasn’t been confirmed. Use your Stripe receipt once payment goes through.');
   section('What the payment covers');
   paragraph(service?'This payment covers the initial audit.':'This payment covers the initial audit. We price the build and any monthly services separately.');
+  if(result.auditRate===.15&&result.build!=null)paragraph('The audit fee is 15% of the saved one-time project estimate. Monthly services and client-paid third-party costs are separate.');
   if(service){
     paragraph(service.description);
     for(const item of service.included)paragraph('• '+item,{color:ink});

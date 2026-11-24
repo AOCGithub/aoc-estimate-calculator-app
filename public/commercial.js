@@ -20,7 +20,7 @@
     delivery_intent: 'Is the goal a limited project or ongoing development toward a broader connected system?',
     implementation_route: 'Chosen implementation route (not an inferred recommendation)',
     monthly_plan: 'Explicitly selected monthly build program',
-    audit_fee: 'Fixed initial audit fee explicitly quoted by AOC (USD; not a budget or percentage)',
+    audit_fee: 'Historical audit fee previously quoted by AOC (USD; only for checking an existing credit)',
     audit_paid: 'Actual initial audit fee paid (USD)',
     audit_sent_date: 'Calendar date the approved audit was sent (YYYY-MM-DD)',
     implementation_acceptance_date: 'Actual project/program acceptance date (YYYY-MM-DD)',
@@ -51,6 +51,12 @@
   const number = value => value === null || value === undefined || value === '' ? null
     : typeof value === 'boolean' || !Number.isFinite(Number(value)) || Number(value) < 0 ? null : Number(value);
   const round = value => Math.round((value + Number.EPSILON) * 100) / 100;
+  const percentage = (amount, rate) => {
+    const amountCents = Math.round(amount * 100), basisPoints = Math.round(rate * 10000);
+    if (!Number.isSafeInteger(amountCents) || !Number.isSafeInteger(basisPoints) || amountCents < 0 || basisPoints < 0) return null;
+    const resultCents = Number((BigInt(amountCents) * BigInt(basisPoints) + 5000n) / 10000n);
+    return Number.isSafeInteger(resultCents) ? resultCents / 100 : null;
+  };
   function date(value) {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
     const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -82,8 +88,6 @@
     const deferredMonthly = rules.monthlyBuildStatus === 'deferred' && input.implementation_route === 'monthly';
     const route = !deferredMonthly && ['project', 'monthly'].includes(input.implementation_route) ? input.implementation_route : null;
     const credit = auditCredit(input, rules, options.asOf || new Date());
-    const audit = number(input.audit_fee);
-    if (!audit) review.push('Initial audit: AOC must quote and agree a positive fixed fee; it is not a build percentage.');
     if (!route) review.push(deferredMonthly ? 'Monthly build subscriptions are deferred; review a fixed-price project with AOC.' : 'Choose a fixed-price project or ask AOC to help define the scope.');
     if (!['limited', 'ongoing'].includes(input.delivery_intent)) review.push('Confirm the delivery goal so AOC can explain the appropriate project/program recommendation.');
     if (['area6','area7','area8','area9','area10'].includes(input.area)) {
@@ -95,6 +99,13 @@
     const prep = number(input.preparation_fee), implementation = number(input.implementation_fee);
     const training = input.live_training === 'no' ? 0 : input.live_training === 'yes' ? number(input.live_training_fee) : null;
     const quotedBuild = prep !== null && implementation !== null && training !== null ? round(prep + implementation + training) : null;
+    const projectTotal = route === 'project' ? quotedBuild ?? draft.build : null;
+    const auditRate = route === 'project' ? number(rules.auditFee) : null;
+    const audit = route === 'project'
+      ? projectTotal !== null && projectTotal > 0 && auditRate !== null && auditRate > 0
+        ? percentage(projectTotal, auditRate) : null
+      : route === 'monthly' ? number(input.audit_fee) : null;
+    if (route === 'project' && audit === null) review.push('Initial audit fee: complete the one-time project estimate so the 15% fee can be calculated.');
     const planFee = route === 'monthly' ? rules.monthlyPlans[input.monthly_plan] ?? null : null;
     const hours = number(input.agreed_monthly_hours), blend = number(input.agreed_agency_blend);
     let monthly = route === 'monthly' ? planFee : route === 'project'
@@ -165,7 +176,8 @@
       provisionalBuild: route === 'monthly' ? null : draft.build, buildQuoted: quotedBuild !== null && route === 'project',
       low: route === 'monthly' ? null : quotedBuild !== null && route === 'project' ? quotedBuild : draft.low,
       high: route === 'monthly' ? null : quotedBuild !== null && route === 'project' ? quotedBuild : draft.high,
-      audit: audit > 0 ? audit : null, credit, projectBalance, firstProjectPayment, secondProjectPayment,
+      audit: audit > 0 ? audit : null, auditRate: auditRate > 0 ? auditRate : null,
+      credit, projectBalance, firstProjectPayment, secondProjectPayment,
       monthly, monthlyDraft: route === 'project' && monthly > 0, monthlyParts: [], planFee, monthlyInvoiceAfterCredit,
       agreedMonthlyHours: hours > 0 ? hours : null, agreedAgencyBlend: blend > 0 ? blend : null,
       combinedMonthlyCommitment, existingPlanReconciled: existingReady,
@@ -175,7 +187,7 @@
       yearInvestment: !unsafe && months === 12 ? investment : null,
       yearGross: months === 12 ? periodGross : null, yearNet: !unsafe && months === 12 ? periodNet : null,
       payback: !unsafe && route === 'project' && initialSpend !== null && net > 0 ? initialSpend / net : null,
-      auditPurchasable: false, commercialNotice: rules.notice,
+      auditPurchasable: !unsafe && route === 'project' && audit !== null, commercialNotice: rules.notice,
     };
   }
   const api = { fields, choices, numericIds, dateIds, date, recommendRoute, auditCredit, apply };

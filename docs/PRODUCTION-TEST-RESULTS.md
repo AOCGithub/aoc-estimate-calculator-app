@@ -1,10 +1,16 @@
 # Production Test Results
 
 Report started: 21 October 2026
-Last updated: 17 November 2026
+Last updated: 24 November 2026
 Scope: Production calculator, entry and optional saved-data verification
 
-Pricing scope: reviewed 28-29 October fixed-price launch rules. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
+Pricing scope: reviewed 28-29 October fixed-price launch rules plus the confirmed 24 November audit-fee change. Provisional build coefficients retain their documented status; unspecified support fees stay unknown. Earlier entries below are historical release evidence.
+
+## Confirmed audit-fee change - 24 November 2026
+
+The temporary $1,250 sandbox quote and manual quote step were removed. The current rule calculates the initial audit fee as **15% of the complete one-time project estimate**. An entered complete project quote is used when present; otherwise the complete calculated build estimate is used. Monthly support, advertising spend, software subscriptions and other client-paid third-party costs are not added to that base.
+
+Local verification passed for calculation, API, Stripe sandbox handoff, receipt/status UI, PDF and payment-email output. A $11,500 project produces a $1,725 audit fee throughout the flow. Tests also cover different project totals, stale/manual amount rejection, exact-cent rounding, duplicate checkout/events, failed/incomplete payment handling, desktop/mobile layout and the wider calculator journey. Stripe remains in test mode; this entry does not claim a real charge.
 
 ## Current release status - 17 November 2026
 

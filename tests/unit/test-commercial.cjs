@@ -14,18 +14,19 @@ const historicalCalc=changes=>Engine.calculate({...base,...changes},historicalPr
 const request = changes => { const { area, process_confirmed, management, ...answers } = { ...base, ...changes }; return { area, confirmed: process_confirmed, answers }; };
 const fixed = calc({});
 assert.equal(fixed.build, 11500);
-assert.equal(fixed.audit, 1250, 'audit is the supplied fixed quote, not 10%');
+assert.equal(fixed.audit, 1725, 'audit is 15% of the complete one-time project estimate');
+assert.equal(fixed.auditRate, 0.15);
 assert.equal(fixed.credit.amount, 1250);
 assert.equal(fixed.projectBalance, 10250);
 assert.equal(fixed.firstProjectPayment, 5125);
 assert.equal(fixed.secondProjectPayment, 5125);
-assert.equal(fixed.initialSpend, 11500);
-assert.equal(fixed.yearInvestment, 11500);
+assert.equal(fixed.initialSpend, 11975);
+assert.equal(fixed.yearInvestment, 11975);
 assert.equal(fixed.net, 1600);
-assert.equal(fixed.payback, 7.1875);
+assert.equal(fixed.payback, 11975 / 1600);
 assert.equal(fixed.commercialReady, true);
-assert.equal(Calculation.calculate(request({})).result.audit, 1250);
-assert.equal(calc({ audit_fee: null }).audit, null);
+assert.equal(Calculation.calculate(request({})).result.audit, 1725);
+assert.equal(calc({ audit_fee: null }).audit, 1725, 'a historical credit field cannot override the current 15% audit price');
 assert.equal(calc({ audit_fee: null }).payback, null);
 assert.equal(calc({ implementation_fee: null }).buildQuoted, false);
 assert.equal(calc({ implementation_fee: null }).projectBalance, null);
@@ -36,8 +37,8 @@ assert.equal(calc({ live_training: 'yes', live_training_fee: null }).projectBala
 assert.equal(calc({ live_training: 'no', live_training_fee: 9999 }).build, 11500, 'inactive live-training fee is ignored');
 assert.equal(calc({ live_training: 'yes', live_training_fee: 300 }).build, 11800);
 assert.equal(calc({ audit_credit_used: 'yes' }).credit.amount, 0);
-assert.equal(calc({ audit_credit_used: 'yes' }).initialSpend, 12750);
-assert.equal(calc({ audit_credit_used: 'yes' }).payback, 12750 / 1600);
+assert.equal(calc({ audit_credit_used: 'yes' }).initialSpend, 13225);
+assert.equal(calc({ audit_credit_used: 'yes' }).payback, 13225 / 1600);
 assert.equal(calc({ audit_credit_used: null }).credit.amount, null);
 assert.equal(calc({ audit_credit_used: null }).payback, null);
 assert.equal(calc({ audit_paid: 500 }).credit.amount, null, 'no partial audit credit');
@@ -58,7 +59,7 @@ for (const dates of [
   { implementation_acceptance_date: null, first_implementation_payment_date: '2020-02-01' },
 ]) {
   const result = Calculation.calculate(request(dates)).result;
-  assert.equal(result.audit, 1250);
+  assert.equal(result.audit, 1725);
   assert.equal(result.build, 11500);
   assert.equal(result.credit.status, 'pending');
   assert.equal(result.credit.expiryDate, '2020-01-31');

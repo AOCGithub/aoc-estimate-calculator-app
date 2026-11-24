@@ -27,7 +27,7 @@ const safeUrl = (value,hosts) => {
 };
 const checkoutUrl = value => safeUrl(value,['checkout.stripe.com']);
 const receiptUrl = value => safeUrl(value,['pay.stripe.com','receipts.stripe.com']);
-const SYNTHETIC_QUOTE_REVIEWER = 'AOC fictional sandbox fixture';
+const CALCULATED_AUDIT_SOURCE = 'AOC calculator 15% project estimate';
 const readSnapshot = value => typeof value === 'string' ? JSON.parse(value) : value;
 function chargeDate(intent) {
   const timestamp=intent?.latest_charge?.created;
@@ -75,25 +75,30 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     await paymentEmailSender(purchase,session.customer_details);
   }
 
-  function auditOffer(quote) {
-    // A payable amount comes only from AOC's private quote record for this exact saved scope.
-    if(!quote || quote.status!=='quoted' || !uuid(quote.id) || !Number.isSafeInteger(quote.amount)
-      || quote.amount<=0 || quote.amount>99999999 || quote.currency!=='usd')throw new Error('audit_quote_pending');
-    return {id:'audit_quote_'+quote.id,quoteReference:quote.id,amount:quote.amount,currency:quote.currency,name:auditService.name};
+  function calculatedAudit(snapshot) {
+    const result=readSnapshot(snapshot)?.result;
+    if(!result||result.route!=='project'||result.auditPurchasable!==true||result.auditRate!==0.15
+      ||!Number.isFinite(result.build)||result.build<=0||!Number.isFinite(result.audit)||result.audit<=0)return null;
+    const amount=Math.round(result.audit*100),buildCents=Math.round(result.build*100);
+    const expected=Number((BigInt(buildCents)*1500n+5000n)/10000n);
+    return Number.isSafeInteger(amount)&&amount===expected&&amount<=99999999?amount:null;
   }
-  function syntheticAuditQuote() {
-    if(!settings(env).testKey)return null;
-    const raw=String(env.AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS||'');
-    if(!/^\d+$/.test(raw))return null;
-    const amount=Number(raw);
-    return Number.isSafeInteger(amount)&&amount>0&&amount<=99999999
-      ? {amount,currency:'usd',label:'Fictional sandbox quote - test only'} : null;
+  function validAuditRecord(saved,quote) {
+    const amount=calculatedAudit(saved.snapshot);
+    return Boolean(amount&&quote&&quote.status==='quoted'&&uuid(quote.id)&&quote.amount===amount
+      &&quote.currency==='usd'&&quote.scope_fingerprint===saved.fingerprint
+      &&quote.quoted_by===CALCULATED_AUDIT_SOURCE);
+  }
+  function auditOffer(saved,quote) {
+    if(!validAuditRecord(saved,quote))throw new Error('audit_quote_pending');
+    return {id:'audit_quote_'+quote.id,quoteReference:quote.id,amount:quote.amount,currency:quote.currency,name:auditService.name};
   }
   function quoteView(saved,quote) {
     const snapshot=readSnapshot(saved.snapshot);
+    const currentQuote=validAuditRecord(saved,quote)?quote:null;
     return {submissionReference:saved.id,recordingReference:saved.recording_reference,
-      status:quote?'quoted':'pending',...(quote?{amount:quote.amount,currency:quote.currency,
-        synthetic:quote.quoted_by===SYNTHETIC_QUOTE_REVIEWER}:{}),
+      status:currentQuote?'quoted':'pending',...(currentQuote?{amount:currentQuote.amount,currency:currentQuote.currency,
+        calculated:true}:{}),
       requestedAt:saved.created_at,scope:{area:snapshot.area,answers:snapshot.answers,confirmed:snapshot.confirmed,
         result:snapshot.result,calculatorVersion:snapshot.calculatorVersion,description:saved.description}};
   }
@@ -140,12 +145,12 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
     let prepared;
     try {
-      if(!uuid(body.submissionReference))return json({error:'Submit the estimate for AOC review before payment.'},400);
+      if(!uuid(body.submissionReference))return json({error:'Save the calculated audit fee before payment.'},400);
       const saved=await store.submission(body.submissionReference);
       if(!saved||saved.owner_hash!==ownerHash)return json({error:'Audit quote not found for this session.'},404);
       const quote=await store.quote(saved.id);
       if(quote?.scope_fingerprint!==saved.fingerprint)throw new Error('snapshot_conflict');
-      const offer=auditOffer(quote);
+      const offer=auditOffer(saved,quote);
       prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
       if(!prepared)return json({error:'Audit quote not found for this session.'},404);
       if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
@@ -175,7 +180,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const stored=await store.bundle(p.id,ownerHash);
       return json({purchase:view(stored),...(stored.purchase.outcome==='paid'?{}:{checkoutUrl:checkoutUrl(result.url)})});
     }catch(error){
-      if(error.message==='audit_quote_pending')return json({error:'AOC has not attached a fixed audit quote to this saved scope yet.'},409);
+      if(error.message==='audit_quote_pending')return json({error:'The saved audit fee does not match 15% of this project estimate. Start a new audit review.'},409);
       if(error.message==='snapshot_conflict')return json({error:'This submission has changed. Review it as a new test purchase.'},409);
       if(error.message==='purchase_mismatch')return json({error:'Stripe references or amounts need review; no new purchase was created.'},409);
       console.warn('Stripe sandbox checkout failed.',{type:error.type||error.name,code:error.code||null,param:error.param||null});
@@ -199,10 +204,10 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const {default:Calculation}=await import('../../public/journey-calculation.js');
       let calculated;
       try { calculated=Calculation.calculate(body.calculation); }
-      catch { return json({error:'Review the calculator answers and recalculate before requesting an audit quote.'},400); }
-      if(!body.calculation.confirmed||calculated.result.errors.length||calculated.result.provisionalBuild===null
+      catch { return json({error:'Review the calculator answers and recalculate before preparing the audit payment.'},400); }
+      if(!body.calculation.confirmed||calculated.result.errors.length||calculated.result.build===null
         ||body.calculation.answers.legacy_system_check!=='Standard')
-        return json({error:'Confirm a complete, unblocked scope and recalculate before requesting an audit quote.'},400);
+        return json({error:'Confirm a complete, unblocked scope and recalculate before preparing the audit payment.'},400);
       let profile=null;
       if(body.profile){const checked=validateAccessProfile(body.profile);if(checked.error)return json({error:checked.error},400);profile=checked.profile;}
       const snapshot={area:body.calculation.area,answers:body.calculation.answers,confirmed:true,result:calculated.result,
@@ -210,13 +215,14 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const input={description:body.description.trim(),calculation:body.calculation,profile};
       const saved=await store.saveSubmission({ownerHash,requestReference:body.requestReference,
         fingerprint:hash(JSON.stringify(input)),description:input.description,snapshot});
+      const amount=calculatedAudit(saved.submission.snapshot);
+      if(!amount)return json({error:'The complete one-time project estimate is required to calculate the 15% audit fee.'},400);
       let quote=saved.quote;
-      const synthetic=syntheticAuditQuote();
-      if(!quote&&synthetic)quote=await store.approveQuote({submissionReference:saved.submission.id,
-        amount:synthetic.amount,currency:synthetic.currency,quotedBy:SYNTHETIC_QUOTE_REVIEWER});
+      if(!validAuditRecord(saved.submission,quote))quote=await store.approveQuote({submissionReference:saved.submission.id,
+        amount,currency:'usd',quotedBy:CALCULATED_AUDIT_SOURCE});
       return json({quoteRequest:quoteView(saved.submission,quote)});
     }catch(error){
-      if(error.message==='snapshot_conflict')return json({error:'This saved request no longer matches the current estimate. Submit it as a new review request.'},409);
+      if(error.message==='snapshot_conflict'||error.message==='quote_locked')return json({error:'This saved request no longer matches the current 15% audit calculation. Start a new estimate before payment.'},409);
       return json({error:'The audit review request could not be saved. Your estimate is unchanged.'},503);
     }
   }
@@ -320,9 +326,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
         return json({enabled:true,configured:true,purchase:view(stored)});
       }
       await store.check?.();
-      const synthetic=syntheticAuditQuote();
-      return json({enabled:true,configured:true,testMode:true,pricing:'quoted_audit',service:auditService,
-        ...(synthetic?{syntheticAuditQuote:synthetic}:{})});
+      return json({enabled:true,configured:true,testMode:true,pricing:'project_total_15_percent',
+        auditRate:0.15,service:auditService});
     },
     close:()=>store.close(),
   };

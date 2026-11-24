@@ -13,7 +13,7 @@ const result=calculate({area,confirmed:true,answers}).result;
 const [regularFont,boldFont,logo]=await Promise.all(['NotoSans-Regular.ttf','NotoSans-Bold.ttf','../../favicon.png'].map(async file=>(await readFile(new URL('../../public/fonts/noto-sans/'+file,import.meta.url))).toString('base64')));
 const assets={regularFont,boldFont,logo};
 const original={testMode:true,submissionReference:'11111111-1111-4111-8111-111111111111',recordingReference:'22222222-2222-4222-8222-222222222222',purchaseReference:'33333333-3333-4333-8333-333333333333',
- auditIntakeReference:'44444444-4444-4444-8444-444444444444',outcome:'paid',paidAt:'2026-11-18T04:00:00Z',amount:125000,currency:'usd',item:auditService.name,
+ auditIntakeReference:'44444444-4444-4444-8444-444444444444',outcome:'paid',paidAt:'2026-11-18T04:00:00Z',amount:result.audit*100,currency:'usd',item:auditService.name,
  snapshot:{area,description:'José’s team reviews draft invoices, checks totals, and approves each invoice.',answers,result,service:auditService,calculatorVersion:'synthetic-pdf-fixture',savedAt:'2026-11-18T03:55:00Z',
  profile:{name:'José Dela Peña',company:'Synthetic PDF Company',website:'example.com',role:'Owner',businessEmail:'synthetic@example.com'}}};
 
@@ -37,7 +37,8 @@ async function inspect(purchase){
 }
 await mkdir('artifacts/g2',{recursive:true});
 const {text,pages,doc}=await inspect(structuredClone(original));
-for(const value of ['José Dela Peña',original.snapshot.description,original.submissionReference,original.recordingReference,original.purchaseReference,original.auditIntakeReference,'$1,250 USD','$11,500','Payment received','This payment covers the initial audit','Cash savings count expenses that would go away',auditService.credit,auditService.refund,auditService.version])assert.ok(text.includes(value),'Saved PDF includes '+value);
+for(const value of ['José Dela Peña',original.snapshot.description,original.submissionReference,original.recordingReference,original.purchaseReference,original.auditIntakeReference,'$1,725 USD','$11,500','Payment received','This payment covers the initial audit','Cash savings count expenses that would go away',auditService.credit,auditService.refund,auditService.version])assert.ok(text.includes(value),'Saved PDF includes '+value);
+assert.ok(text.includes('The audit fee is 15% of the saved one-time project estimate.'),'Current PDF explains the audit calculation');
 const sections=['Payment received','What the payment covers','Work you submitted','Your saved project estimate','Planning estimate breakdown','Ongoing costs and potential value','Next steps and audit terms','Supporting details for AOC','Saved answers'];
 let lastSection=-1;
 for(const section of sections){
@@ -69,12 +70,12 @@ const optionalPdf=await inspect(optional);
 assert.equal(optionalPdf.text.split('ROI not estimated because optional time or cost details were not provided.').length,2);
 assert.match(optionalPdf.text,/Software costs not provided/);
 assert.doesNotMatch(optionalPdf.text,/Awaiting details|Estimated monthly value after costs|Illustrative payback/);
-assert.match(optionalPdf.text,/\$1,250 USD/);
+assert.match(optionalPdf.text,/\$1,725 USD/);
 assert.match(optionalPdf.text,/Project quote entered \$11,500/);
 await writeFile('artifacts/g2/payment-estimate-optional-inputs.pdf',Buffer.from(optionalPdf.doc.output('arraybuffer')));
 
 const support=structuredClone(original);
-Object.assign(support.snapshot.answers,{responsibility_split:'shared',tier:'standard',audit_fee:1800.25});
+Object.assign(support.snapshot.answers,{responsibility_split:'shared',tier:'standard',implementation_fee:12001.67});
 support.amount=180025;
 support.snapshot.result=calculate({area,confirmed:true,answers:support.snapshot.answers}).result;
 const supportPdf=await inspect(support);

@@ -1,5 +1,5 @@
 (function(root){
-const defaults={version:'AOC working rules · 15 Oct 2026 · v6',core:{simple:1500,moderate:3500,complex:6000,advanced:9000},agent:{simple:1000,moderate:2000,complex:3500,advanced:5000},prep:{clean:0,partial:1000,limited:2000,unknown:2000},includedSystems:3,connection:500,controls:1500,department:500,rolloutMedium:500,rolloutLarge:1500,handover:{one:250,group:500,multiple:1000},team:3500,google:2500,audit:.1,retained:.2,low:.2,high:.25,creditDays:30,monthly:{standard:null,priority:null,critical:null}};
+const defaults={version:'AOC working rules · 24 Nov 2026 · v7',core:{simple:1500,moderate:3500,complex:6000,advanced:9000},agent:{simple:1000,moderate:2000,complex:3500,advanced:5000},prep:{clean:0,partial:1000,limited:2000,unknown:2000},includedSystems:3,connection:500,controls:1500,department:500,rolloutMedium:500,rolloutLarge:1500,handover:{one:250,group:500,multiple:1000},team:3500,google:2500,audit:.15,retained:.2,low:.2,high:.25,creditDays:30,monthly:{standard:null,priority:null,critical:null}};
 const number=v=>v===null||v===undefined||v===''?null:Number(v);
 function calculate(s,r=defaults){
  const lines=[],pending=[],warnings=[],errors=[];let known=0;

@@ -108,7 +108,7 @@ function Result({ state, area, onNavigate }) {
           : 'Some scope or app details still need checking. The items below do not yet make a complete quote.'}</p>
     </div>
     <dl className="result-cost-summary">
-      <div><dt>Quoted initial audit</dt><dd>{reviewedMoney(result.audit, 'Audit fee to be quoted by AOC')}</dd></div>
+      <div><dt>Initial audit fee <small>15% of project</small></dt><dd>{reviewedMoney(result.audit, 'Complete the project estimate')}</dd></div>
       <div><dt>New ongoing costs <small>/ month</small></dt><dd>{display.ongoing}</dd></div>
     </dl>
     {(result.net != null || display.payback || (monthlyProgram && result.comparisonMonths != null)) && <div className="result-highlights">
@@ -135,7 +135,7 @@ function Result({ state, area, onNavigate }) {
       {aocDetails.length > 0 && <p><strong>AOC will confirm</strong> {aocDetails.join(', ')}.</p>}
     </section>}
     <ResultGroup title="Project & ongoing costs" icon="layers">
-    <Metric title="Quoted initial audit" value={reviewedMoney(result.audit, 'Audit fee to be quoted by AOC')} note="AOC gives you a separate fixed price for the audit before you pay." />
+    <Metric title="Initial audit fee" value={reviewedMoney(result.audit, 'Complete the project estimate')} note="Calculated as 15% of the complete one-time project estimate. Monthly services and client-paid third-party costs are separate." />
     <Metric title="Audit credit toward the build" value={reviewedMoney(result.credit.amount, 'AOC will confirm whether a credit applies')} note={`${result.credit.reason}${result.credit.expiryDate ? ` Credit deadline ${result.credit.expiryDate}.` : ''}`} />
     {result.route === 'project' && <ProjectPayments answers={state.answers} result={result} />}
     {monthlyProgram && <>
@@ -170,7 +170,7 @@ function Result({ state, area, onNavigate }) {
     {[result.freed, result.capacity, result.cash, result.recurring, result.net].every(value => value == null) && <p>Add time and cost details to see a potential value breakdown.</p>}
     {([result.comparisonInvestment, result.comparisonGross, result.comparisonNet].some(value => value != null) || display.payback) && <details>
       <summary>{monthlyProgram ? 'Monthly-program value comparison' : 'First year and payback'}</summary>
-      <p>{monthlyProgram ? 'Compare the same roadmap, accepted milestones and operating period. Included audit/build work is not charged twice.' : 'One-time spend includes the fixed audit plus project total, minus the eligible audit credit once. No assumed credit when eligibility is unknown.'}</p>
+      <p>{monthlyProgram ? 'Compare the same roadmap, accepted milestones and operating period. Included audit/build work is not charged twice.' : 'One-time spend includes the 15% audit fee plus the project total, minus an eligible audit credit once. No credit is assumed when eligibility is unknown.'}</p>
       <Metric title="Comparison period" value={result.comparisonMonths === null ? 'Choose comparison months' : `${result.comparisonMonths} ${monthlyProgram ? 'program' : 'operating'} months`} />
       {monthlyProgram && <Metric title="Months with operating benefits" value={result.benefitMonths === null ? 'Timing needs review' : `${result.benefitMonths} months within that period`} note="Program costs cover the whole chosen period; benefits are not assumed during implementation." />}
       {result.comparisonInvestment != null && <Metric title={monthlyProgram ? 'Total investment over selected period' : 'First-year investment'} value={money(result.comparisonInvestment)} />}
