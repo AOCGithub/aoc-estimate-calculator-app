@@ -12,6 +12,8 @@ The temporary $1,250 sandbox quote and manual quote step were removed. The curre
 
 Local verification passed for calculation, API, Stripe sandbox handoff, receipt/status UI, PDF and payment-email output. A $11,500 project produces a $1,725 audit fee throughout the flow. Tests also cover different project totals, stale/manual amount rejection, exact-cent rounding, duplicate checkout/events, failed/incomplete payment handling, desktop/mobile layout and the wider calculator journey. Stripe remains in test mode; this entry does not claim a real charge.
 
+The change was deployed from commit `e4a2cc6` on 24 November 2026. The custom domain and published pricing file returned HTTP 200, the payment API remained access-protected, and the published assets contained the 15% result/checkout wording without the removed fictional-quote message. A complete live checkout still requires the normal client entry and CAPTCHA; no real payment was made for this release check.
+
 ## Current release status - 17 November 2026
 
 **The calculator is deployed at [estimate.alwaysopencommerce.com](https://estimate.alwaysopencommerce.com/).** The refactor, clearer result labels, zero-implementation-quote correction, JSON validation fix and Vite patch were released on 11 November in [commit 39f004e](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/39f004e4e7209a5d3e8aef7b3acd3103aa06e69b). The monthly-value wording was subsequently published and verified that day in [commit 2a423f6](https://github.com/AOCGithub/aoc-estimate-calculator-app/commit/2a423f67fad67fe1c486f74feddececb8a38d994).
