@@ -364,11 +364,19 @@ try{
   assert.match(client.message.html,/Review draft invoices\.<br\/?><br\/?>&lt;script&gt;/);
   assert.equal(client.message.attachments[0].content.subarray(0,5).toString(),'%PDF-');
   assert.ok(client.message.attachments[0].filename.includes(purchase.submissionReference));
+  assert.match(client.message.attachments[0].cid,/^aoc-estimate-.+@alwaysopencommerce\.com$/);
+  assert.ok(client.message.html.includes(`href="cid:${client.message.attachments[0].cid}"`));
+  assert.match(client.message.html,/aria-label="Download estimate PDF"/);
+  assert.ok(!client.message.text.includes('cid:'),'plain-text email hides the internal attachment identifier');
   assert.match(client.mime.toString(),/Content-Type: application\/pdf/);
+  assert.match(client.mime.toString(),/Content-ID: <aoc-estimate-.+@alwaysopencommerce\.com>/);
   assert.match(client.mime.toString(),/Content-Type: text\/plain/);
   const internal=messages.find(entry=>entry.message.to.address===support).message;
   assert.ok(internal.text.includes(intake)&&internal.text.includes(email));
-  assert.equal(internal.attachments,undefined);
+  assert.equal(internal.attachments.length,1);
+  assert.equal(internal.attachments[0].content.subarray(0,5).toString(),'%PDF-');
+  assert.ok(internal.html.includes(`href="cid:${internal.attachments[0].cid}"`));
+  assert.ok(!internal.text.includes('cid:'),'support plain-text email hides the internal attachment identifier');
   for(const {html} of [client.message,internal]){
    assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/about-us\/"[^>]*>About Us<\/a>/);
    assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/contact-us\/"[^>]*>Contact Us<\/a>/);

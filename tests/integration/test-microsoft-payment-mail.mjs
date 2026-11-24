@@ -16,7 +16,8 @@ const message = {
   subject: 'Audit payment', text: 'Your audit payment has been confirmed.',
   html: '<p>Your audit payment has been confirmed.</p>', replyTo: 'support@example.com',
   messageId: '<local-fixture@example.com>',
-  attachments: [{filename: 'estimate.pdf', contentType: 'application/pdf', content: Buffer.from('%PDF-fixture')}],
+  attachments: [{filename: 'estimate.pdf', contentType: 'application/pdf', content: Buffer.from('%PDF-fixture'),
+    cid: 'estimate-fixture@alwaysopencommerce.com', contentDisposition: 'attachment'}],
 };
 const fakeToken = () => Response.json({access_token: 'synthetic-access-token', expires_in: 3600});
 const accepted = () => new Response(null, {status: 202});
@@ -48,7 +49,8 @@ const accepted = () => new Response(null, {status: 202});
   assert.equal(tokenRequests, 1);
   const client = messages.find(raw => raw.includes(user.address));
   for (const value of ['Subject: Audit payment', 'Reply-To: support@example.com', 'Message-ID: <local-fixture@example.com>',
-    'Content-Type: text/plain', 'Content-Type: text/html', 'Content-Type: application/pdf', 'estimate.pdf']) {
+    'Content-Type: text/plain', 'Content-Type: text/html', 'Content-Type: application/pdf',
+    'Content-ID: <estimate-fixture@alwaysopencommerce.com>', 'estimate.pdf']) {
     assert.ok(client.includes(value), `MIME email contains ${value}`);
   }
 }
