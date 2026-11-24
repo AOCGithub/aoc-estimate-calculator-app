@@ -1,0 +1,9 @@
+#!/bin/sh
+echo >&2
+echo "============================================================" >&2
+echo "LIVE TEST REMINDER: fictional \$1,250 audit quote is enabled" >&2
+echo "for Stripe sandbox testing. It is not approved AOC pricing." >&2
+echo "Remove AOC_G2_SYNTHETIC_AUDIT_QUOTE_CENTS before client release." >&2
+echo "============================================================" >&2
+echo >&2
+exit 0

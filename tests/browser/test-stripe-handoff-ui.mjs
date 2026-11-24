@@ -46,13 +46,14 @@ try{
     if(mode==='setup'){respond({enabled:true,configured:false});return;}
     if(url.searchParams.has('submission_reference')){
      respond({enabled:true,configured:true,quoteRequest:{submissionReference:purchase.submissionReference,
-       recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
+       recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',synthetic:true,requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
     }
     if(['missing-return','invalid-return','expired-session','temporary-error'].includes(mode)&&url.searchParams.has('purchase_reference')){
      const code=mode==='invalid-return'?400:mode==='temporary-error'?503:mode==='expired-session'?401:404;
      res.writeHead(code,{'content-type':'application/json'}).end(JSON.stringify({error:code===503?'Payment details are temporarily unavailable.':'Purchase not found for this session.'}));return;
     }
-    respond(!url.searchParams.has('purchase_reference')?{enabled:true,configured:true,pricing:'quoted_audit',service:auditService}:
+    respond(!url.searchParams.has('purchase_reference')?{enabled:true,configured:true,pricing:'quoted_audit',service:auditService,
+      syntheticAuditQuote:{amount:125000,currency:'usd',label:'Fictional sandbox quote - test only'}}:
       {enabled:true,configured:true,purchase:{...purchase,snapshot:mode==='legacy-return'?{...purchase.snapshot,service:undefined}:purchase.snapshot,outcome,auditIntakeReference:outcome==='paid'?'synthetic-intake-reference':null,
         paidAt:outcome==='paid'?'2026-11-17T10:01:00Z':null,receiptUrl:outcome==='paid'?'https://pay.stripe.com/receipts/payment/fixture':null}});return;
    }
@@ -60,7 +61,7 @@ try{
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);
     assert.equal(body.consent,true);assert.equal(body.description,description);assert.equal(body.calculation.answers.implementation_fee,11500);
     quoteCalls++;respond({quoteRequest:{submissionReference:purchase.submissionReference,
-      recordingReference:purchase.recordingReference,status:'pending',requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
+      recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',synthetic:true,requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
    }
    if(url.pathname==='/api/payments/checkout'){
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);assert.equal(body.consent,true);
@@ -77,12 +78,13 @@ try{
  await page.goto(origin);await page.getByRole('button',{name:'Submit for audit review',exact:true}).click();
  let review=await page.getByRole('region',{name:'Audit payment'}).innerText();
  assert.ok(review.includes('$11,500'));assert.ok(review.includes('Quoted after AOC reviews the saved scope'));
+ assert.ok(review.includes('Fictional sandbox quote - test only'));
  let consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
  const submit=page.getByRole('button',{name:'Submit scope for AOC review',exact:true});
  assert.equal(await submit.isDisabled(),true);await consent.check();assert.equal(await submit.isEnabled(),true);await submit.click();
- assert.equal(quoteCalls,1);await page.getByText('Review requested.',{exact:true}).waitFor();
- await page.getByRole('button',{name:'Check quote status',exact:true}).click();
- await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
+ assert.equal(quoteCalls,1);
+ await page.getByText('Due today - one-time audit',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).count(),0,'An immediately quoted audit stays in the open review');
  review=await page.getByRole('region',{name:'Audit payment'}).innerText();
  assert.ok(review.includes('$1,250'));assert.ok(review.includes('$11,500'));
  assert.ok(review.includes(auditService.excluded));
@@ -103,9 +105,8 @@ try{
  await page.setViewportSize({width:1440,height:1000});
  const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
  consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
- assert.equal(await pay.isDisabled(),true);
- await page.getByText('Check the box above to continue.',{exact:true}).waitFor();
- await consent.check();assert.equal(await pay.isEnabled(),true);
+ assert.equal(await consent.isChecked(),true,'The consent just given remains valid when the server immediately returns the test quote');
+ assert.equal(await pay.isEnabled(),true,'The user can continue without repeating the audit review');
  await page.getByRole('button',{name:'Back to audit overview',exact:true}).click();
  await page.waitForFunction(()=>document.activeElement?.textContent==='Review audit payment');
  assert.equal(calls,0,'Closing the review makes no checkout request');
@@ -245,7 +246,7 @@ try{
  mode='return';outcome='paid';await page.getByRole('button',{name:'Refresh payment status',exact:true}).click();
  await page.getByRole('heading',{name:'Payment received',exact:true}).waitFor();
  mode='no-quote';await page.goto(origin);await page.getByText('Your estimate is ready for audit review',{exact:true}).waitFor();
- assert.equal(await page.getByText(/audit fee is fixed for that reviewed scope.*not entered by the client/).isVisible(),true);
+ assert.equal(await page.getByText(/fictional sandbox quote.*Stripe testing only/).isVisible(),true);
  assert.equal(await page.getByText('Complete the following before continuing:',{exact:true}).count(),0,'An AOC quote is not described as a missing client answer');
  assert.equal(await page.getByRole('button',{name:'Submit for audit review',exact:true}).isEnabled(),true);
  mode='quote-edited';await page.goto(origin);await page.getByText('Recalculate after your latest changes.',{exact:true}).waitFor();

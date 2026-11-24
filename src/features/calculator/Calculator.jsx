@@ -18,6 +18,19 @@ import { CompanyProfilePanel } from '../profiles/CompanyProfilePanel.jsx';
 import { Brand } from '../../components/Brand.jsx';
 import { AuditCheckout } from '../payments/AuditCheckout.jsx';
 
+const paymentParameters = ['audit_request', 'purchase_reference', 'checkout_result'];
+
+function clearPaymentLocation() {
+  const url = new URL(window.location.href);
+  let changed = false;
+  paymentParameters.forEach(parameter => {
+    if (!url.searchParams.has(parameter)) return;
+    url.searchParams.delete(parameter);
+    changed = true;
+  });
+  if (changed) window.history.replaceState(null, '', url);
+}
+
 function CurrentSection({ state, area, actions, fields, notify, onChooseArea }) {
   if (state.step === 1) {
     return <BusinessAreaSection selectedArea={state.area} onChoose={onChooseArea} />;
@@ -80,6 +93,7 @@ export default function Calculator({ access, profiles }) {
   const { state, selectedArea, actions } = useEstimator();
   const [toast, setToast] = useState('');
   const [restartOpen, setRestartOpen] = useState(false);
+  const [paymentSession, setPaymentSession] = useState(0);
   const fields = useMemo(
     () => createFieldProps(state, (key, value) => {
       const valid = actions.mark(key, value);
@@ -98,6 +112,8 @@ export default function Calculator({ access, profiles }) {
     setRestartOpen(false);
     setToast('');
     actions.restart();
+    clearPaymentLocation();
+    setPaymentSession(session => session + 1);
   }
 
   function chooseArea(area) {
@@ -131,6 +147,8 @@ export default function Calculator({ access, profiles }) {
             if (outcome?.ok) {
               actions.restart();
               setToast('');
+              clearPaymentLocation();
+              setPaymentSession(session => session + 1);
             }
             if (outcome?.message) notify(outcome.message);
           }}>End session</button>
@@ -195,7 +213,7 @@ export default function Calculator({ access, profiles }) {
           <EstimateSidebar state={state} area={selectedArea || { label: 'AI Commerce' }} onNavigate={actions.goTo} />
         </div>
         {import.meta.env.VITE_AOC_STRIPE_TEST_HANDOFF_ENABLED === 'true'
-          && <AuditCheckout state={state} profile={access.currentProfile} onNavigate={actions.goTo} />}
+          && <AuditCheckout key={paymentSession} state={state} profile={access.currentProfile} onNavigate={actions.goTo} />}
         <footer>
           <span>Always Open Commerce · USD · Estimates only</span>
           <span>{estimatorBank.version}</span>
