@@ -336,7 +336,7 @@ export async function handleJourneyAnalysis(request, environment = process.env) 
   const [{ default: Bank }, { default: JourneyContract }] = await Promise.all([
     import('../public/approved-bank.js'), import('../public/journey-contract.js'),
   ]);
-  if (!Bank.areas.some(area => area.id === body.area) || typeof body.text !== 'string' || body.text.trim().length < 30 || body.text.length > 18000) {
+  if (!Pricing.simplified.activeAreaIds.includes(body.area) || typeof body.text !== 'string' || body.text.trim().length < 30 || body.text.length > 18000) {
     return json({ error: 'Choose an area and describe the process in 30-18,000 characters.' }, 400);
   }
   if (!consumeRateLimit(request, 'journey')) {

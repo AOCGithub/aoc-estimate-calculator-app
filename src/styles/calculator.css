@@ -48,6 +48,8 @@
 .area.selected { border-color: var(--teal); background: var(--brand-primary-soft); box-shadow: 0 0 0 1px var(--teal); }
 .area.selected .icon { background: white; border-color: #b4b4d6; }
 .area.selected .area-arrow { color: var(--teal); }
+.area--coming-soon, .area--coming-soon:disabled { cursor: not-allowed; color: var(--muted); background: #f7f8fa; opacity: .8; }
+.area--coming-soon small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
 footer { display: flex; justify-content: space-between; gap: 15px; margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
 
 /* A short overview, with every supporting number available on demand. */

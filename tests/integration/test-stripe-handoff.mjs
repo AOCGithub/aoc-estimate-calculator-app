@@ -5,6 +5,7 @@ import path from 'node:path';
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import fixture from '../fixtures/commercial.cjs';
+import Calculation from '../../public/journey-calculation.js';
 import { createHandoffStore } from '../../server/payments/handoff-store.mjs';
 import { createG2Payments,handleG2Payment } from '../../server/payments/stripe-handoff.mjs';
 import { handleAccessVerification } from '../../server/api-handlers.mjs';
@@ -109,7 +110,7 @@ try{
  await check('Access, origin, consent, missing description, blocked scope and client price overrides are rejected',async()=>{
   assert.equal((await api.handle(request('/api/payments/quote-request',{method:'POST',body:payload()}))).status,401);
   assert.equal((await send('/api/payments/quote-request',{method:'POST',body:payload(),headers:{origin:'https://elsewhere.example'}})).status,403);
-  for(const change of [p=>p.consent=false,p=>p.description='',p=>p.amount=1,p=>p.service={refund:'Unconditional refund'},p=>p.calculation.confirmed=false,p=>p.calculation.answers.legacy_system_check='Restricted',p=>p.calculation.answers.steps_band=5,p=>p.calculation=null]){
+  for(const change of [p=>p.consent=false,p=>p.description='',p=>p.amount=1,p=>p.service={refund:'Unconditional refund'},p=>p.calculation.confirmed=false,p=>p.calculation.answers.legacy_system_check='Restricted',p=>p.calculation.answers.implementation_fee=11500,p=>p.calculation.answers.steps_band=5,p=>p.calculation=null]){
    const p=payload();change(p);assert.equal((await send('/api/payments/quote-request',{method:'POST',body:p})).status,400);
   }
   assert.equal(store.counts().submissions,0);
@@ -118,8 +119,9 @@ try{
   const isolatedStore=createHandoffStore(':memory:');
   try{
    const isolatedApi=createG2Payments({environment:env,store:isolatedStore,stripe:provider.stripe});
-   const quoted=await requestQuote(payload(),isolatedApi);
-   assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,172500);assert.equal(quoted.calculated,true);
+   const body=payload(),expected=Calculation.calculate(body.calculation).result;
+   const quoted=await requestQuote(body,isolatedApi);
+   assert.equal(quoted.status,'quoted');assert.equal(quoted.amount,Math.round(expected.audit*100));assert.equal(quoted.calculated,true);
    assert.equal(isolatedStore.counts().quotes,1);assert.equal(isolatedStore.counts().purchases,0);
    const staleCheckout=await isolatedApi.handle(request('/api/payments/checkout',{method:'POST',cookie:auth,
     body:{consent:true,submissionReference:quoted.submissionReference}}));
@@ -142,8 +144,8 @@ try{
   assert.notEqual(initial.purchase.submissionReference,initial.purchase.recordingReference);
   assert.equal(initial.purchase.snapshot.description,initial.body.description);
   assert.deepEqual(initial.purchase.snapshot.answers,initial.body.calculation.answers);
-  assert.equal(initial.purchase.snapshot.result.build,11500);
-  assert.equal(initial.purchase.amount,172500);
+  assert.equal(initial.purchase.snapshot.result.build,Calculation.calculate(initial.body.calculation).result.build);
+  assert.equal(initial.purchase.amount,Math.round(initial.purchase.snapshot.result.audit*100));
   assert.equal(initial.purchase.purchaseAgreementVersion,auditService.purchaseAgreement.version);
   assert.ok(Number.isFinite(Date.parse(initial.purchase.purchaseAgreedAt)));
   assert.equal(store.purchase(initial.purchase.purchaseReference).purchase_agreement_version,auditService.purchaseAgreement.version);
@@ -152,7 +154,7 @@ try{
   assert.deepEqual(initial.purchase.snapshot.service,auditService);
   assert.equal(initial.purchase.outcome,'pending');assert.equal(initial.purchase.auditIntakeReference,null);assert.equal(initial.purchase.receiptUrl,null);
   const quote=(await (await send('/api/payments/status?submission_reference='+initial.purchase.submissionReference)).json()).quoteRequest;
-  assert.equal(quote.amount,172500);assert.equal(quote.calculated,true);assert.equal(quote.scope.description,initial.body.description);
+  assert.equal(quote.amount,initial.purchase.amount);assert.equal(quote.calculated,true);assert.equal(quote.scope.description,initial.body.description);
   assert.throws(()=>store.approveQuote({submissionReference:initial.purchase.submissionReference,amount:1,quotedBy:'tamper@example.com'}),/quote_locked/);
  });
  await check('Duplicate checkout requests reuse the purchase and Stripe idempotency key',async()=>{
@@ -276,19 +278,21 @@ try{
   assert.equal(store.counts().submissions,before.submissions+1);assert.equal(store.counts().purchases,before.purchases+1);
   assert.equal(provider.sessions.size,sessionsBefore+1);
  });
- await check('Different project totals create matching 15% audit amounts without client price control',async()=>{
-  for(const [projectTotal,fee] of [[8000,1200],[12001.67,1800.25]]){
-   const body=payload();body.calculation.answers.implementation_fee=projectTotal;
+ await check('Different reviewed scopes create matching 15% audit amounts without client price control',async()=>{
+  for(const steps of [2,3]){
+   const body=payload();body.calculation.answers.steps_band=steps;
+   const expected=Calculation.calculate(body.calculation).result;
    const started=await start(body),purchase=started.purchase;
-   assert.equal(purchase.amount,fee*100);
-   assert.equal(purchase.snapshot.result.build,projectTotal);
+   const fee=Math.round(expected.audit*100);
+   assert.equal(purchase.amount,fee);
+   assert.equal(purchase.snapshot.result.build,expected.build);
    assert.equal(purchase.snapshot.result.auditRate,.15);
    const session=provider.sessions.get(purchase.stripeCheckoutReference);
-   assert.equal(session.amount_total,fee*100);
-   assert.equal(session.line_items.data[0].price.unit_amount,fee*100);
+   assert.equal(session.amount_total,fee);
+   assert.equal(session.line_items.data[0].price.unit_amount,fee);
    session.status='expired';await event(purchase,{type:'checkout.session.expired',outcome:'incomplete'});
    const retry=await (await send('/api/payments/checkout',{method:'POST',body:{consent:true,purchaseAgreement:true,submissionReference:purchase.submissionReference}})).json();
-   assert.equal(retry.purchase.amount,fee*100);assert.equal(retry.purchase.recordingReference,purchase.recordingReference);
+   assert.equal(retry.purchase.amount,fee);assert.equal(retry.purchase.recordingReference,purchase.recordingReference);
   }
  });
  await check('Explicit refresh verifies Stripe, recovers a missed paid webhook and shares its single intake with later events',async()=>{
@@ -371,7 +375,8 @@ try{
   const client=messages.find(entry=>entry.message.to.address===email);
   assert.match(client.message.subject,/^\[Stripe test\]/);
   assert.match(client.message.text,/Hi Synthetic,/);
-  assert.match(client.message.text,/USD\s+1,725\.00/);
+  const expectedEmailAmount=(purchase.amount/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  assert.match(client.message.text,new RegExp('USD\\s+'+expectedEmailAmount.replace('.','\\.')));
   assert.match(client.message.text,/Nov 19, 2026, 4:30 AM UTC/);
   assert.match(client.message.text,/What Happens Next\?/i);
   assert.match(client.message.text,/https:\/\/pay\.stripe\.com\/receipts\/payment\/fixture/);

@@ -170,8 +170,8 @@ export default function Calculator({ access, profiles }) {
         <details className="journey-context">
           <summary>About this estimate</summary>
           <p>
-            Tell us what you want to improve. Review the details we collect, then explore the build,
-            support and potential value without needing to know the technology.
+            Tell us what you want to improve. Review the provisional fixed-price estimate, baseline
+            value, and possible third-party costs without needing to know the technology.
           </p>
           <p>
             <strong>Estimate notice.</strong> Prices are indicative calculations and are not an

@@ -19,33 +19,8 @@ try {
     const route = await import('../../api/' + path + '.mjs');
     assert.equal(typeof route.default.fetch, 'function', path + ' must use the Web Request/Response entry format.');
   }
-  const {area:fixtureArea,process_confirmed:fixtureConfirmed,management:fixtureManagement,...quoteAnswers}=commercialFixture;
-  const calculation = {
-    area: 'area0',
-    confirmed: true,
-    answers: {
-      ...quoteAnswers,
-      solution: 'workflow',
-      steps_band: 3,
-      variation_band: 3,
-      documentation_readiness: 'Notes or examples',
-      data_preparation_level: 'Some preparation',
-      systems: ['Hubstaff Time', 'Wave', 'Google Docs', 'Google Drive', 'Help Scout', 'Stripe'],
-      action_mode: 'approved',
-      consequential: 'yes',
-      people_count: 3,
-      department_count: 2,
-      handover: 'group',
-      legacy_system_check: 'Standard',
-      cadence: 'monthly',
-      responsibility_split: 'aoc',
-      tier: 'priority',
-      team_time: 40,
-      blended_hourly_cost: 50,
-      software_replaced_portion: 'none',
-      incremental_software_cost: 0,
-    },
-  };
+  const {area:fixtureArea,process_confirmed:fixtureConfirmed,...quoteAnswers}=commercialFixture;
+  const calculation = { area: fixtureArea, confirmed: fixtureConfirmed, answers: quoteAnswers };
   let response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {
     method: 'POST',
     headers: { origin, 'content-type': 'application/json' },
@@ -54,31 +29,18 @@ try {
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.equal(result.source, 'server');
-  assert.equal(result.result.build, 11500);
-  assert.equal(result.result.audit, 1725);
+  assert.equal(result.result.build, 12250);
+  assert.equal(result.result.audit, 1837.5);
   assert.equal(result.result.auditRate, 0.15);
-  assert.equal(result.result.monthly, null,'unapproved project-support price stays pending');
-  assert.equal(result.version, '2026-11-24-project-audit-15-percent-v1');
-  for (const implementationFee of [0, '']) {
-    response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {
-      method: 'POST', headers: { origin, 'content-type': 'application/json' },
-      body: JSON.stringify({ ...calculation, answers: { ...calculation.answers, preparation_fee: 2000, implementation_fee: implementationFee, responsibility_split: 'client' } }),
-    }));
-    assert.equal(response.status, 200, 'zero and unknown quote components are both valid inputs');
-    const quoted = (await response.json()).result;
-    assert.equal(quoted.buildQuoted, implementationFee === 0);
-    assert.equal(quoted.projectBalance, implementationFee === 0 ? 750 : null);
-    assert.equal(quoted.firstProjectPayment, implementationFee === 0 ? 375 : null);
-    assert.equal(quoted.secondProjectPayment, implementationFee === 0 ? 375 : null);
-    assert.equal(quoted.payback, implementationFee === 0 ? .65625 : null);
-  }
-  const monthlyRequest = { ...calculation, answers: { ...calculation.answers, implementation_route:'monthly', audit_accepted_route:'monthly', delivery_intent:'ongoing', monthly_plan:'level2', comparison_months:12, benefit_months:6 } };
+  assert.equal(result.result.monthly, 0, 'the retired monthly service price is not calculated');
+  assert.equal(result.version, 'simplified-2026-11-25-v7-paid-advertising-coming-soon');
+  const monthlyRequest = { ...calculation, answers: { ...calculation.answers, implementation_route:'monthly', monthly_plan:'level2' } };
   response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(monthlyRequest)}));
   assert.equal(response.status,400, 'deferred monthly programs cannot be priced by the launch API');
-  assert.match((await response.json()).error, /Invalid choice/);
-  for(const [key,value] of [['tier','critical'],['audit_sent_date','2026-02-30'],['audit_fee',false]]) {
+  assert.match((await response.json()).error, /Unknown calculation field/);
+  for(const [key,value] of [['action_mode','manage'],['data_preparation_level','Some preparation'],['workspace_context','personal']]) {
     response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({...calculation,answers:{...calculation.answers,[key]:value}})}));
-    assert.equal(response.status,400,'invalid commercial input is rejected');
+    assert.equal(response.status,400,'invalid simplified-rule input is rejected');
   }
 
   response = await calculationRoute.fetch(new Request(`${origin}/api/journey/calculate`, {
@@ -146,7 +108,7 @@ try {
     body: JSON.stringify({ area: 'area0', text: 'We prepare 40 invoices in Wave each month.' }),
   }));
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).analysis.facts.length, 2);
+  assert.deepEqual((await response.json()).analysis.facts.map(fact => fact.id), ['invoice_volume']);
 
   const unknownResponsibility = 'We do not yet know who should manage it. Please help us identify the missing details.';
   output.facts = [{ id: 'responsibility_split', value: 'help', quote: unknownResponsibility }];
@@ -156,7 +118,7 @@ try {
     body: JSON.stringify({ area: 'area0', text: unknownResponsibility }),
   }));
   assert.equal(response.status, 200);
-  assert.deepEqual((await response.json()).analysis.facts, [], 'API removes unsupported management-help choices');
+  assert.deepEqual((await response.json()).analysis.facts, [], 'API removes retired management-help choices');
 
   const manualPublishing = 'Staff review and publish everything manually.';
   const unknownManager = manualPublishing + ' We do not know how many people will use it, who will manage the finished workflow, or how much time it will save.';
@@ -165,8 +127,7 @@ try {
     method: 'POST', headers: { origin, 'content-type': 'application/json' },
     body: JSON.stringify({ area: 'area10', text: unknownManager }),
   }));
-  assert.equal(response.status, 200);
-  assert.deepEqual((await response.json()).analysis.facts, [], 'API keeps future management unknown despite manual publishing');
+  assert.equal(response.status, 400, 'future business areas cannot be analyzed before launch');
 
   const explicitManagementHelp = 'Please help us decide who should manage the process.';
   output.facts = [{ id: 'responsibility_split', value: 'help', quote: explicitManagementHelp }];
@@ -176,7 +137,7 @@ try {
     body: JSON.stringify({ area: 'area0', text: explicitManagementHelp }),
   }));
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).analysis.facts[0].value, 'help', 'API preserves explicit management-help requests');
+  assert.deepEqual((await response.json()).analysis.facts, [], 'API excludes retired management-help fields');
 
   for (const [text, value, expected] of [
     ['A person must approve every reply in Help Scout.', 'approved', []],

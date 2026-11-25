@@ -92,7 +92,7 @@ try {
         await completeRecaptcha(page, status.recaptcha);
         await page.getByRole('button', { name: 'Continue to calculator', exact: true }).click();
         await page.locator('.area').first().waitFor();
-        assert.equal(await page.locator('.area').count(), 12);
+        assert.equal(await page.locator('.area').count(), 11);
         assert.deepEqual(await page.evaluate(() => AOCJourney.getState().answers), {});
 
         const requests = await forms();

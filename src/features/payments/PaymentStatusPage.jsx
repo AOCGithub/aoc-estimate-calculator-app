@@ -31,23 +31,23 @@ function SavedPurchaseDetails({ purchase }) {
   const { result } = snapshot;
   const build = result.buildQuoted ? result.build : result.provisionalBuild;
   return <div className="payment-status__details">
-    {snapshot.service && <details><summary>Audit details</summary><AuditDetails service={snapshot.service} /></details>}
+    {snapshot.service && <details><summary>Discovery details</summary><AuditDetails service={snapshot.service} /></details>}
     <details><summary>Work description and estimate</summary>
       <p className="payment-status__description">{snapshot.description}</p>
       <p>{result.buildQuoted ? 'Project quote entered' : 'Build estimate'}: <strong>{money(build)}</strong>. {result.auditRate === .15
-        ? 'The one-time audit fee was calculated at 15% of this saved project estimate.'
-        : 'The audit fee is separate from the cost of the build.'}</p>
+        ? 'The one-time discovery fee was calculated at 15% of this saved project estimate.'
+        : 'The discovery fee is separate from the cost of the build.'}</p>
       {result.lines.length > 0 && <>
         <p className="helper">Here’s how the calculator estimated the cost of the build.</p>
         <ul>{result.lines.map(line => <li key={line.label}>{line.label}: {money(line.amount)}</li>)}</ul>
       </>}
       <p className="helper">We saved this copy when you started checkout.</p>
     </details>
-    <details><summary>Submission and audit references</summary>
+    <details><summary>Submission and discovery references</summary>
       <dl className="g2-purchase__references">
         <div><dt>Submission reference</dt><dd>{purchase.submissionReference}</dd></div>
         <div><dt>Work-description reference</dt><dd>{purchase.recordingReference}</dd></div>
-        <div><dt>Audit request reference</dt><dd>{purchase.auditIntakeReference || 'Waiting for payment confirmation'}</dd></div>
+        <div><dt>Discovery request reference</dt><dd>{purchase.auditIntakeReference || 'Waiting for payment confirmation'}</dd></div>
       </dl>
     </details>
   </div>;
@@ -114,7 +114,7 @@ export default function PaymentStatusPage() {
   }, [reference]);
 
   useEffect(() => {
-    document.title = 'Audit payment | Always Open Commerce';
+    document.title = 'Discovery payment | Always Open Commerce';
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
@@ -198,16 +198,16 @@ export default function PaymentStatusPage() {
   return <div className="payment-status">
     <header className="payment-status__header"><div><Brand /><a href={returnUrl}>Back to calculator</a></div></header>
     <main className="payment-status__main">
-      <section className="g2-purchase payment-status__card" aria-label="Audit payment">
+      <section className="g2-purchase payment-status__card" aria-label="Discovery payment">
         <div className="payment-status__banner" data-outcome={outcome}>
-          <p className="eyebrow">AUDIT PAYMENT</p>
+          <p className="eyebrow">DISCOVERY PAYMENT</p>
           <h1 aria-live="polite">{title}</h1>
           {message && <p>{message}</p>}
         </div>
         <div className="payment-status__body">
           {purchase && <dl className="payment-status__summary">
             <div><dt>Service</dt><dd>{purchase.item}</dd></div>
-            <div><dt>{outcome === 'paid' ? 'Amount paid' : 'Audit amount'}</dt><dd>{money(purchase.amount / 100)} {purchase.currency.toUpperCase()}</dd></div>
+            <div><dt>{outcome === 'paid' ? 'Amount paid' : 'Discovery fee'}</dt><dd>{money(purchase.amount / 100)} {purchase.currency.toUpperCase()}</dd></div>
             <div><dt>Purchase reference</dt><dd>{purchase.purchaseReference}</dd></div>
             {purchase.paidAt && <div><dt>Payment confirmed</dt><dd>{new Date(purchase.paidAt).toLocaleString()}</dd></div>}
           </dl>}

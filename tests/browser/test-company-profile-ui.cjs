@@ -8,7 +8,7 @@ async function entry(page, changes = {}) {
   assert.equal(await page.getByRole('checkbox', { name: /Remember my business/ }).isChecked(), false);
   await page.getByRole('button', { name: 'Continue to calculator' }).click();
   await page.locator('.area').first().waitFor();
-  await page.getByRole('button', { name: 'Finance and billing', exact: true }).click();
+  await page.getByRole('button', { name: 'Finance & billing', exact: true }).click();
 }
 async function section(page, step) {
   if (await page.locator('#section-picker').isVisible()) await page.locator('#section-picker').selectOption(String(step));
@@ -61,19 +61,15 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         await entry(page);
         await section(page, 4);
         await page.locator('#f_systems').fill('Wave, Google Sheets');
-        await page.getByText('App actions and destinations', { exact: true }).click();
-        await page.locator('#f_app_access_owner').fill('Internal staff');
         let area = await panel(page);
         assert.equal(await area.getByRole('checkbox', { name: /^Save the selected company/ }).isChecked(), false);
         await area.getByRole('checkbox', { name: /^Apps and software: Wave/ }).check();
-        await area.getByRole('checkbox', { name: /^Who manages app access: Internal staff/ }).check();
         assert.equal(await area.getByRole('button', { name: 'Save selected company facts', exact: true }).isDisabled(), true);
         assert.equal(writes, 0, 'Selection without consent does not save.');
         await saveSelected(area);
         let snapshot = await saved(page);
         assert.equal(snapshot.profile.company, identity.company);
         assert.equal(snapshot.facts.systems.value, 'Wave, Google Sheets');
-        assert.equal(snapshot.facts.app_access_owner.source.kind, 'client_entry');
         assert.equal(snapshot.facts.systems.source.area, 'area0');
         assert.equal(await area.getByRole('checkbox', { name: /^Save the selected company/ }).isChecked(), false, 'Consent resets after a save.');
         await page.locator('#f_systems').fill('HubSpot');
@@ -92,7 +88,6 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         await review(page);
         // Save an information-location fact without changing the existing apps.
         await section(page, 5);
-        await page.getByText('Preparation details', { exact: true }).click();
         await page.locator('#f_data_information_location').selectOption('Shared files');
         area = await review(page);
         await area.getByRole('checkbox', { name: /^Where information is kept: Shared files/ }).check();
@@ -113,55 +108,41 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         await applySelected(area);
         assert.equal(await page.locator('#f_systems').inputValue(), 'Wave, Google Sheets');
         assert.equal(await page.locator('label[for="f_systems"] .filled').textContent(), 'From confirmed profile');
-        assert.equal(await page.evaluate(() => AOCJourney.getState().answers.app_access_owner), undefined, 'Unselected facts stay blank.');
-        assert.equal(await page.locator('#f_legacy_system_check').inputValue(), '', 'Feasibility checks need fresh answers.');
+        assert.equal(await page.evaluate(() => AOCJourney.getState().answers.workspace_context), undefined, 'Unselected account context stays blank.');
+        for (const id of ['responsibility_split', 'management', 'tier', 'handover', 'legacy_system_check']) {
+          assert.equal(await page.evaluate(key => Object.hasOwn(AOCJourney.getState().answers, key), id), false, `${id} is not restored from the profile`);
+        }
         await page.locator('#f_systems').fill('');
         assert.equal(await appFacts.isDisabled(), true, 'An explicitly cleared answer cannot be reintroduced.');
-        await page.locator('#restart').click();
-        await page.getByRole('dialog').getByRole('button', { name: 'Start over', exact: true }).click();
-        await page.getByRole('button', { name: 'Finance and billing', exact: true }).click();
-        await section(page, 4);
-        await page.getByText('App actions and destinations', { exact: true }).click();
-        await page.locator('#f_app_access_owner').fill('IT provider');
-        area = await review(page);
-        assert.equal(await area.getByRole('checkbox', { name: /^Who manages app access: Internal staff/ }).first().isDisabled(), true);
-        await area.getByRole('checkbox', { name: /^Apps and software: Wave/ }).first().check();
-        await applySelected(area);
-        assert.equal(await page.locator('#f_app_access_owner').inputValue(), 'IT provider');
-        await page.locator('#f_legacy_system_check').selectOption('Standard');
+        await page.locator('#f_systems').fill('Wave');
+        await page.locator('#f_workspace_context').selectOption('google_workspace');
+        await page.locator('#f_ai_account_context').selectOption('chatgpt_business');
         await section(page, 5);
         area = await review(page);
-        await area.getByRole('checkbox', { name: /^Where information is kept: Shared files/ }).first().check();
+        await area.getByRole('checkbox', { name: /^Where information is kept: Shared files/ }).check();
         await applySelected(area);
+        assert.equal(await page.locator('#f_data_information_location').inputValue(), 'Shared files');
         await page.locator('#f_documentation_readiness').selectOption('Notes or examples');
-        await page.locator('#f_data_preparation_level').selectOption('Some preparation');
+        await page.locator('#f_data_preparation_level').selectOption('partial');
         await section(page, 3);
-        await page.locator('#f_solution').selectOption('workflow');
         await page.getByText('Process complexity', { exact: false }).click();
         await page.locator('#f_steps_band').selectOption('3');
         await page.locator('#f_variation_band').selectOption('3');
         await page.getByText('Team and rollout', { exact: false }).click();
         for (const id of ['people_count', 'department_count']) await page.locator('#f_' + id).fill(id === 'people_count' ? '3' : '2');
         await page.locator('#f_cadence').selectOption('monthly');
-        await page.locator('#f_handover').selectOption('group');
+        await page.getByText('Action and review approach', { exact: true }).click();
+        await page.locator('#f_action_mode').selectOption('draft');
         await section(page, 6);
-        await page.getByText('Calculate potential value', { exact: true }).click();
         await page.locator('#f_team_time').fill('40');
         await page.locator('#f_blended_hourly_cost').fill('50');
-        await page.locator('#f_software_replaced_portion').selectOption('none');
-        await page.locator('#f_incremental_software_cost').fill('0');
         await section(page, 7);
-        for (const [id, value] of Object.entries({ responsibility_split: 'client', delivery_intent: 'limited', implementation_route: 'project', existing_client: 'no', action_mode: 'draft' })) await page.locator('#f_' + id).selectOption(value);
-        await page.locator('#quote-details > summary').click();
-        await page.getByText('Check an existing audit credit', { exact: true }).click();
-        await page.locator('#f_audit_fee').fill('1250');
-        for (const [id, value] of Object.entries({ audit_paid: '1250', audit_sent_date: '2020-01-01', implementation_acceptance_date: '2020-01-10', first_implementation_payment_date: '2020-01-15', preparation_fee: '0', implementation_fee: '11500' })) await page.locator('#f_' + id).fill(value);
-        for (const [id, value] of Object.entries({ audit_accepted_route: 'project', audit_credit_used: 'no', live_training: 'no' })) await page.locator('#f_' + id).selectOption(value);
         await page.locator('.check input').check();
         await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
         await page.waitForFunction(() => AOCJourney.getState().calculationSource === 'server' && !AOCJourney.getState().dirty);
-        assert.equal(await page.evaluate(() => AOCJourney.getState().result.build), 11500);
-        assert.equal(await page.evaluate(() => AOCJourney.getState().result.audit), 1725);
+        const currentAnswers = await page.evaluate(() => AOCJourney.getState().answers);
+        const expected = require('../../public/journey-calculation.js').calculate({ area: 'area0', answers: currentAnswers, confirmed: true }).result;
+        assert.deepEqual(await page.evaluate(() => AOCJourney.getState().result), expected);
         await page.locator('.result-download').scrollIntoViewIfNeeded();
         assert.equal(await page.locator('.result-download').evaluate(element => {
           const button = element.getBoundingClientRect();
@@ -173,12 +154,12 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         snapshot = await saved(page);
         const updated = await page.request.post(target + '/api/client-profile', { headers: { origin: target }, data: {
           profile: snapshot.profile, consent: true, confirmed: true, expectedRevision: snapshot.revision, area: 'area0',
-          facts: { app_version_plan: { value: 'Wave Pro', source: { kind: 'client_entry' } } },
+          facts: { data_preparation_owner: { value: 'Our team', source: { kind: 'client_entry' } } },
         } });
         assert.equal(updated.status(), 200);
-        await section(page, 4);
+        await section(page, 5);
         area = await review(page);
-        await area.getByRole('checkbox', { name: /^Product version or plan: Wave Pro/ }).check();
+        await area.getByRole('checkbox', { name: /^Who prepares missing information: Our team/ }).check();
         await applySelected(area);
         assert.equal(await page.evaluate(() => AOCJourney.getState().dirty), true);
         assert.match(await page.locator('#estimateStatus').textContent(), /RECALCULATE/);
@@ -186,17 +167,17 @@ const saved = async page => (await page.request.get(target + '/api/client-profil
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         // Explicit removal only changes the selected stored fact, not current answers.
         await area.getByText('Remove outdated facts', { exact: true }).click();
-        await area.getByRole('checkbox', { name: 'Remove saved product version or plan', exact: true }).check();
+        await area.getByRole('checkbox', { name: 'Remove saved who prepares missing information', exact: true }).check();
         await saveSelected(area);
-        assert.equal((await saved(page)).facts.app_version_plan, undefined);
-        assert.equal(await page.evaluate(() => AOCJourney.getState().answers.app_version_plan), 'Wave Pro');
+        assert.equal((await saved(page)).facts.data_preparation_owner, undefined);
+        assert.equal(await page.evaluate(() => AOCJourney.getState().answers.data_preparation_owner), 'Our team');
         await end(page);
         await entry(page, { company: 'Different Current Company' });
-        await section(page, 4);
+        await section(page, 5);
         area = await panel(page);
         await area.getByRole('button', { name: 'Review company profile', exact: true }).click();
         await area.getByRole('alert').filter({ hasText: 'different client details' }).waitFor();
-        assert.equal(await page.locator('#f_systems').inputValue(), '');
+        assert.equal(await page.locator('#f_data_information_location').inputValue(), '');
         assert.equal((await saved(page)).profile.company, identity.company);
         assert.equal(paidCalls, 0);
         assert.deepEqual(errors, []);

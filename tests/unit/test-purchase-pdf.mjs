@@ -3,6 +3,7 @@ import {createRequire} from 'node:module';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {auditService} from '../../server/payments/audit-service.mjs';
+import {money} from '../../src/lib/format.js';
 const require=createRequire(import.meta.url);
 globalThis.AOCBank=require('../../public/approved-bank.js');
 globalThis.AOCJourneyEngine=require('../../public/journey-engine.js');
@@ -37,9 +38,9 @@ async function inspect(purchase){
 }
 await mkdir('artifacts/g2',{recursive:true});
 const {text,pages,doc}=await inspect(structuredClone(original));
-for(const value of ['José Dela Peña',original.snapshot.description,original.submissionReference,original.recordingReference,original.purchaseReference,original.auditIntakeReference,'$1,725 USD','$11,500','Payment received','This payment covers the initial audit','Cash savings count expenses that would go away',auditService.credit,auditService.refund,auditService.version])assert.ok(text.includes(value),'Saved PDF includes '+value);
-assert.ok(text.includes('The audit fee is 15% of the saved one-time project estimate.'),'Current PDF explains the audit calculation');
-const sections=['Payment received','What the payment covers','Work you submitted','Your saved project estimate','Planning estimate breakdown','Ongoing costs and potential value','Next steps and audit terms','Supporting details for AOC','Saved answers'];
+for(const value of ['José Dela Peña',original.snapshot.description,original.submissionReference,original.recordingReference,original.purchaseReference,original.auditIntakeReference,money(original.amount/100)+' USD',money(result.build),'Payment received','This payment covers '+auditService.name,'Cash savings count expenses that would go away',auditService.credit,auditService.refund,auditService.version])assert.ok(text.includes(value),'Saved PDF includes '+value);
+assert.ok(text.includes('The paid discovery fee is 15% of the saved one-time build estimate.'),'Current PDF explains the paid discovery calculation');
+const sections=['Payment received','What the payment covers','Work you submitted','Your saved project estimate','Planning estimate breakdown','Ongoing costs and potential value','Next steps and discovery terms','Supporting details for AOC','Saved answers'];
 let lastSection=-1;
 for(const section of sections){
  const position=text.indexOf(section);
@@ -47,8 +48,8 @@ for(const section of sections){
  lastSection=position;
 }
 assert.match(text,/Scope classification Complex/);
-assert.match(text,/AOC monthly service Ongoing AOC support not included/);
-assert.match(text,/Recurring cash savings \$0 \/ month/);
+assert.match(text,/Proposed Launch Support Proposed one-time item; terms not finalized/);
+assert.doesNotMatch(text,/Recurring cash savings \$0 \/ month/);
 assert.ok(pages>=2&&pages<=8,'The full saved answer appendix has a bounded page count');
 await writeFile('artifacts/g2/payment-estimate-template.pdf',Buffer.from(doc.output('arraybuffer')));
 for(const outcome of ['pending','processing','failed','incomplete']){
@@ -64,30 +65,21 @@ const earlierOfferPdf=await inspect(earlierOffer);
 assert.ok(earlierOfferPdf.text.includes(earlierOffer.snapshot.service.refund));
 assert.ok(!earlierOfferPdf.text.includes(auditService.refund),'A purchase with prior terms keeps the wording shown at checkout');
 const optional=structuredClone(original);
-Object.assign(optional.snapshot.answers,{team_time:null,blended_hourly_cost:'',software_replaced_portion:null,incremental_software_cost:null});
+Object.assign(optional.snapshot.answers,{team_time:null,blended_hourly_cost:'',software_replaced_portion:null});
 optional.snapshot.result=calculate({area,confirmed:true,answers:optional.snapshot.answers}).result;
 const optionalPdf=await inspect(optional);
-assert.equal(optionalPdf.text.split('ROI not estimated because optional time or cost details were not provided.').length,2);
-assert.match(optionalPdf.text,/Software costs not provided/);
+assert.equal(optionalPdf.text.split('ROI not estimated because positive monthly hours and hourly cost are required.').length,2);
+assert.match(optionalPdf.text,/Future operating costs Not included in this estimate/);
 assert.doesNotMatch(optionalPdf.text,/Awaiting details|Estimated monthly value after costs|Illustrative payback/);
-assert.match(optionalPdf.text,/\$1,725 USD/);
-assert.match(optionalPdf.text,/Project quote entered \$11,500/);
+assert.ok(optionalPdf.text.includes(money(optional.amount/100)+' USD'));
+assert.match(optionalPdf.text,/Fixed-price build quote/);
+assert.match(optionalPdf.text,/Planning estimate for the build/);
 await writeFile('artifacts/g2/payment-estimate-optional-inputs.pdf',Buffer.from(optionalPdf.doc.output('arraybuffer')));
 
-const support=structuredClone(original);
-Object.assign(support.snapshot.answers,{responsibility_split:'shared',tier:'standard',implementation_fee:12001.67});
-support.amount=180025;
-support.snapshot.result=calculate({area,confirmed:true,answers:support.snapshot.answers}).result;
-const supportPdf=await inspect(support);
-assert.match(supportPdf.text,/Support fee to be quoted by AOC/);
-assert.match(supportPdf.text,/ROI can be estimated after AOC quotes the support fee/);
-assert.doesNotMatch(supportPdf.text,/ROI not estimated because optional/);
-assert.match(supportPdf.text,/\$1,800\.25 USD/);
-
-const undecided=structuredClone(support);
-undecided.snapshot.answers.responsibility_split='help';
-undecided.snapshot.result=calculate({area,confirmed:true,answers:undecided.snapshot.answers}).result;
-assert.match((await inspect(undecided)).text,/Support arrangement not specified/);
+const retired=structuredClone(original);
+Object.assign(retired.snapshot.answers,{responsibility_split:'shared',management:'yes',tier:'standard'});
+const retiredPdf=await inspect(retired);
+assert.doesNotMatch(retiredPdf.text,/Management after launch|Support fee to be quoted|Support arrangement not specified/);
 const long=structuredClone(original);long.snapshot.description=('Review draft invoices, keep human approvals, and flag unclear totals.\n\n').repeat(220)+'END OF SAVED DESCRIPTION';
 long.snapshot.answers.unknown_detail='x'.repeat(500)+' END OF LONG ANSWER';
 const longPdf=await inspect(long);assert.ok(longPdf.pages>pages);assert.ok(longPdf.text.includes('END OF SAVED DESCRIPTION'));assert.ok(longPdf.text.includes('END OF LONG ANSWER'));

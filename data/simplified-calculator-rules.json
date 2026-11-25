@@ -1,0 +1,79 @@
+{
+  "version": "simplified-2026-11-25-v7-paid-advertising-coming-soon",
+  "freeServiceName": "Free AI Commerce Audit & Estimate",
+  "paidServiceName": "AI Commerce Discovery & Implementation Plan",
+  "activeAreaIds": ["area2", "area0", "area1", "area3", "area4", "area5"],
+  "comingSoonAreas": [
+    { "id": "area6", "label": "CRO" },
+    { "id": "area7", "label": "Content Machine / social publishing" },
+    { "id": "area8", "label": "SEO / GEO" },
+    { "id": "area9", "label": "Email / lifecycle" },
+    { "id": "area10", "label": "Paid advertising" }
+  ],
+  "core": {
+    "simple": 1500,
+    "moderate": 3500,
+    "complex": 6000
+  },
+  "prep": {
+    "clean": 0,
+    "existing": 1000,
+    "partial": 1000,
+    "limited": 2000,
+    "unknown": 2000
+  },
+  "includedApps": 0,
+  "extraApp": 500,
+  "rolloutBase": 250,
+  "rolloutMedium": 500,
+  "rolloutLarge": 1500,
+  "departmentBase": 500,
+  "reviewWorkflow": 500,
+  "control": 1500,
+  "launchSupport": {
+    "amount": 500,
+    "status": "proposed",
+    "days": 30,
+    "requests": 5,
+    "followupsPerRequest": 2
+  },
+  "auditFraction": 0.15,
+  "auditCreditDays": 30,
+  "freedFraction": 0.8,
+  "retainedFraction": 0.2,
+  "rangeLow": 0.8,
+  "rangeHigh": 1.25,
+  "rangeRounding": 100,
+  "roi": {
+    "hoursRequired": true,
+    "staffCostRequired": true,
+    "futureOperatingCostsExcluded": true
+  },
+  "usage": {
+    "simple": { "low": 8, "high": 20 },
+    "moderate": { "low": 15, "high": 45 },
+    "complex": { "low": 30, "high": 90 },
+    "connectionLow": 2,
+    "connectionHigh": 4,
+    "extraTaskFactor": 0.15,
+    "documentHeavyFactor": 1.5,
+    "buffer": 1.25,
+    "rounding": 100,
+    "minimumCredits": 100,
+    "defaultMonthlyItems": 100,
+    "hourlyChecks": 720,
+    "defaultMonthlyChecks": 30
+  },
+  "makeBudget": {
+    "per1000CreditsLow": 1.5,
+    "per1000CreditsHigh": 3,
+    "minimumLow": 20,
+    "minimumHigh": 30,
+    "rounding": 5
+  },
+  "notices": {
+    "estimate": "Planning estimate only. Amounts and scope are provisional until confirmed during paid discovery and implementation planning.",
+    "usage": "Make credits and budget are planning estimates, not a Make tariff. Region, plan, billing and actual workload affect costs. External AI-provider charges are not included.",
+    "launchSupport": "Launch Support is a proposed mockup item, not an approved fee or finalized service."
+  }
+}

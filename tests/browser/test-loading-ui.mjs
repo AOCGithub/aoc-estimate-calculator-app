@@ -53,7 +53,7 @@ try {
       assert.deepEqual(requests.filter(file => rules.includes(file) || /\/Calculator-.*\.js$/.test(file)), [], 'Entry does not download calculator rules or code');
       assert.equal(await page.evaluate(() => globalThis.AOCJourney), undefined, 'No estimate state exists before entry');
       await enter(page);
-      assert.equal(await page.locator('.area').count(), 12);
+      assert.equal(await page.locator('.area').count(), 11);
       assert.equal(await page.evaluate(() => Boolean(globalThis.AOCCommercial?.numericIds?.length)), true, 'Commercial rules initialize before the calculator renders');
       for (const file of rules) assert.equal(requests.filter(request => request === file).length, 1, 'Rules load once: ' + file);
       assert.equal(requests.filter(file => /\/Calculator-.*\.js$/.test(file)).length, 1);
@@ -124,7 +124,7 @@ try {
       await context.unroute(blocked);
       await page.getByRole('button', { name: 'Reload calculator', exact: true }).click();
       await page.locator('.area').first().waitFor();
-      assert.equal(await page.locator('.area').count(), 12);
+      assert.equal(await page.locator('.area').count(), 11);
       console.log('PASS: Rules/chunk failure shows a useful retry; reload preserves the approved session: ' + blocked);
     } finally { await context.close(); }
   }
@@ -132,7 +132,7 @@ try {
   const page = await browser.newPage();
   await page.goto(origin, { waitUntil: 'domcontentloaded' });
   await page.locator('.area').first().waitFor();
-  assert.equal(await page.locator('.area').count(), 12, 'Ungated preview remains supported');
+  assert.equal(await page.locator('.area').count(), 11, 'Ungated preview remains supported');
   console.log('PASS: Ungated preview opens the same complete calculator. No external providers or production writes.');
 } finally {
   await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));

@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { scopeQuestions } from '../scopeQuestions.js';
-import { marketingAreas } from '../constants.js';
-import { MarketingFields } from './MarketingFields.jsx';
 import { QuestionBank } from './QuestionBank.jsx';
 
 export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, onRemoveField }) {
   const [query, setQuery] = useState('');
   const candidates = scopeQuestions(area);
   const chosen = candidates.filter((field) => state.visible.includes(field.id));
-  const allRoutes = [...new Set(area.routes)]
+  const allRoutes = [...new Set([...area.routes, ...state.routes])]
     .filter((route) => route && !/Shared oversight/i.test(route));
   const displayedRoutes = allRoutes.filter((route, index) =>
     state.routes.includes(route) || index < 6,
@@ -18,27 +16,11 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, o
   const complexityIds = [
     'steps_band',
     'variation_band',
-    ...(state.answers.solution === 'agent' ? ['decision_band'] : []),
   ];
   const rolloutIds = [
     'people_count',
     'department_count',
-    'cadence',
-    'handover',
   ];
-  const marketingIds = marketingAreas.has(state.area) ? [
-    'capability_count',
-    'brand_count',
-    'language_count',
-    'delivery_mode',
-    ...(state.area === 'area7' ? ['channel_count', 'format_count'] : []),
-    ...(state.area === 'area8' ? ['initial_pages', 'keyword_count', 'market_count'] : []),
-    ...(state.answers.delivery_mode === 'managed'
-      ? state.area === 'area8'
-        ? ['monthly_pages', 'monthly_articles']
-        : ['monthly_outputs']
-      : []),
-  ] : [];
   const answeredCount = (ids) => ids.filter(hasAnswer).length;
   const progress = (ids) => `${answeredCount(ids)} of ${ids.length}`;
 
@@ -51,18 +33,14 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, o
           <strong>{state.analysis.title}</strong>
           <p>{state.analysis.summary}</p>
           <span className="proposed">
-            Recommended solution: {state.analysis.solution}. {state.analysis.recommendationReason}
+            Initial technical direction: {state.analysis.solution}. AOC confirms the approach during paid discovery.
           </span>
         </div>
       ) : (
         <div className="subtle">
-          No AI analysis yet. You can still enter the main facts below and choose relevant details.
+          No AI analysis yet. You can still describe the stages and choose relevant details.
         </div>
       )}
-      {fields.select('solution', 'Recommended starting solution', [
-        ['workflow', 'Automated workflow'],
-        ['agent', 'AI agent'],
-      ], 'A recommendation for this connected process; subject to review.')}
 
       <details
         className="optional-section required-section estimate-details"
@@ -70,10 +48,10 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, o
         defaultOpen={answeredCount(complexityIds) < complexityIds.length}
       >
         <summary>
-          <span>1. Process complexity</span>
-          <span className="disclosure-meta">{progress(complexityIds)} required</span>
+          <span>Process complexity</span>
+          <span className="disclosure-meta">{progress(complexityIds)} answered</span>
         </summary>
-        <p className="helper">These answers set the base build band. Approximate answers are enough.</p>
+        <p className="helper">Approximate answers are enough. Missing complexity answers default to Moderate unless a higher known answer applies.</p>
         {state.analysis?.classification?.reason && (
           <p className="proposed">Proposed classification: {state.analysis.classification.reason}</p>
         )}
@@ -108,40 +86,34 @@ export function ScopeSection({ state, area, fields, onToggleRoute, onAddField, o
           <span>2. Team and rollout</span>
           <span className="disclosure-meta">{progress(rolloutIds)} required</span>
         </summary>
-        <p className="helper">These details affect rollout, training, and managed-service pricing.</p>
+        <p className="helper">People and departments affect the fixed-price estimate. Unknown workload uses a disclosed planning assumption.</p>
         <div className="grid">
-          {fields.input('people_count', 'How many people work on this process?', 'Approximate total people involved.', 'number')}
-          {fields.input('department_count', 'How many teams or departments?', 'Count participating teams once.', 'number')}
+          {fields.input('people_count', 'How many people work on this process?', 'Approximate total people involved.', 'number', { min: '1' })}
+          {fields.input('department_count', 'How many teams or departments?', 'Count participating teams once.', 'number', { min: '1' })}
         </div>
         {fields.select('cadence', 'How often should it run?', [
           ['monthly', 'Monthly'],
           ['weekly', 'Weekly'],
           ['daily', 'Daily'],
+          ['hourly', 'Hourly'],
           ['realtime', 'As events happen'],
-        ])}
-        {fields.select('handover', 'Who needs training and handover?', [
-          ['one', 'One person'],
-          ['group', 'One team'],
-          ['multiple', 'Several teams'],
-        ], 'Reusable training videos and operating instructions are included. Additional hands-on/live training is quoted separately.')}
+        ], 'Used for a planning estimate only; the actual schedule is confirmed during paid discovery.')}
       </details>
-      {marketingAreas.has(state.area) && (
-        <details
-          className="optional-section required-section estimate-details"
-          name="estimate-essentials"
-          defaultOpen={
-            answeredCount(complexityIds) === complexityIds.length
-            && answeredCount(rolloutIds) === rolloutIds.length
-            && answeredCount(marketingIds) < marketingIds.length
-          }
-        >
-          <summary>
-            <span>3. Marketing scope</span>
-            <span className="disclosure-meta">{progress(marketingIds)} required</span>
-          </summary>
-          <MarketingFields areaId={state.area} answers={state.answers} fields={fields} />
-        </details>
-      )}
+      <details className="optional-section estimate-details" name="estimate-essentials">
+        <summary>Action and review approach</summary>
+        <p className="helper">If not yet decided, the estimate assumes review-first handling.</p>
+        {fields.select('action_mode', 'What should happen before a message is sent or a record changes?', [
+          ['draft', 'Prepare a draft for a person to review'],
+          ['approved', 'Make the change after a person approves it'],
+          ['automatic', 'Allow routine actions within agreed limits'],
+        ])}
+        {state.answers.action_mode === 'automatic' && fields.select(
+          'consequential',
+          'Could those automatic actions affect money, stock, orders, or sensitive records?',
+          [['yes', 'Yes'], ['no', 'No']],
+          'Consequential automatic actions need additional safeguards.',
+        )}
+      </details>
       <details className="field-bank compact-details" defaultOpen={chosen.length > 0 && !state.analysis}>
         <summary>
           Review detailed scope{state.routes.length ? ` (${state.routes.length} selected)` : ' (optional)'}

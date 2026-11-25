@@ -5,8 +5,8 @@ import Pricing from '../../public/approved-pricing.js';
 // Customer wording only: this does not approve a quote or automate fulfilment,
 // audit-credit redemption, refunds, delivery dates or client communications.
 export const auditService = {
-  version: '2026-11-18-audit-v2',
-  name: 'Initial audit & roadmap',
+  version: '2026-11-25-discovery-plan-v2',
+  name: Pricing.simplified.paidServiceName,
   description: 'We’ll review how your team works today and tell you what’s possible. If we find an approach that works, we’ll give you a plan and a quote for the build.',
   included: [
     'A review of your process, the information you have and the apps we’d need to connect.',
@@ -14,11 +14,11 @@ export const auditService = {
     'If we find a workable option, a build plan with the proposed steps, what’s included, a quote and estimated running costs.',
   ],
   excluded: 'The build, ongoing services, software and platform costs, and ad spend are priced separately.',
-  delivery: 'We aim to deliver the audit within 5 business days after we confirm we have everything we need, unless we agree on a different timeline.',
-  credit: `You can put the full audit fee you paid toward the build once. To qualify, accept the build quote and make the required first build payment within ${Pricing.commercial.auditCreditDays} calendar days after we send the approved audit. AOC confirms and applies the credit.`,
-  refund: 'If we can’t confirm and deliver a workable approach for the work covered by your audit, we’ll refund the audit fee in full.',
+  delivery: 'We aim to deliver the Discovery & Implementation Plan within 5 business days after we confirm we have everything we need, unless we agree on a different timeline.',
+  credit: `You can put the full Discovery & Implementation Plan fee you paid toward the build once. To qualify, accept the build quote and make the required first build payment within ${Pricing.commercial.auditCreditDays} calendar days after we send the approved plan. AOC confirms and applies the credit.`,
+  refund: 'If we can’t confirm and deliver a workable approach for the work covered by your Discovery & Implementation Plan purchase, we’ll refund the fee in full.',
   purchaseAgreement: {
-    version: '2026-11-24-audit-purchase-v1',
-    text: 'I have reviewed the audit scope, one-time fee, delivery, credit and refund terms, and agree to purchase the AI Commerce Audit. Implementation and ongoing services are separate.',
+    version: '2026-11-25-discovery-plan-purchase-v2',
+    text: `I have reviewed the paid discovery scope, one-time fee, delivery, credit and refund terms, and agree to purchase the ${Pricing.simplified.paidServiceName}. Implementation and ongoing services are separate.`,
   },
 };

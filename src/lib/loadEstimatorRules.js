@@ -36,7 +36,10 @@ export function loadEstimatorRules() {
       loadEstimatorBank(),
       loadScript('/approved-pricing.js', () => globalThis.AOCPricing),
       loadScript('/commercial.js', () => globalThis.AOCCommercial),
-    ]).then(() => loadScript('/journey-engine.js', () => globalThis.AOCJourneyEngine));
+    ]).then(() => Promise.all([
+      loadScript('/journey-engine.js', () => globalThis.AOCJourneyEngine),
+      loadScript('/journey-contract.js', () => globalThis.AOCJourneyContract),
+    ]));
   }
   return loading;
 }

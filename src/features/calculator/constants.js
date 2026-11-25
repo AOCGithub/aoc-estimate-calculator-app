@@ -5,7 +5,7 @@ export const sectionTitles = [
   'Apps and software',
   'Documents and data',
   'Time, costs and value',
-  'Responsibilities and service',
+  'Your next step',
 ];
 
 export const numericFields = new Set([

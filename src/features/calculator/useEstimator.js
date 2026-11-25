@@ -73,15 +73,22 @@ function normalizePrefillValue(id, rawValue) {
   const normalized = value.toLowerCase();
   const includes = (text) => normalized.includes(text);
 
-  if (id === 'responsibility_split') {
-    if (includes('shared')) return 'shared';
-    if (includes('aoc') || includes('always open')) return 'aoc';
-    if (includes('our team') || includes('client')) return 'client';
-    if (includes('help') || includes('decide')) return 'help';
+  if (id === 'workspace_context') {
+    if (includes('google workspace')) return 'google_workspace';
+    if (includes('microsoft 365') || includes('office 365')) return 'microsoft_365';
+    if (includes('no shared') || normalized === 'none') return 'none';
+    if (includes('not sure') || includes('unknown')) return 'unknown';
+    if (value) return 'other';
   }
-  if (id === 'management') {
-    if (['yes', 'true'].includes(normalized)) return 'yes';
-    if (['no', 'false'].includes(normalized)) return 'no';
+  if (id === 'ai_account_context') {
+    if (includes('chatgpt business') || includes('chatgpt enterprise')) return 'chatgpt_business';
+    if (includes('chatgpt')) return 'chatgpt_personal';
+    if (includes('claude team') || includes('claude enterprise')) return 'claude_team';
+    if (includes('claude')) return 'claude_personal';
+    if (includes('gemini')) return 'gemini';
+    if (includes('none')) return 'none';
+    if (includes('not sure') || includes('unknown')) return 'unknown';
+    if (value) return 'other';
   }
   if (id === 'action_mode') {
     if (includes('automatic') || includes('within agreed limits')) return 'automatic';
@@ -92,23 +99,12 @@ function normalizePrefillValue(id, rawValue) {
     if (/^(yes|true)/.test(normalized)) return 'yes';
     if (/^(no|false)/.test(normalized)) return 'no';
   }
-  if (id === 'handover') {
-    if (includes('several') || includes('multiple')) return 'multiple';
-    if (includes('team') || includes('group')) return 'group';
-    if (includes('one') || includes('person')) return 'one';
-  }
   if (id === 'cadence') {
+    if (includes('hourly') || includes('every hour')) return 'hourly';
     if (includes('real') || includes('event')) return 'realtime';
     if (includes('daily') || includes('every day')) return 'daily';
     if (includes('weekly') || includes('every week')) return 'weekly';
     if (includes('monthly') || includes('every month')) return 'monthly';
-  }
-  if (id === 'legacy_system_check') {
-    if (includes('restrict') || includes('access denied') || includes('unavailable')) return 'Restricted';
-    if (includes('custom')) return 'Customized';
-    if (includes('older') || includes('legacy')) return 'Older';
-    if (includes('standard')) return 'Standard';
-    if (includes('not sure') || includes('unknown')) return 'Not sure';
   }
   if (id === 'documentation_readiness') {
     if (includes('clear') || includes('current')) return 'Clear and current';
@@ -118,19 +114,11 @@ function normalizePrefillValue(id, rawValue) {
     if (includes('not sure') || includes('unknown')) return 'Not sure';
   }
   if (id === 'data_preparation_level') {
-    if (includes('substantial')) return 'Substantial preparation';
-    if (includes('some')) return 'Some preparation';
-    if (includes('ready')) return 'Mostly ready';
-    if (includes('not sure') || includes('unknown')) return 'Not sure';
-  }
-  if (id === 'delivery_mode') {
-    if (includes('managed') || includes('production')) return 'managed';
-    if (includes('maintenance') || includes('maintain')) return 'maintenance';
-  }
-  if (id === 'tier') {
-    if (includes('premier')) return 'premier';
-    if (includes('priority')) return 'priority';
-    if (includes('standard')) return 'standard';
+    if (includes('clean') && includes('complete') && includes('organized') && includes('current') && includes('consistent')) return 'clean';
+    if (includes('existing') || includes('mostly ready') || includes('review') || includes('organizing')) return 'existing';
+    if (includes('substantial') || includes('mostly staff') || includes('staff knowledge') || includes('limited')) return 'limited';
+    if (includes('some') || includes('partial') || includes('gaps')) return 'partial';
+    if (includes('not sure') || includes('unknown')) return 'unknown';
   }
   if (id === 'provider_replaced_portion' || id === 'software_replaced_portion') {
     if (includes('entire') || normalized === 'all') return 'all';
@@ -153,6 +141,7 @@ function createLocalAnalysis(areaId, description) {
   const lower = description.toLowerCase();
   const systems = [];
   const evidence = [];
+  const connectionAction = /\b(?:connect(?:ed|ing|ion)?|integrat(?:e|ed|ing|ion)|read(?:s|ing)?|write(?:s|ing)?|sync(?:s|ed|ing)?|send(?:s|ing)?|updat(?:e|ed|ing)|creat(?:e|ed|ing)|retriev(?:e|ed|ing)|submit(?:s|ted|ting)?|post(?:s|ed|ing)|import(?:s|ed|ing)?|export(?:s|ed|ing)?|access|query|fetch|push|pull|modify|delete|move|capture)\b/i;
 
   function findTerm(term) {
     const normalized = term.toLowerCase();
@@ -168,10 +157,18 @@ function createLocalAnalysis(areaId, description) {
     return -1;
   }
 
-  function addSystem(name, matchedText) {
+  function sentenceAt(index) {
+    let start = index;
+    let end = index;
+    while (start > 0 && !/[.!?;\n]/.test(description[start - 1])) start -= 1;
+    while (end < description.length && !/[.!?;\n]/.test(description[end])) end += 1;
+    return { start, end, text: description.slice(start, end).trim() };
+  }
+
+  function addSystem(name, quoteRange) {
     if (systems.some((system) => system.toLowerCase() === name.toLowerCase())) return;
     systems.push(name);
-    evidence.push(matchedText);
+    evidence.push(quoteRange);
   }
 
   const facts = [];
@@ -188,13 +185,23 @@ function createLocalAnalysis(areaId, description) {
 
   for (const name of estimatorBank.appNames) {
     const index = findTerm(name);
-    if (index >= 0) addSystem(name, description.slice(index, index + name.length));
+    if (index >= 0) {
+      const quote = sentenceAt(index);
+      if (connectionAction.test(quote.text) && quote.text.toLowerCase().includes(name.toLowerCase())) addSystem(name, quote);
+    }
   }
   for (const [phrase, name] of localAppAliases) {
     const index = findTerm(phrase);
-    if (index >= 0) addSystem(name, description.slice(index, index + phrase.length));
+    if (index >= 0) {
+      const quote = sentenceAt(index);
+      if (connectionAction.test(quote.text) && quote.text.toLowerCase().includes(name.toLowerCase())) addSystem(name, quote);
+    }
   }
-  if (systems.length) addFact('systems', systems.join(', '), description.trim().slice(0, 500));
+  if (systems.length) {
+    const start = Math.min(...evidence.map(quote => quote.start));
+    const end = Math.max(...evidence.map(quote => quote.end));
+    addFact('systems', systems.join(', '), description.slice(start, end).trim());
+  }
 
   addMatchedFact('people_count', /\b(?:team of\s+)?(\d+)\s+(?:people|staff(?: members?)?|employees?|users?)\b/i);
   addMatchedFact('department_count', /\b(\d+)\s+(?:teams?|departments?)\b/i);
@@ -234,31 +241,18 @@ function createLocalAnalysis(areaId, description) {
   addMatchedFact('documentation_readiness', /\bpartial(?:ly)?\s+(?:documented|documentation|instructions?)\b/i, () => 'Partial documentation');
   addMatchedFact('documentation_readiness', /\b(?:notes?|examples?)\b/i, () => 'Notes or examples');
   addMatchedFact('documentation_readiness', /\b(?:staff|team) knowledge\b/i, () => 'Mostly staff knowledge');
-  addMatchedFact('data_preparation_level', /\b(?:mostly ready|clean and ready|already organized)\b/i, () => 'Mostly ready');
-  addMatchedFact('data_preparation_level', /\b(?:some (?:cleanup|preparation|organizing)|partly organized)\b/i, () => 'Some preparation');
-  addMatchedFact('data_preparation_level', /\b(?:substantial|major|extensive) (?:cleanup|preparation|organizing)\b/i, () => 'Substantial preparation');
+  addMatchedFact('data_preparation_level', /\b(?:all instructions and data are complete, organized, current, and consistent)\b/i, () => 'clean');
+  addMatchedFact('data_preparation_level', /\b(?:mostly ready|existing material needs review|already organized)\b/i, () => 'existing');
+  addMatchedFact('data_preparation_level', /\b(?:some (?:cleanup|preparation|organizing)|partly organized|gaps remain)\b/i, () => 'partial');
+  addMatchedFact('data_preparation_level', /\b(?:substantial|major|extensive) (?:cleanup|preparation|organizing)\b/i, () => 'limited');
 
-  addMatchedFact('legacy_system_check', /\b(?:standard|unmodified) (?:app|software|product|system)\b/i, () => 'Standard');
-  addMatchedFact('legacy_system_check', /\b(?:customized|customised|custom-built) (?:app|software|product|system)\b/i, () => 'Customized');
-  addMatchedFact('legacy_system_check', /\b(?:older|legacy) (?:app|software|product|system)\b/i, () => 'Older');
-  addMatchedFact('legacy_system_check', /\b(?:(?:restricted|unavailable) (?:app|software|product|system)|access (?:is )?denied)\b/i, () => 'Restricted');
-
-  addMatchedFact('responsibility_split', /\b(?:shared responsibility|manage it together|jointly managed)\b/i, () => 'shared');
-  addMatchedFact('responsibility_split', /\b(?:AOC|Always Open Commerce) (?:manages?|maintains?|handles?)\b/i, () => 'aoc');
-  addMatchedFact('responsibility_split', /\b(?:our team|we) (?:manages?|maintains?)\b/i, () => 'client');
   addMatchedFact('action_mode', /\b(?:automatically|without (?:manual|human) approval)\b/i, () => 'automatic');
   addMatchedFact('action_mode', /\b(?:after approval|once approved|following approval)\b/i, () => 'approved');
   addMatchedFact('action_mode', /\b(?:prepares?|creates?|writes?) drafts? (?:for|before) (?:a person|staff|our team|human)?\s*(?:to )?approv/i, () => 'draft');
   addMatchedFact('consequential', /\b(?:affect|change|update) (?:money|payments?|stock|inventory|orders?|sensitive records?)\b/i, () => 'yes');
 
-  addMatchedFact('handover', /\b(?:train|handover to) (?:one|1) person\b/i, () => 'one');
-  addMatchedFact('handover', /\b(?:train|handover to) (?:one|1) team\b/i, () => 'group');
-  addMatchedFact('handover', /\b(?:train|handover to) (?:several|multiple|\d+) teams?\b/i, () => 'multiple');
-  addMatchedFact('delivery_mode', /\bAOC (?:handles?|manages?) (?:the )?(?:production|delivery|content)\b/i, () => 'managed');
-  addMatchedFact('delivery_mode', /\b(?:our team|we) (?:handles?|manages?) (?:the )?(?:production|delivery|content)\b/i, () => 'maintenance');
-
   const descriptionTokens = scopeTokens(description);
-  const routeCandidates = [...new Set((area?.fields || []).map((field) => field.route).filter(Boolean))];
+  const routeCandidates = [...new Set(area?.routes || [])];
   const routes = routeCandidates.map((route) => ({
     route,
     score: tokenOverlap(descriptionTokens, scopeTokens(route)),
@@ -300,6 +294,7 @@ function createLocalAnalysis(areaId, description) {
   }
   const agentSignals = /\b(ai|agent|interpret|classif\w*|decid\w*|recommend\w*|prioriti[sz]\w*)\b/i;
   const solution = agentSignals.test(description) ? 'agent' : 'workflow';
+  const allowedFieldIds = new Set(globalThis.AOCJourneyContract.fields(areaId).map((field) => field.id));
   return {
     title: `${area?.title || 'Business'} process`,
     summary: description.trim().replace(/\s+/g, ' ').slice(0, 320),
@@ -314,8 +309,8 @@ function createLocalAnalysis(areaId, description) {
       reason: 'Local organization does not infer pricing-sensitive complexity.',
     },
     routes,
-    facts,
-    relevantFields: [...new Set(relevantFields)].slice(0, 8),
+    facts: facts.filter((fact) => allowedFieldIds.has(fact.id)),
+    relevantFields: [...new Set(relevantFields)].filter((id) => allowedFieldIds.has(id)).slice(0, 8),
     uncertainties: [
       'Basic local organization was used. Review every required field before calculating.',
     ],
@@ -392,19 +387,10 @@ export function useEstimator() {
     requestRef.current += 1;
     setState((current) => {
       const answers = { ...current.answers, [key]: value };
-      if (key === 'responsibility_split') {
-        answers.management = ['aoc', 'shared'].includes(value)
-          ? 'yes'
-          : value === 'client'
-            ? 'no'
-            : null;
-        if (answers.management !== 'yes') answers.tier = null;
-      }
       const facts = { ...current.facts };
       const profileSources = { ...current.profileSources };
       delete facts[key];
       delete profileSources[key];
-      if (key === 'responsibility_split') delete facts.management;
       return markDirty({ ...current, answers, facts, profileSources });
     });
     return true;
@@ -519,11 +505,12 @@ export function useEstimator() {
       response = await fetch('/api/journey/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ area: areaId, answers, confirmed: true }),
+        body: JSON.stringify({ area: areaId, routes: state.routes, answers, confirmed: true }),
       });
     } catch {
       source = 'local-preview';
-      result = calculateEstimate({ ...answers, area: areaId, process_confirmed: true });
+      result = calculateEstimate({ ...answers, area: areaId, process_confirmed: true,
+        selected_task_count: Math.max(1, state.routes.length) });
     }
 
     if (response) {
@@ -547,7 +534,8 @@ export function useEstimator() {
         };
       } else {
         source = 'local-preview';
-        result = calculateEstimate({ ...answers, area: areaId, process_confirmed: true });
+        result = calculateEstimate({ ...answers, area: areaId, process_confirmed: true,
+          selected_task_count: Math.max(1, state.routes.length) });
       }
     }
     if (request !== requestRef.current) return { ok: false, stale: true };
@@ -613,18 +601,6 @@ export function useEstimator() {
           }
           answers[fact.id] = value;
           facts[fact.id] = fact.quote;
-        }
-
-        if (Object.prototype.hasOwnProperty.call(answers, 'responsibility_split')) {
-          const responsibility = answers.responsibility_split;
-          answers.management = ['aoc', 'shared'].includes(responsibility)
-            ? 'yes'
-            : responsibility === 'client'
-              ? 'no'
-              : null;
-          if (facts.responsibility_split) facts.management = facts.responsibility_split;
-          else delete facts.management;
-          if (answers.management !== 'yes') answers.tier = null;
         }
 
         for (const [key, value] of [

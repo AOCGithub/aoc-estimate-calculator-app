@@ -63,7 +63,7 @@ try {
     await completeRecaptcha(page, status.recaptcha);
     await page.getByRole('button', { name: 'Continue to calculator' }).click();
     await page.locator('.area').first().waitFor();
-    assert.equal(await page.locator('.area').count(), 12, 'Any valid saved submission can enter without approval.');
+    assert.equal(await page.locator('.area').count(), 11, 'Any valid saved submission can enter without approval.');
     assert.equal(await page.getByText('Access is limited to AOC-approved participants.', { exact: false }).count(), 0);
     rows = await sql`select name, company, website, role, business_email, review_status from public.access_requests where company = ${company} and business_email = ${email}`;
     assert.deepEqual(rows.map(row => ({ ...row })), [{ name, company, website: 'https://example.com/', role: profile.role, business_email: email, review_status: 'pending' }]);

@@ -113,10 +113,17 @@ vm.runInContext(code, context);
   response = await context.worker.fetch(new Request('https://demo.test/api/journey/analyze', {
     method: 'POST',
     headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
-    body: '{}',
+    body: JSON.stringify({ area: 'area0', text: 'A sufficiently detailed process description for the current simplified journey.' }),
   }), {});
   assert.equal(response.status, 200);
   assert.equal((await response.json()).localFallback, true);
+
+  response = await context.worker.fetch(new Request('https://demo.test/api/journey/analyze', {
+    method: 'POST',
+    headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
+    body: JSON.stringify({ area: 'area7', text: 'A sufficiently detailed description for the inactive marketing category.' }),
+  }), {});
+  assert.equal(response.status, 400, 'inactive business areas are rejected even when AI organization is disabled');
 
   response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
     method: 'POST',
@@ -129,26 +136,23 @@ vm.runInContext(code, context);
     area: 'area0',
     confirmed: true,
     answers: {
-      ...Object.fromEntries(Object.entries(require('../fixtures/commercial.cjs')).filter(([key])=>!['area','process_confirmed','management'].includes(key))),
       solution: 'workflow',
-      steps_band: 3,
-      variation_band: 3,
-      documentation_readiness: 'Notes or examples',
-      data_preparation_level: 'Some preparation',
-      systems: ['Hubstaff Time', 'Wave', 'Google Docs', 'Google Drive', 'Help Scout', 'Stripe'],
+      steps_band: 2,
+      variation_band: 2,
+      documentation_readiness: 'Clear and current',
+      data_information_location: 'Apps already identified',
+      data_preparation_level: 'clean',
+      data_preparation_owner: 'Our team',
+      systems: 'Wave',
+      workspace_context: 'google_workspace',
+      ai_account_context: 'chatgpt_business',
       action_mode: 'approved',
       consequential: 'yes',
       people_count: 3,
       department_count: 2,
-      handover: 'group',
-      legacy_system_check: 'Standard',
       cadence: 'monthly',
-      responsibility_split: 'client',
-      management: 'yes',
       team_time: 40,
       blended_hourly_cost: 50,
-      software_replaced_portion: 'none',
-      incremental_software_cost: 0,
     },
   };
   response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
@@ -159,26 +163,20 @@ vm.runInContext(code, context);
   assert.equal(response.status, 200);
   const calculated = await response.json();
   assert.equal(calculated.source, 'server');
-  assert.equal(calculated.result.build, 11500, 'the supplied fixed quote is preserved');
-  assert.equal(calculated.result.audit, 1725);
+  assert.equal(calculated.result.build, 6250, 'the current fixed-price estimate is calculated from active rules');
+  assert.equal(calculated.result.audit, 937.5);
   assert.equal(calculated.result.auditRate, 0.15);
   assert.equal(calculated.result.monthly, 0);
-  for (const implementationFee of [0, '']) {
-    response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
-      method: 'POST', headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
-      body: JSON.stringify({ ...calculation, answers: { ...calculation.answers, preparation_fee: 2000, implementation_fee: implementationFee } }),
-    }), {});
-    assert.equal(response.status, 200, 'zero and unknown quote components are both valid inputs');
-    const quoted = (await response.json()).result;
-    assert.equal(quoted.buildQuoted, implementationFee === 0);
-    assert.equal(quoted.projectBalance, implementationFee === 0 ? 750 : null);
-    assert.equal(quoted.firstProjectPayment, implementationFee === 0 ? 375 : null);
-    assert.equal(quoted.secondProjectPayment, implementationFee === 0 ? 375 : null);
-    assert.equal(quoted.payback, implementationFee === 0 ? .65625 : null);
-  }
+  assert.equal(calculated.result.credit.amount, null, 'the fee credit remains conditional and is never applied automatically');
+  response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
+    method: 'POST',
+    headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
+    body: JSON.stringify({ ...calculation, area: 'area7' }),
+  }), {});
+  assert.equal(response.status, 400, 'the calculation endpoint rejects coming-soon categories');
 
   const invalidCalculation = structuredClone(calculation);
-  invalidCalculation.answers.legacy_system_check = 'INVALID';
+  invalidCalculation.answers.data_preparation_level = 'INVALID';
   response = await context.worker.fetch(new Request('https://demo.test/api/journey/calculate', {
     method: 'POST',
     headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
@@ -187,7 +185,7 @@ vm.runInContext(code, context);
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /Invalid choice/);
 
-  const text = 'We prepare 40 invoices in Wave each month.';
+  const text = 'We send 40 invoices through Wave each month.';
   const output = {
     title: 'Invoice preparation',
     summary: 'Monthly invoice preparation',
@@ -197,7 +195,7 @@ vm.runInContext(code, context);
     routes: ['Create and send invoices'],
     facts: [
       { id: 'invoice_volume', value: '40', quote: '40 invoices' },
-      { id: 'systems', value: 'Wave', quote: 'Wave' },
+      { id: 'systems', value: 'Wave', quote: text },
     ],
     relevantFields: ['invoice_volume'],
     uncertainties: [],
@@ -222,7 +220,7 @@ vm.runInContext(code, context);
   output.facts = [{ id: 'responsibility_split', value: 'client', quote: manualPublishing }, { id: 'management', value: 'no', quote: manualPublishing }];
   response = await context.worker.fetch(new Request('https://demo.test/api/journey/analyze', {
     method: 'POST', headers: { origin: 'https://demo.test', 'content-type': 'application/json' },
-    body: JSON.stringify({ area: 'area10', text: unknownManager }),
+    body: JSON.stringify({ area: 'area2', text: unknownManager }),
   }), { OPENAI_API_KEY: 'test-placeholder-not-real', AOC_AI_ORGANIZER_ENABLED: 'true' });
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).analysis.facts, [], 'Worker keeps future management unknown despite manual publishing');

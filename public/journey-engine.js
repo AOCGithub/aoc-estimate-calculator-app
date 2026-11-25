@@ -1,76 +1,318 @@
-(function(root){
-const Core=typeof module==='object'?require('./engine.js'):root.AOC;
-const Price=typeof module==='object'?require('./approved-pricing.js'):root.AOCPricing;
-const Commercial=typeof module==='object'?require('./commercial.js'):root.AOCCommercial;
-const n=Core.number,levels=['simple','moderate','complex','advanced'];
-function calculate(input,pricing=Price,options={}){
- const s={...input},errors=[],pending=[],warnings=[],assumptions=[],r=structuredClone(pricing.core);
- for(const [k,v] of Object.entries(s))if(typeof v==='number'&&(!Number.isFinite(v)||v<0))errors.push('Use a nonnegative finite value for '+k+'.');
- for(const k of ['capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles'])if(n(s[k])!==null&&!Number.isInteger(n(s[k])))errors.push(k+' must be a whole number.');
- const steps=n(s.steps_band),variations=n(s.variation_band),decisions=s.solution==='agent'?n(s.decision_band):1;
- const band=[steps,variations,decisions].every(x=>Number.isInteger(x)&&x>=1&&x<=4)?Math.max(steps,variations,decisions):null;
- const ready={'Clear and current':'clean','Partial documentation':'partial','Notes or examples':'limited','Mostly staff knowledge':'limited'}[s.documentation_readiness];
- const docsUnknown=!ready;const prep=ready||'unknown';if(docsUnknown)assumptions.push('Document readiness unknown: explicit $'+r.prep.unknown+' test preparation allowance; audit validates.');
- const apps=Array.isArray(s.systems)?[...new Set(s.systems.map(x=>x.trim().toLowerCase()).filter(Boolean))]:null;
- const impact=s.action_mode==='draft'?'no':s.action_mode==='approved'||s.action_mode==='automatic'?(s.consequential==='no'?'no':s.consequential==='yes'?'yes':''):'';
- const normalized={service:s.solution,level:band===null?'':levels[band-1],readiness:prep==='unknown'?'limited':prep,systems:apps?.length||null,controls:impact,people:n(s.people_count),departments:n(s.department_count),handover:s.handover,connectionType:'supported'};
- if(docsUnknown)r.prep.limited=r.prep.unknown;
- const result=Core.calculate(normalized,r);pending.push(...result.pending);errors.push(...result.errors);
- if(!['workflow','agent'].includes(s.solution))pending.push('Confirm the recommended solution.');
- if(!s.process_confirmed)pending.push('Review and confirm the process scope.');
- const legacyRestricted=s.legacy_system_check==='Restricted';
- if(['Customized','Older','Restricted','Not sure'].includes(s.legacy_system_check)||!s.legacy_system_check){warnings.push('Required app actions, plan and access need verification before a paid audit is offered.');if(!s.legacy_system_check)pending.push('Confirm the app connection condition or choose Not sure.');if(s.legacy_system_check==='Not sure')pending.push('Unknown system connection is not priced: AOC connection review required.');if(s.legacy_system_check==='Customized'||s.legacy_system_check==='Older')pending.push('Custom or older system integration is not priced: AOC connection review required.');}
- const appRestriction=legacyRestricted||(typeof s.app_known_restrictions==='string'&&!/^(None known|No restrictions?|Not sure|Unknown)$/i.test(s.app_known_restrictions.trim()));
- const dataConflict=typeof s.data_material_conflict==='string'&&!/^(No known conflict|No conflict|None|Not sure|Unknown)$/i.test(s.data_material_conflict.trim());
- const dataRestriction=typeof s.data_material_restriction==='string'&&!/^(Available|No restrictions?|Not restricted|Not sure|Unknown)$/i.test(s.data_material_restriction.trim());
- const blocked=s.feasibility==='blocked'||dataConflict||dataRestriction;
- if(appRestriction){pending.push('Known app restriction requires connection review or an agreed alternative before an audit.');warnings.push('A direct connection is not assumed; AOC must confirm a supported or staff-assisted approach.');}
- if(blocked){pending.push('Known information restriction or conflict: discuss a feasible alternative before buying an audit.');warnings.push('Do not offer an audit purchase for the blocked approach.');}
- if(!s.data_preparation_level)pending.push('Confirm the preparation level or choose Not sure.');
- if(s.data_preparation_level==='Not sure')warnings.push('Data preparation needs validation during the audit.');
- if(s.data_preparation_level==='Substantial preparation')pending.push('Substantial preparation needs a bounded scope review beyond the standard allowance.');
- const lines=[...result.lines];const add=(label,amount)=>{if(amount>0)lines.push({label,amount});};
- const b=pricing.marketing.build,m=pricing.marketing.monthly,d=pricing.marketing.delivery;
- const marketing=['area6','area7','area8','area9','area10'].includes(s.area);
- if(marketing){
-  const count=(key,label,unit,included=1)=>{if(n(s[key])!==null)add(label,Math.max(0,n(s[key])-included)*unit);};
-  count('capability_count','Additional capabilities',b.capability);count('channel_count','Additional channels',b.channel,2);count('format_count','Additional formats',b.format,2);count('brand_count',s.area==='area8'?'Additional websites':'Additional brands',s.area==='area8'?b.website:b.brand);count('language_count','Additional languages',b.language);
-  if(s.area==='area8'){count('initial_pages','Initial pages beyond ten',b.seoPage,10);count('keyword_count','Topics / keywords beyond twenty',b.keyword,20);count('market_count','Additional markets',b.market);}
-  if(!s.capability_count)pending.push('Confirm the number of connected capabilities for the marketing scope.');
-  if(!s.brand_count)pending.push(s.area==='area8'?'Confirm the number of websites in scope.':'Confirm the number of brands in scope.');
-  if(!s.language_count)pending.push('Confirm the number of languages in scope.');
-  if(s.area==='area7'&&(!s.channel_count||!s.format_count))pending.push('Confirm destination channels and output formats.');
-  if(s.area==='area8'){
-   if(!s.market_count)pending.push('Confirm the number of target markets.');
-   if(n(s.initial_pages)===null||n(s.keyword_count)===null)pending.push('Confirm initial pages and topics or keywords; enter zero when none are included.');
+(function(root) {
+  const Bank = typeof module === 'object' ? require('./approved-bank.js') : root.AOCBank;
+  const Price = typeof module === 'object' ? require('./approved-pricing.js') : root.AOCPricing;
+  const Rules = Price.simplified;
+
+  const number = value => {
+    if (value === null || value === undefined || value === '') return null;
+    if (typeof value === 'string' && !value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const roundMoney = value => Math.round((value + Number.EPSILON) * 100) / 100;
+  const rangeMoney = value => Math.round(value / Rules.rangeRounding) * Rules.rangeRounding;
+  const normalized = value => String(value ?? '').trim().toLowerCase();
+
+  function getConnections(value) {
+    if (Array.isArray(value)) {
+      const apps = value.map(app => String(app).trim()).filter(Boolean);
+      return [...new Map(apps.map(app => [normalized(app), app])).values()];
+    }
+    if (typeof value !== 'string' || !value.trim()) return null;
+    if (/^(none|no apps?|no connections?|not applicable)$/i.test(value.trim())) return [];
+    if (/^(not sure|unknown)$/i.test(value.trim())) return null;
+    const apps = value.split(/[,;\n]+/).map(app => app.trim()).filter(Boolean);
+    return [...new Map(apps.map(app => [normalized(app), app])).values()];
   }
- }
- const uniquePending=[...new Set(pending)],known=lines.reduce((t,x)=>t+x.amount,0);
- const build=errors.length||uniquePending.length?null:known;
- let monthly=null;const monthlyParts=[];const madd=(label,amount)=>{if(amount>0)monthlyParts.push({label,amount});};
- if(s.management==='no')monthly=0;
- else if(s.management==='yes'&&['standard','priority','critical'].includes(s.tier)&&band&&apps?.length&&n(s.department_count)>0&&s.cadence){
-  madd('Shared management',m.base);madd('Workflow upkeep',m[levels[band-1]]);madd('Dependencies',Math.max(0,apps.length-3)*m.extraApp);madd('Teams',Math.max(0,n(s.department_count)-2)*m.extraTeam);madd('Frequency',m[s.cadence]||0);madd('Coverage',m[s.tier]);
-  if(marketing){madd('Capabilities',Math.max(0,(n(s.capability_count)||1)-1)*m.extraCapability);madd('Channels',Math.max(0,(n(s.channel_count)||2)-2)*m.extraChannel);madd('Formats',Math.max(0,(n(s.format_count)||2)-2)*m.extraFormat);madd('Brands / sites',Math.max(0,(n(s.brand_count)||1)-1)*m.extraBrand);madd('Languages',Math.max(0,(n(s.language_count)||1)-1)*m.extraLanguage);}
-  if(marketing&&s.delivery_mode==='managed'){if(s.area==='area8'){if(n(s.monthly_pages)!==null&&n(s.monthly_articles)!==null){madd('Managed page work',n(s.monthly_pages)*d.seoPage);madd('Managed article work',n(s.monthly_articles)*d.seoArticle);}else warnings.push('Ongoing delivery volumes need review before monthly fee can be calculated.');}else if(n(s.monthly_outputs)!==null)madd('Managed production',n(s.monthly_outputs)*(s.area==='area7'?d.contentOutput:d.otherOutput));}
-  const deliveryMissing=marketing&&(!s.delivery_mode||(s.delivery_mode==='managed'&&(s.area==='area8'?(n(s.monthly_pages)===null||n(s.monthly_articles)===null):n(s.monthly_outputs)===null)));
-  if(s.solution==='agent')warnings.push('Agent upkeep requires scope-based calibration; withdrawn flat agent add-ons are not used.');
-  if(!deliveryMissing&&s.solution!=='agent')monthly=monthlyParts.reduce((t,x)=>t+x.amount,0);
- }
- const hours=n(s.team_time),rate=n(s.blended_hourly_cost),vendor=n(s.incremental_software_cost);
- const freed=hours===null?null:hours*(1-r.retained),retained=hours===null?null:hours*r.retained,capacity=freed===null||rate===null?null:freed*rate;
- const replacement=(current,mode,part)=>mode==='none'?0:n(current)===null?null:mode==='all'?n(current):mode==='part'?n(part):null;
- const provider=marketing?replacement(s.replacement_provider_cost,s.provider_replaced_portion,s.provider_removed_amount):0;
- const software=replacement(s.software_replaced_cost,s.software_replaced_portion,s.software_removed_amount);
- for(const [current,removed,label]of [[n(s.replacement_provider_cost),provider,'Provider'],[n(s.software_replaced_cost),software,'Software']])if(current!==null&&removed!==null&&removed>current)errors.push(label+' savings cannot exceed current cost.');
- const cash=provider===null||software===null?null:provider+software;
- const recurring=monthly===null||vendor===null?null:monthly+vendor;
- const gross=capacity===null||cash===null?null:capacity+cash;
- const net=errors.length||gross===null||recurring===null?null:gross-recurring;
- const validBuild=errors.length?null:build;
- const coverage=s.response_need==='urgent'&&s.tier!=='critical'&&s.management==='yes'?'Requested urgent coverage is not included in this selected tier; AOC must reconcile this before sale.':null;if(coverage)warnings.push(coverage);
- const draft={lines,known,build:validBuild,audit:validBuild===null?null:Math.round(validBuild*r.audit*100)/100,low:validBuild===null?null:Math.round(validBuild*(1-r.low)/100)*100,high:validBuild===null?null:Math.round(validBuild*(1+r.high)/100)*100,level:band===null?null:levels[band-1],pending:uniquePending,errors,warnings:[...new Set(warnings)],assumptions,monthly,monthlyParts,monthlyDraft:monthly>0,freed,retained,capacity,provider,software,cash,recurring,gross,net,yearInvestment:validBuild===null||recurring===null?null:validBuild+12*recurring,yearGross:gross===null?null:gross*12,yearNet:validBuild===null||net===null?null:12*net-validBuild,payback:validBuild!==null&&net>0?validBuild/net:null,vendor,coverage,feasibility:blocked?'Potential blocker':appRestriction?'Needs connection review':s.legacy_system_check==='Standard'?'Action-level verification still required':'Needs verification',auditPurchasable:false};
- return pricing.commercial?Commercial.apply(s,draft,pricing.commercial,options):draft;
-}
-const api={calculate};if(typeof module==='object')module.exports=api;else root.AOCJourneyEngine=api;
+
+  function complexityBand(input, assumptions) {
+    const values = [number(input.steps_band), number(input.variation_band)];
+    if (input.solution === 'agent') values.push(number(input.decision_band));
+    const present = values.filter(value => value !== null);
+    if (present.some(value => !Number.isInteger(value) || value < 1 || value > 4)) return null;
+    if (present.length !== values.length) {
+      assumptions.push('Missing complexity answers were treated as Moderate; higher known answers were retained.');
+      return Math.max(2, ...present);
+    }
+    return Math.max(...present);
+  }
+
+  function preparationLevel(input, warnings, assumptions) {
+    const level = input.data_preparation_level;
+    if (level === 'clean' && input.documentation_readiness === 'Clear and current') return 'clean';
+    if (level === 'clean') {
+      warnings.push('The readiness answers do not both confirm complete, current, usable instructions and data; the $0 preparation amount was not used.');
+      return 'existing';
+    }
+    if (['existing', 'partial', 'limited'].includes(level)) return level;
+    assumptions.push('Preparation readiness was unknown; the explicit $2,000 preparation allowance was used.');
+    return 'unknown';
+  }
+
+  function monthlyWorkload(input, complexity, connectionCount, assumptions) {
+    const area = Bank.areas.find(candidate => candidate.id === input.area);
+    const candidates = (area?.fields || [])
+      .filter(field => /month|monthly/i.test(field.question))
+      .map(field => number(input[field.id]))
+      .filter(value => value !== null);
+    const explicitVolume = candidates.length > 0;
+    const monthlyItems = explicitVolume
+      ? Math.max(...candidates)
+      : Rules.usage.defaultMonthlyItems;
+    const scheduledChecks = input.cadence === 'hourly'
+      ? Rules.usage.hourlyChecks
+      : Rules.usage.defaultMonthlyChecks;
+    if (!explicitVolume) assumptions.push(`Monthly workload was unknown; ${Rules.usage.defaultMonthlyItems} items were assumed.`);
+    assumptions.push(`${scheduledChecks} scheduled checks per month were assumed for the Make budget.`);
+
+    const usageLevel = complexity === 1 ? 'simple' : complexity === 2 ? 'moderate' : 'complex';
+    const usage = Rules.usage[usageLevel];
+    const selectedTaskCount = number(input.selected_task_count);
+    const extraTasks = Math.max(0, (selectedTaskCount === null ? 1 : selectedTaskCount) - 1);
+    const taskFactor = 1 + Rules.usage.extraTaskFactor * extraTasks;
+    const informationText = Object.entries(input)
+      .filter(([key]) => key.startsWith('data_material_'))
+      .map(([, value]) => String(value ?? ''))
+      .join(' ');
+    const documentHeavy = /\b(pdf|scans?|handwriting|attachments?|extraction)\b/i.test(informationText)
+      || /\b(some|substantial)\b/i.test(String(input.data_material_format || ''));
+    const informationFactor = documentHeavy ? Rules.usage.documentHeavyFactor : 1;
+    const credits = (base, perConnection) => Math.ceil(
+      Math.max(Rules.usage.minimumCredits, (monthlyItems * (base + perConnection * connectionCount)
+        * taskFactor * informationFactor + scheduledChecks) * Rules.usage.buffer) / Rules.usage.rounding,
+    ) * Rules.usage.rounding;
+    const lowCredits = credits(usage.low, Rules.usage.connectionLow);
+    const highCredits = credits(usage.high, Rules.usage.connectionHigh);
+    const budgetRounding = Rules.makeBudget.rounding;
+    const lowBudget = Math.max(
+      Rules.makeBudget.minimumLow,
+      Math.ceil((lowCredits * Rules.makeBudget.per1000CreditsLow / 1000)
+        / budgetRounding) * budgetRounding,
+    );
+    const highBudget = Math.max(
+      Rules.makeBudget.minimumHigh,
+      Math.ceil((highCredits * Rules.makeBudget.per1000CreditsHigh / 1000)
+        / budgetRounding) * budgetRounding,
+      lowBudget,
+    );
+    return {
+      complexity: usageLevel,
+      monthlyItems,
+      scheduledChecks,
+      selectedTaskCount: extraTasks + 1,
+      lowCredits,
+      highCredits,
+      lowBudget,
+      highBudget,
+      documentHeavy,
+      explicitVolume,
+    };
+  }
+
+  function savings(input, prefix, errors) {
+    const amountKey = prefix === 'provider'
+      ? 'replacement_provider_cost' : 'software_replaced_cost';
+    const portionKey = prefix === 'provider'
+      ? 'provider_replaced_portion' : 'software_replaced_portion';
+    const removedKey = prefix === 'provider'
+      ? 'provider_removed_amount' : 'software_removed_amount';
+    const amount = number(input[amountKey]);
+    const portion = input[portionKey];
+    const removedAmount = number(input[removedKey]);
+    if (amount !== null && amount < 0) errors.push(`${prefix} cost cannot be negative.`);
+    if (removedAmount !== null && removedAmount < 0) errors.push(`${prefix} savings cannot be negative.`);
+    if (amount === null || portion === 'none') return { amount: 0, counted: false };
+    if (portion === 'all') return { amount, counted: amount > 0 };
+    if (portion === 'part' && removedAmount !== null) {
+      if (removedAmount > amount) errors.push(`${prefix} savings cannot exceed current cost.`);
+      return { amount: Math.min(amount, removedAmount), counted: removedAmount > 0 };
+    }
+    return { amount: 0, counted: false };
+  }
+
+  function calculate(input, pricing = Price) {
+    const rules = pricing.simplified || Rules;
+    const errors = [];
+    const pending = [];
+    const warnings = [];
+    const assumptions = [];
+    const lines = [];
+    const add = (label, amount, status) => {
+      if (amount > 0) lines.push({ label, amount, ...(status ? { status } : {}) });
+    };
+
+    if (!rules.activeAreaIds.includes(input.area)) {
+      errors.push('Choose one of the currently available business areas.');
+    }
+    for (const [key, value] of Object.entries(input)) {
+      if (typeof value === 'number' && (!Number.isFinite(value) || value < 0)) {
+        errors.push(`Use a nonnegative finite value for ${key}.`);
+      }
+    }
+    if (!input.process_confirmed) pending.push('Review and confirm the process scope.');
+
+    const band = complexityBand(input, assumptions);
+    if (band === null) errors.push('Complexity answers must be whole numbers from 1 to 4.');
+    const level = band === null ? 'moderate' : band === 1 ? 'simple' : band === 2 ? 'moderate' : 'complex';
+    const connections = getConnections(input.systems);
+    if (connections === null) pending.push('List the apps that must connect, or explicitly choose that no app connection is needed.');
+    const connectionCount = connections?.length ?? 0;
+
+    const people = number(input.people_count);
+    const departments = number(input.department_count);
+    if (people === null || people < 1 || !Number.isInteger(people)) {
+      pending.push('Enter a positive whole number of people in scope.');
+    }
+    if (departments === null || departments < 1 || !Number.isInteger(departments)) {
+      pending.push('Enter a positive whole number of departments in scope.');
+    }
+
+    for (const [key, label] of [
+      ['workspace_context', 'Choose the business workspace context or Not sure.'],
+      ['ai_account_context', 'Choose the AI account context or Not sure.'],
+      ['documentation_readiness', 'Confirm what instructions or examples are available.'],
+      ['data_information_location', 'Confirm where the process information is located or choose Not sure.'],
+      ['data_preparation_level', 'Confirm the preparation/readiness level or choose Not sure.'],
+      ['data_preparation_owner', 'Confirm who will prepare missing information or choose Not sure.'],
+    ]) {
+      if (!input[key]) pending.push(label);
+    }
+
+    const prep = preparationLevel(input, warnings, assumptions);
+    const prepCost = rules.prep[prep];
+    const componentsComplete = band !== null && connections !== null
+      && people !== null && people >= 1 && Number.isInteger(people)
+      && departments !== null && departments >= 1 && Number.isInteger(departments);
+    if (componentsComplete) {
+      add(`${level[0].toUpperCase()}${level.slice(1)} workflow core`, rules.core[level]);
+      add(prep === 'clean' ? 'Documentation and data preparation' : 'Documentation and data preparation allowance', prepCost);
+      add('Required app/product connections', connectionCount * rules.extraApp);
+      const rollout = people <= 4 ? rules.rolloutBase
+        : people <= 15 ? rules.rolloutBase + rules.rolloutMedium
+          : rules.rolloutBase + rules.rolloutLarge;
+      add('Workflow-user rollout', rollout);
+      add('Department ownership and handoffs', departments * rules.departmentBase);
+
+      if (input.action_mode === 'automatic') {
+        if (input.consequential === 'yes') {
+          add('Consequential automatic-action controls', rules.control);
+        } else if (input.consequential !== 'no') {
+          add('Human review workflow (assumed)', rules.reviewWorkflow);
+          pending.push('Confirm whether automatic actions affect money, stock, orders, or sensitive records.');
+        }
+      } else if (input.action_mode === 'draft' || input.action_mode === 'approved') {
+        add('Human review workflow', rules.reviewWorkflow);
+      } else {
+        add('Human review workflow (assumed)', rules.reviewWorkflow);
+        assumptions.push('Action behavior was unknown; review-first handling was assumed.');
+      }
+
+      add(
+        'Launch Support (proposed; one-time)',
+        rules.launchSupport.amount,
+        'Proposed — not finalized',
+      );
+      warnings.push(rules.notices.launchSupport);
+    }
+
+    if (input.data_material_conflict
+      && !/^(no known conflict|no conflict|none|not sure|unknown)$/i.test(String(input.data_material_conflict).trim())) {
+      pending.push('AOC must review the known information conflict before confirming feasibility.');
+    }
+    if (input.data_material_restriction
+      && !/^(available|not sure|unknown)$/i.test(String(input.data_material_restriction).trim())) {
+      pending.push('AOC must review the information restriction before confirming feasibility.');
+    }
+
+    const hoursValue = number(input.team_time);
+    const rate = number(input.blended_hourly_cost);
+    if (hoursValue === null) pending.push('Monthly team hours are required for the baseline ROI.');
+    else if (hoursValue <= 0) errors.push('Monthly team hours must be greater than zero.');
+    if (rate === null) pending.push('Average internal hourly cost is required for the baseline ROI.');
+    else if (rate <= 0) errors.push('Average internal hourly cost must be greater than zero.');
+
+    const freed = hoursValue !== null && hoursValue > 0 ? hoursValue * rules.freedFraction : null;
+    const retained = hoursValue !== null && hoursValue > 0 ? hoursValue * rules.retainedFraction : null;
+    const capacity = freed !== null && rate !== null && rate > 0 ? roundMoney(freed * rate) : null;
+    const provider = savings(input, 'provider', errors);
+    const software = savings(input, 'software', errors);
+    const confirmedCash = roundMoney(provider.amount + software.amount);
+    const cash = provider.counted || software.counted ? confirmedCash : null;
+    const baselineMonthlyBenefit = capacity === null ? null : roundMoney(capacity + confirmedCash);
+    const providerNotCounted = !provider.counted;
+    const softwareNotCounted = !software.counted;
+
+    const subtotal = lines.reduce((total, line) => total + line.amount, 0);
+    const build = componentsComplete && !errors.some(error => /people in scope|departments in scope|Complexity answers/.test(error))
+      ? roundMoney(subtotal) : null;
+    const low = build === null ? null : rangeMoney(build * rules.rangeLow);
+    const high = build === null ? null : rangeMoney(build * rules.rangeHigh);
+    const audit = build === null ? null : roundMoney(build * rules.auditFraction);
+    const workload = band === null ? null : monthlyWorkload(input, band, connectionCount, assumptions);
+    const roiReady = freed !== null && capacity !== null;
+    const buildBlockers = pending.some(item =>
+      /apps that must connect|people in scope|departments in scope|automatic actions affect|information conflict|information restriction|confirm the process scope/i.test(item),
+    );
+    const pendingUnique = [...new Set(pending)];
+    const eligible = build !== null && !errors.length && !buildBlockers && roiReady
+      && pendingUnique.length === 0;
+    const creditReason = `The ${rules.paidServiceName} fee may be credited once toward an accepted fixed-price implementation when eligible. AOC confirms eligibility and timing.`;
+
+    return {
+      version: rules.version,
+      lines,
+      known: roundMoney(subtotal),
+      build,
+      provisionalBuild: build,
+      buildQuoted: false,
+      low,
+      high,
+      audit,
+      auditRate: rules.auditFraction,
+      auditPurchasable: eligible,
+      paidServiceName: rules.paidServiceName,
+      freeServiceName: rules.freeServiceName,
+      credit: { status: 'conditional', amount: null, potentialAmount: audit, reason: creditReason },
+      level,
+      pending: pendingUnique,
+      errors: [...new Set(errors)],
+      warnings: [...new Set(warnings)],
+      assumptions: [...new Set(assumptions)],
+      monthly: 0,
+      monthlyParts: [],
+      freed: freed === null ? null : roundMoney(freed),
+      retained: retained === null ? null : roundMoney(retained),
+      capacity,
+      provider: provider.amount,
+      software: software.amount,
+      providerSavingsNotCounted: providerNotCounted,
+      softwareSavingsNotCounted: softwareNotCounted,
+      cash,
+      gross: baselineMonthlyBenefit,
+      baselineMonthlyBenefit,
+      recurring: null,
+      net: baselineMonthlyBenefit,
+      payback: build !== null && baselineMonthlyBenefit > 0 ? build / baselineMonthlyBenefit : null,
+      yearInvestment: build,
+      yearGross: baselineMonthlyBenefit === null ? null : roundMoney(12 * baselineMonthlyBenefit),
+      yearNet: build !== null && baselineMonthlyBenefit !== null
+        ? roundMoney(12 * baselineMonthlyBenefit - build) : null,
+      yearRoi: build > 0 && baselineMonthlyBenefit !== null
+        ? roundMoney(((12 * baselineMonthlyBenefit - build) / build) * 100) : null,
+      vendor: null,
+      usage: workload,
+      makeBudget: workload ? { low: workload.lowBudget, high: workload.highBudget } : null,
+      launchSupport: rules.launchSupport,
+      commercialReady: eligible && pendingUnique.length === 0,
+      commercialNotice: rules.notices.estimate,
+      feasibility: pendingUnique.some(item => /information conflict|information restriction/i.test(item))
+        ? 'Potential blocker'
+        : pendingUnique.some(item => /apps that must connect/i.test(item))
+          ? 'Needs connection review' : 'Needs verification',
+    };
+  }
+
+  const api = { calculate };
+  if (typeof module === 'object') module.exports = api;
+  else root.AOCJourneyEngine = api;
 })(globalThis);

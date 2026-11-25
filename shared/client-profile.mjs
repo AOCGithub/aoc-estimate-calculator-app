@@ -2,15 +2,8 @@
 // reused automatically: the client selects them and confirms their relevance.
 export const companyFactFields = [
   { id: 'systems', label: 'Apps and software', step: 4 },
-  { id: 'app_status', label: 'App usage status', step: 4 },
-  { id: 'app_account_structure', label: 'App account structure', step: 4 },
-  { id: 'app_access_owner', label: 'Who manages app access', step: 4 },
-  { id: 'app_known_restrictions', label: 'Known connection restrictions', step: 4 },
-  { id: 'app_exact_product', label: 'Exact product', step: 4 },
-  { id: 'app_version_plan', label: 'Product version or plan', step: 4 },
-  { id: 'app_vendor_reference', label: 'Vendor reference', step: 4 },
-  { id: 'app_file_transfer', label: 'Existing import/export capabilities', step: 4 },
   { id: 'data_information_location', label: 'Where information is kept', step: 5 },
+  { id: 'data_preparation_owner', label: 'Who prepares missing information', step: 5 },
 ];
 const allowed = new Set(companyFactFields.map(field => field.id));
 export const identityKeys = ['name', 'company', 'website', 'businessEmail'];

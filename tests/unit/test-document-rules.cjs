@@ -1,137 +1,71 @@
-// Regression expectations transcribed from the reviewed 28–29 October sources.
 const assert = require('node:assert/strict');
+const Pricing = require('../../public/approved-pricing.js');
 const Engine = require('../../public/journey-engine.js');
-const Calculation = require('../../public/journey-calculation.js');
 const Contract = require('../../public/journey-contract.js');
-const Bank = require('../../public/approved-bank.js');
-const Price = require('../../public/approved-pricing.js');
-const base = require('../fixtures/commercial.cjs');
-const calc = changes => Engine.calculate({ ...base, ...changes });
-const request = changes => {
-  const { area, process_confirmed, management, ...answers } = { ...base, ...changes };
-  return { area, confirmed: process_confirmed, answers };
+const Calculation = require('../../public/journey-calculation.js');
+
+const base = {
+  area: 'area0',
+  solution: 'workflow',
+  steps_band: 2,
+  variation_band: 2,
+  systems: 'None',
+  workspace_context: 'none',
+  ai_account_context: 'none',
+  documentation_readiness: 'Clear and current',
+  data_information_location: 'Shared files',
+  data_preparation_level: 'clean',
+  data_preparation_owner: 'Our team',
+  people_count: 2,
+  department_count: 1,
+  action_mode: 'draft',
+  process_confirmed: true,
+  team_time: 12,
+  blended_hourly_cost: 30,
 };
+const baseline = Engine.calculate(base);
+assert.equal(Pricing.simplified.prep.clean, 0);
+assert.equal(Pricing.simplified.prep.existing, 1000);
+assert.equal(Pricing.simplified.prep.partial, 1000);
+assert.equal(Pricing.simplified.prep.limited, 2000);
+assert.equal(Pricing.simplified.prep.unknown, 2000);
+assert.equal(baseline.build, 5250);
+assert.ok(!baseline.lines.some(line => /preparation/i.test(line.label)), 'clean readiness adds no preparation charge');
 
-// Fixed-price launch; preserved planning fees cannot be purchased or extracted by AI.
-assert.equal(Price.commercial.monthlyBuildStatus, 'deferred');
-assert.throws(() => Calculation.calculate(request({ implementation_route: 'monthly' })), /Invalid choice/);
-assert.equal(calc({ implementation_route: 'monthly', monthly_plan: 'level1' }).monthly, null);
-assert.equal(calc({ implementation_route: 'monthly', monthly_plan: 'level1' }).build, null);
-for (const area of Bank.areas) {
-  for (const id of ['monthly_plan', 'agreed_monthly_hours', 'agreed_agency_blend', 'comparison_months', 'benefit_months']) {
-    assert.ok(!Contract.fields(area.id).some(field => field.id === id));
-  }
+for (const level of ['existing', 'partial', 'limited', 'unknown']) {
+  const result = Engine.calculate({ ...base, data_preparation_level: level });
+  assert.equal(result.build, baseline.build + Pricing.simplified.prep[level], `${level} readiness uses its approved allowance`);
 }
 
-// Workflow Automation!B20,B24:B25: included reusable training is zero.
-for (const handover of ['one', 'group', 'multiple']) {
-  const draft = calc({ implementation_fee: null, handover });
-  assert.equal(draft.build, 11000);
-  assert.equal(draft.lines.find(line => /Training & handover/.test(line.label)).amount, 0);
-  assert.equal(calc({ handover }).build, 11500, 'an entered accepted quote is preserved');
-  assert.equal(calc({ handover, live_training: 'yes', live_training_fee: 300 }).build, 11800);
-}
+const contradictoryClean = Engine.calculate({
+  ...base,
+  documentation_readiness: 'Notes or examples',
+});
+assert.equal(contradictoryClean.build, baseline.build + Pricing.simplified.prep.existing);
+assert.ok(contradictoryClean.warnings.some(warning => /both confirm complete, current/i.test(warning)));
 
-// Audit & Project Quote!B20 permits explicitly quoted zero components; blanks stay unknown.
-const zeroImplementationQuote = { preparation_fee: 1000, implementation_fee: 0, audit_fee: 250, audit_paid: 250 };
-for (const implementation_fee of [0, '0', '0.00']) {
-  const result = Calculation.calculate(request({ ...zeroImplementationQuote, implementation_fee })).result;
-  for (const [key, expected] of Object.entries({ build: 1000, buildQuoted: true, audit: 150, auditRate: .15,
-    projectBalance: 750, firstProjectPayment: 375, secondProjectPayment: 375,
-    initialSpend: 900, net: 1600, payback: .5625 })) {
-    assert.equal(result[key], expected, key + ' with an explicit zero implementation component');
-  }
-}
-for (const blank of [null, undefined, '', '  ']) {
-  for (const field of ['implementation_fee', 'preparation_fee']) {
-    const result = Calculation.calculate(request({ ...zeroImplementationQuote, [field]: blank })).result;
-    assert.equal(result.buildQuoted, false, field + ' remains unknown');
-    assert.equal(result.projectBalance, null);
-    assert.equal(result.payback, null);
-  }
-}
-for (const invalid of [-1, false]) assert.throws(() => Calculation.calculate(request({ implementation_fee: invalid })));
-const zeroProject = Calculation.calculate(request({ preparation_fee: 0, implementation_fee: 0, audit_credit_used: 'yes' })).result;
-assert.equal(zeroProject.build, 0, 'all explicitly quoted zero components are retained');
-assert.equal(zeroProject.projectBalance, 0);
-assert.equal(zeroProject.firstProjectPayment, 0);
-assert.equal(zeroProject.secondProjectPayment, 0);
-const zeroOverCredit = Calculation.calculate(request({ preparation_fee: 0, implementation_fee: 0 })).result;
-assert.equal(zeroOverCredit.projectBalance, null, 'existing over-credit protection still applies');
-assert.equal(zeroOverCredit.payback, null);
-assert.ok(zeroOverCredit.pending.some(message => /credit exceeds the project price/i.test(message)));
+const fields = new Set(Contract.fields('area0').map(field => field.id));
+for (const required of [
+  'systems', 'workspace_context', 'ai_account_context', 'documentation_readiness',
+  'data_information_location', 'data_preparation_level', 'data_preparation_owner',
+  'team_time', 'blended_hourly_cost',
+]) assert.ok(fields.has(required), `${required} remains in the current intake`);
+assert.ok(!fields.has('incremental_software_cost'), 'future operating costs are not an intake field');
 
-// Web Calculator Test!B63: provider replacement is limited to marketing areas 6–10.
-for (let index = 0; index < 12; index++) {
-  const eligible = index >= 6 && index <= 10;
-  const changes = { area: `area${index}`, capability_count: 1, channel_count: 2, format_count: 2,
-    brand_count: 1, language_count: 1, market_count: 1, initial_pages: 0, keyword_count: 0,
-    delivery_mode: 'maintenance', replacement_provider_cost: 900, provider_replaced_portion: 'all' };
-  const result = calc(changes);
-  assert.equal(result.provider, eligible ? 900 : 0);
-  assert.equal(result.net, eligible ? 2500 : 1600);
-  assert.equal(result.payback, 11975 / (eligible ? 2500 : 1600));
-  assert.equal(calc({ ...changes, replacement_provider_cost: null, provider_replaced_portion: 'part', provider_removed_amount: 100 }).net, eligible ? null : 1600);
-}
+const missingReadiness = Engine.calculate({ ...base, data_information_location: null });
+assert.notEqual(missingReadiness.build, null, 'known build inputs can still produce a provisional estimate');
+assert.equal(missingReadiness.commercialReady, false);
+assert.ok(missingReadiness.pending.some(item => /where the process information is located/i.test(item)));
 
-// B63:B64 require the current total and eliminated portion; blank is never zero.
-for (const kind of ['software', 'provider']) {
-  const fields = kind === 'software'
-    ? { total: 'software_replaced_cost', mode: 'software_replaced_portion', part: 'software_removed_amount' }
-    : { total: 'replacement_provider_cost', mode: 'provider_replaced_portion', part: 'provider_removed_amount' };
-  const marketing = { area: 'area10', capability_count: 1, brand_count: 1, language_count: 1, delivery_mode: 'maintenance' };
-  const partial = { ...marketing, [fields.total]: 500, [fields.mode]: 'part', [fields.part]: 100 };
-  assert.equal(calc(partial)[kind], 100);
-  for (const changes of [{ [fields.total]: null }, { [fields.part]: null }, { [fields.mode]: 'unknown' }]) {
-    const result = calc({ ...partial, ...changes });
-    assert.equal(result[kind], null);
-    assert.equal(result.net, null);
-    assert.equal(result.payback, null);
-    assert.equal(result.yearNet, null);
-  }
-  assert.equal(calc({ ...partial, [fields.part]: 501 }).net, null);
-  assert.equal(calc({ ...partial, [fields.mode]: 'none', [fields.total]: null })[kind], 0);
-  assert.equal(calc({ ...partial, [fields.total]: 0, [fields.part]: 0 })[kind], 0);
-}
+assert.throws(() => Calculation.calculate({
+  area: 'area0',
+  confirmed: true,
+  answers: { data_preparation_level: 'Some preparation' },
+}), /Invalid choice/);
+assert.throws(() => Calculation.calculate({
+  area: 'area0',
+  confirmed: true,
+  answers: { incremental_software_cost: 80 },
+}), /Unknown calculation field/);
 
-// Audit & Project Quote!B22:B23: ROUND(first half,2), then remaining cents.
-for (let balanceCents = 1; balanceCents <= 10000; balanceCents++) {
-  const result = calc({ implementation_fee: (125000 + balanceCents) / 100 });
-  assert.equal(Math.round(result.audit * 100), Math.round(result.build * 15), '15% audit rounds to exact USD cents');
-  const first = Math.ceil(balanceCents / 2);
-  assert.equal(result.firstProjectPayment, first / 100);
-  assert.equal(result.secondProjectPayment, (balanceCents - first) / 100);
-}
-const split = calc({ implementation_fee: 11250.05 });
-assert.equal(split.firstProjectPayment, 5000.03);
-assert.equal(split.secondProjectPayment, 5000.02);
-
-// Independent integer-cent expectations for quote, credit, ROI and payback combinations.
-const cents = value => { const [whole, fraction = ''] = String(value).split('.'); return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); };
-const dollars = value => Number(value) / 100;
-let ordinaryCases = 0;
-for (const prep of [0, 100, 999.99]) for (const implementation of [5000, 11500, 12345.67])
-for (const training of [0, 250]) for (const audit of [500, 1250]) for (const used of [false, true]) for (const vendor of [0, 29.99]) {
-  const result = calc({ preparation_fee: prep, implementation_fee: implementation, live_training: training ? 'yes' : 'no',
-    live_training_fee: training, audit_fee: audit, audit_paid: audit, audit_credit_used: used ? 'yes' : 'no', incremental_software_cost: vendor });
-  const total = cents(prep) + cents(implementation) + cents(training), credit = used ? 0n : cents(audit);
-  const currentAudit = (total * 15n + 50n) / 100n;
-  const balance = total - credit, first = (balance + 1n) / 2n, initial = total + currentAudit - credit;
-  const monthlyBenefit = 160000n - cents(vendor), investment = initial + 12n * cents(vendor);
-  const expected = { build: dollars(total), audit: dollars(currentAudit), auditRate: .15,
-    projectBalance: dollars(balance), firstProjectPayment: dollars(first),
-    secondProjectPayment: dollars(balance - first), initialSpend: dollars(initial), freed: 32, retained: 8, capacity: 1600,
-    net: dollars(monthlyBenefit), yearInvestment: dollars(investment), yearGross: 19200, yearNet: dollars(1920000n - investment) };
-  for (const [key, value] of Object.entries(expected)) assert.equal(result[key], value, key);
-  assert.ok(Math.abs(result.payback - dollars(initial) / dollars(monthlyBenefit)) < 1e-9);
-  ordinaryCases++;
-}
-assert.equal(ordinaryCases, 144);
-
-// Detailed approved fields only: overview/status rows are not questions.
-assert.deepEqual(Bank.areas.map(area => area.fields.length), [16,24,46,124,84,80,119,111,121,114,107,36]);
-assert.ok(!Bank.areas[4].fields.some(field => field.id === 'payroll'));
-assert.ok(!Contract.schema('area4').properties.facts.items.properties.id.enum.includes('payroll'));
-assert.throws(() => Calculation.calculate(request({ area: 'area4', payroll: 'Yes' })), /Unknown calculation field/);
-for (const area of Bank.areas) assert.ok(area.fields.every(field => !/^(Locked|Excluded|Route listed)\s*[—-]/i.test(field.options)));
-console.log('PASS: 28–29 October fixed-price launch, included training, 12-area ROI eligibility, unknown savings, 10,000 exact-cent splits, 144 independent quote/ROI cases, approved question/AI/API boundaries.');
+console.log('PASS: document/data readiness allowances, $0 eligibility, required intake context, and excluded future operating costs.');

@@ -116,7 +116,7 @@ function fakeDevices() {
       page.on('pageerror', error => errors.push(error.message));
       async function openDescription() {
         await page.goto(origin, { waitUntil: 'networkidle' });
-        await page.getByRole('button', { name: 'Paid advertising', exact: true }).click();
+        await page.getByRole('button', { name: 'Finance & billing', exact: true }).click();
         await page.getByRole('button', { name: /^Describe the work/ }).click();
         await page.waitForFunction(() => !document.querySelector('.voice-toggle').disabled);
       }
@@ -304,7 +304,7 @@ function fakeDevices() {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(origin, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: 'Paid advertising', exact: true }).click();
+      await page.getByRole('button', { name: 'Finance & billing', exact: true }).click();
       await page.getByRole('button', { name: /^Describe the work/ }).click();
       const description = page.locator('#description');
       const toggle = page.getByRole('checkbox', { name: 'Auto-correct spelling' });
@@ -405,7 +405,7 @@ function fakeDevices() {
     });
     const insecurePage = await insecureContext.newPage();
     await insecurePage.goto('http://voice-local.test/', { waitUntil: 'networkidle' });
-    await insecurePage.getByRole('button', { name: 'Paid advertising', exact: true }).click();
+    await insecurePage.getByRole('button', { name: 'Finance & billing', exact: true }).click();
     await insecurePage.getByRole('button', { name: /^Describe the work/ }).click();
     assert.equal(await insecurePage.evaluate(() => isSecureContext), false);
     await insecurePage.getByRole('status').filter({ hasText: 'Microphone access needs HTTPS.' }).waitFor();
