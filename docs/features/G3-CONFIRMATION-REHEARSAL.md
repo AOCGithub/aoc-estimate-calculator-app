@@ -1,50 +1,53 @@
-# G3 confirmation and rehearsal record
+# G3 C10 confirmation and rehearsal record
 
-Status checked on 24 November 2026. G3 implementation is isolated on
-`feature/g3-confirmation-rehearsal` until the dependencies below are agreed.
+Status: implemented for sandbox review; external destination and live authorization deferred
+Reviewed: 27 November 2026
 
-## Already available from G2
+## Agreed implementation scope
 
-- A server-verified Stripe `paid` result is required before the payment-email path runs.
-- Failed, expired, incomplete and unpaid payments do not send payment confirmations.
-- A repeated Stripe event retains one audit intake and one delivery record per recipient.
-- The saved submission, reviewed work-description record, purchase and audit-intake references are available.
-- The Stripe receipt remains separate from the AOC next-step email.
-- Sandbox messages are clearly marked as tests and do not claim a real charge or audit booking.
+The G3 branch includes all three requested C10 items:
 
-These controls have automated fixture coverage. Actual inbox receipt was tested separately during G2 setup; no real email or payment is produced by the automated tests.
+1. Generate a client-specific C10 order from the immutable saved quote and intake snapshot.
+2. Require affirmative acceptance of the exact C10 reference and version before Stripe Checkout opens.
+3. After a server-verified successful payment, attach the accepted C10 as a PDF to the client and support messages.
 
-## Inputs required before the G3 connection
+The accepted C10 and the estimate are separate PDF attachments. The Stripe receipt remains a separate Stripe link. The C10 uses the current service name and saved fee; the older template does not replace current calculator pricing or service wording.
 
-Confirm with Vianca/Diana:
+## Data recorded in C10
 
-1. Whether the agreed payment scope includes both AOC email dispatch and creation or linking of a rehearsal project record.
-2. The approved client and internal email wording from task 19913169.
-3. The successful-payment trigger: Stripe reports `paid`, the amount and references match the saved purchase, and the payment is not a duplicate.
-4. The approved sender mailbox, client recipient source and internal AOC recipient or recipients.
-5. The rehearsal record destination. Specify whether this is the estimator's private database or an external project system, and provide its required fields and access method.
-6. Whether sandbox tests should send clearly labelled test messages to designated test recipients or remain capture-only.
+- C10 reference, version, content fingerprint, issue time and acceptance time
+- authorized representative and saved company/contact details
+- agreed business area, exact work description, systems and department context
+- included discovery deliverables and exclusions
+- locked fee, currency, sandbox tax treatment and total
+- delivery, eligible build credit, refund and change-control wording
+- submission, work-description, purchase, Stripe Checkout and payment references
+- payment status
 
-## Proposed minimum fields
+Internal template instructions are not included in the client PDF. The accepted order JSON is persisted on the purchase so later calculator or template changes cannot alter what was accepted.
 
-The record can carry existing verified data without collecting new card information:
+## Safety and repeat-event behavior
 
-- submission reference
-- reviewed work-description record reference
-- purchase reference
-- audit-intake reference
-- Stripe Checkout and payment references
-- payment outcome, currency, amount and confirmation time
-- client name, company and business email already supplied to the calculator/Stripe
-- immutable estimate snapshot and pricing/calculator versions
-- Stripe receipt URL
-- email-delivery state for the client and AOC copies
+- Checkout rejects a missing or changed C10 reference/version.
+- Stripe metadata carries the C10 reference/version and is verified with the other purchase references.
+- Failed, expired, incomplete and unpaid payments send no paid confirmation.
+- Duplicate or concurrent events retain one intake and one delivery claim per audience.
+- Sandbox messages remain clearly marked and never claim a real charge or booking.
 
-Raw card details must never be requested or stored.
+## Decisions still required from Vianca/Diana
 
-## Remaining active effort
+Before live use, confirm:
 
-If the destination is a new private record in the existing G2 database and the wording/recipients are supplied, allow **5-7 active hours** for the migration, transaction-safe link, approved email update, automated tests, one designated sandbox inbox test, deployment and handoff note.
+1. Final client and internal email wording and the authorized sender/client/support recipient rules.
+2. Whether the current private `g2_sandbox` rehearsal intake is the required rehearsal record or whether an external project record must be created/linked.
+3. The external destination, required fields and access method if a separate project record is required.
+4. The approved tax/cancellation wording for a real client order; the current C10 truthfully records the sandbox checkout behavior only.
+5. The designated sandbox inboxes for the final receipt test.
 
-If the rehearsal record belongs in an external project system, its API, authentication and field mapping must be reviewed first. That integration is not included in the 5-7 hours; an updated estimate can be given after the destination is identified.
+The internal `audit_intake_reference` is a private rehearsal intake identifier. It must not be described as an external project record unless Vianca/Diana choose and approve that destination.
 
+## Exact remaining work
+
+If the existing private rehearsal intake is accepted as the destination, the remaining work is database migration, deployment and one designated sandbox inbox rehearsal: approximately **1-2 active hours** after approvals and access are available.
+
+If an external project system is required, its connection and field mapping are deferred. Estimate that work only after the destination and authentication method are supplied.

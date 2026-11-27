@@ -1,7 +1,7 @@
 # Stripe sandbox handoff
 
 Status: operational rehearsal feature
-Reviewed: 25 November 2026
+Reviewed: 27 November 2026
 
 The shared payment path applies to every active estimator category. Paid Advertising is Coming Soon and is not a special exception.
 
@@ -17,12 +17,13 @@ Monthly services, advertising spend, software subscriptions and other client-pai
 ## Flow
 
 1. Complete a supported active-category estimate and review the saved scope.
-2. Explicitly consent to the purchase snapshot and continue to Stripe Checkout.
-3. The server stores the exact description, answers, result, rules version, service terms and references.
+2. Review and explicitly accept the exact C10 order reference/version.
+3. The server stores the accepted C10 plus the exact description, answers, result, rules version, service terms and references before Stripe Checkout.
 4. Stripe Checkout receives the server-calculated 15% USD amount.
 5. The webhook/refresh path validates signature, test mode, ownership, references, item, amount and currency against the current Stripe Session.
 6. Only a confirmed paid session creates one rehearsal intake.
-7. The status page exposes the outcome, receipt when available and an immutable PDF download.
+7. The status page exposes the outcome, receipt when available and an immutable estimate PDF download.
+8. Verified-payment email attaches the accepted C10 and estimate as separate PDFs; the Stripe receipt remains separate.
 
 Completed-but-unpaid is processing, not paid. Failed or expired attempts create no paid intake and can retain the original submission for retry. Duplicate/concurrent events and checkout requests remain idempotent.
 
@@ -56,7 +57,7 @@ Real Stripe keys and live events are intentionally rejected. See [Test-only paym
 
 | Scenario | Required result |
 | --- | --- |
-| Paid test purchase | One rehearsal intake, receipt when available, PDF and eligible sandbox emails |
+| Paid test purchase | One rehearsal intake, accepted C10 PDF, estimate PDF, receipt when available and eligible sandbox emails |
 | Duplicate/concurrent event | Same intake and email claims; no duplicate |
 | Completed but unpaid | Processing; no paid intake or confirmation |
 | Failed/expired | No paid intake; safe retry path |
@@ -68,6 +69,6 @@ Real Stripe keys and live events are intentionally rejected. See [Test-only paym
 
 ## G3 boundary
 
-The Stripe receipt, AOC next-step email and rehearsal project record are three separate outputs. Final email wording, sender/recipient, successful-payment trigger details and record destination must be approved with Vianca/Diana. If those dependencies are missing, record the exact remaining work and effort before implementation. Never send a real paid-order confirmation for a sandbox, failed or duplicate payment.
+The Stripe receipt, accepted C10, AOC next-step email and rehearsal project record are separate outputs. The exact paid trigger and C10 attachment path are implemented in sandbox. Final email wording, sender/recipient and record destination still require Vianca/Diana approval. Never send a real paid-order confirmation for a sandbox, failed or duplicate payment.
 
 Run `npm run test:g2`; the suite covers server calculation, ownership, idempotency, failure/replay protection, email routing, PDF and responsive payment UI with synthetic providers.

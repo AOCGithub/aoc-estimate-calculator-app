@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { json, requireAccess, validateAccessProfile } from '../api-handlers.mjs';
 import { auditService } from './audit-service.mjs';
+import { acceptC10Order, createC10OrderDraft } from './c10-order.mjs';
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const allowedEvents = new Set(['checkout.session.completed','checkout.session.async_payment_succeeded',
@@ -29,6 +30,7 @@ const checkoutUrl = value => safeUrl(value,['checkout.stripe.com']);
 const receiptUrl = value => safeUrl(value,['pay.stripe.com','receipts.stripe.com']);
 const CALCULATED_AUDIT_SOURCE = 'AOC calculator 15% project estimate';
 const readSnapshot = value => typeof value === 'string' ? JSON.parse(value) : value;
+const readOrder = value => value ? (typeof value === 'string' ? JSON.parse(value) : value) : null;
 function chargeDate(intent) {
   const timestamp=intent?.latest_charge?.created;
   return Number.isSafeInteger(timestamp) && timestamp>0 && timestamp<8640000000000
@@ -57,6 +59,7 @@ function view(bundle) {
     purchaseReference:p.id, auditIntakeReference:s.audit_intake_reference,
     purchaseAgreementVersion:p.purchase_agreement_version || null,
     purchaseAgreedAt:p.purchase_agreed_at || null,
+    acceptedOrder:readOrder(p.accepted_order),
     outcome:p.outcome, amount:p.amount, currency:p.currency, item:p.item_name,paidAt:p.paid_at,
     stripeCheckoutReference:p.checkout_reference, stripePaymentReference:p.payment_reference,
     receiptUrl:p.outcome==='paid'?receiptUrl(p.receipt_url):null,
@@ -100,7 +103,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     const currentQuote=validAuditRecord(saved,quote)?quote:null;
     return {submissionReference:saved.id,recordingReference:saved.recording_reference,
       status:currentQuote?'quoted':'pending',...(currentQuote?{amount:currentQuote.amount,currency:currentQuote.currency,
-        calculated:true}:{}),
+        calculated:true,order:createC10OrderDraft(saved,currentQuote)}:{}),
       requestedAt:saved.created_at,scope:{area:snapshot.area,answers:snapshot.answers,confirmed:snapshot.confirmed,
         result:snapshot.result,calculatorVersion:snapshot.calculatorVersion,description:saved.description}};
   }
@@ -115,7 +118,10 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     const submission=await store.submission(p.submission_reference);
     return {submission_reference:p.submission_reference,recording_reference:submission.recording_reference,purchase_reference:p.id,
       ...(p.quote_reference?{quote_reference:p.quote_reference}:{}),
-      ...(p.purchase_agreement_version?{agreement_version:p.purchase_agreement_version}:{})};
+      ...(p.purchase_agreement_version?{agreement_version:p.purchase_agreement_version}:{}),
+      ...(readOrder(p.accepted_order)?.reference?{order_reference:readOrder(p.accepted_order).reference}:{}),
+      ...(readOrder(p.accepted_order)?.version?{order_version:readOrder(p.accepted_order).version}:{}),
+      ...(readOrder(p.accepted_order)?.fingerprint?{order_fingerprint:readOrder(p.accepted_order).fingerprint}:{})};
   }
   function verifySession(session,p,refs) {
     const metadata=session.metadata||{};
@@ -143,7 +149,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     try { body=JSON.parse((await rawBody(request,160000)).toString('utf8')); }
     catch(error){return json({error:'Send a bounded JSON purchase request.'},error.message==='request_too_large'?413:400);}
     if(!body || typeof body!=='object' || Array.isArray(body)
-      || Object.keys(body).some(key=>!['consent','purchaseAgreement','submissionReference'].includes(key)))
+      || Object.keys(body).some(key=>!['consent','purchaseAgreement','submissionReference','orderReference','orderVersion','orderFingerprint'].includes(key)))
       return json({error:'Start payment only from the saved AOC quote.'},400);
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
     if(!Object.hasOwn(body,'purchaseAgreement'))return json({error:'This checkout page is out of date. Refresh the calculator, review paid discovery again and accept both checkboxes.'},409);
@@ -157,14 +163,19 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       if(quote?.scope_fingerprint!==saved.fingerprint)throw new Error('snapshot_conflict');
       const offer=auditOffer(saved,quote);
       const agreement={version:auditService.purchaseAgreement.version,acceptedAt:new Date().toISOString()};
-      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer,agreement});
+      const orderDraft=createC10OrderDraft(saved,quote);
+      if(body.orderReference!==orderDraft.reference||body.orderVersion!==orderDraft.version
+        ||body.orderFingerprint!==orderDraft.fingerprint)
+        return json({error:'The C10 order changed. Review the current order reference and version before checkout.'},409);
+      const acceptedOrder=acceptC10Order(orderDraft,agreement.acceptedAt);
+      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer,agreement,acceptedOrder});
       if(!prepared)return json({error:'Discovery quote not found for this session.'},404);
       if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
       if(prepared.purchase.checkout_reference){
         const session=await retrieve(prepared.purchase);
         if(session.status==='expired'){
           await store.closeExpiredCheckout(prepared.purchase.id);
-          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer,agreement});
+          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer,agreement,acceptedOrder});
           if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
           if(prepared.purchase.checkout_reference)return json({purchase:view(prepared),waitingForPaymentEvent:true});
         }else if(session.status==='open' && checkoutUrl(session.url))return json({purchase:view(prepared),checkoutUrl:checkoutUrl(session.url)});
@@ -189,6 +200,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       if(error.message==='audit_quote_pending')return json({error:'The saved discovery fee does not match 15% of this project estimate. Start a new discovery review.'},409);
       if(error.message==='snapshot_conflict')return json({error:'This submission has changed. Review it as a new test purchase.'},409);
       if(error.message==='agreement_conflict')return json({error:'The purchase agreement changed. Review the current terms before starting a new checkout.'},409);
+      if(error.message==='order_conflict')return json({error:'The accepted C10 order changed. Review the current order before starting checkout.'},409);
       if(error.message==='purchase_mismatch')return json({error:'Stripe references or amounts need review; no new purchase was created.'},409);
       console.warn('Stripe sandbox checkout failed.',{type:error.type||error.name,code:error.code||null,param:error.param||null});
       return json({error:'Could not open Stripe test checkout. Your saved submission is retained; retry safely.'},502);

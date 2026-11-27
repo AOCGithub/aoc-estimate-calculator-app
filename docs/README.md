@@ -16,6 +16,7 @@ Start with:
 - [Production release results](PRODUCTION-TEST-RESULTS.md)
 - [Stripe sandbox handoff](features/G2-STRIPE-HANDOFF.md)
 - [Payment emails](features/G2-PAYMENT-EMAILS.md)
+- [C10 confirmation and rehearsal record](features/G3-CONFIRMATION-REHEARSAL.md)
 - [Form and estimate records](features/FORM-AND-ESTIMATE-RECORDS.md)
 - [Optional client profiles](features/OPTIONAL-CLIENT-PROFILES.md)
 - [reCAPTCHA](features/RECAPTCHA.md)

@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { sameC10Order } from './c10-order.mjs';
 
 export function createHostedHandoffStore(connection) {
   const sql = postgres(connection, {
@@ -100,7 +101,7 @@ export function createHostedHandoffStore(connection) {
         WHERE p.id = ${id} AND s.owner_hash = ${ownerHash}`;
       return pair ?? null;
     },
-    prepare({ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference, agreement}) {
+    prepare({ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference, agreement, acceptedOrder}) {
       return sql.begin(async db => {
         let parent;
         if (submissionReference) {
@@ -125,18 +126,22 @@ export function createHostedHandoffStore(connection) {
           if (current.purchase_agreement_version && current.purchase_agreement_version !== agreement.version) {
             throw new Error('agreement_conflict');
           }
-          if (!current.purchase_agreement_version) {
+          if (current.accepted_order && !sameC10Order(current.accepted_order, acceptedOrder)) {
+            throw new Error('order_conflict');
+          }
+          if (!current.purchase_agreement_version || !current.accepted_order) {
             [current] = await db`UPDATE g2_sandbox.purchases SET purchase_agreement_version = ${agreement.version},
-              purchase_agreed_at = ${agreement.acceptedAt}::timestamptz, updated_at = now()
+              purchase_agreed_at = ${agreement.acceptedAt}::timestamptz,
+              accepted_order = ${db.json(acceptedOrder)}, updated_at = now()
               WHERE id = ${current.id} RETURNING *`;
           }
           return {submission: parent, purchase: current};
         }
         const [created] = await db`INSERT INTO g2_sandbox.purchases
           (submission_reference, amount, currency, price_reference, quote_reference, item_name,
-            purchase_agreement_version, purchase_agreed_at)
+            purchase_agreement_version, purchase_agreed_at, accepted_order)
           VALUES (${parent.id}, ${price.amount}, ${price.currency}, ${price.id}, ${price.quoteReference}, ${price.name},
-            ${agreement.version}, ${agreement.acceptedAt}::timestamptz) RETURNING *`;
+            ${agreement.version}, ${agreement.acceptedAt}::timestamptz, ${db.json(acceptedOrder)}) RETURNING *`;
         return {submission: parent, purchase: created};
       });
     },

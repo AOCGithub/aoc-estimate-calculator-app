@@ -17,6 +17,7 @@ try {
       new URL('../../supabase/migrations/20261119000100_g2_payment_emails.sql', import.meta.url),
       new URL('../../supabase/migrations/20261123000100_g2_audit_quotes.sql', import.meta.url),
       new URL('../../supabase/migrations/20261124000100_g2_purchase_agreements.sql', import.meta.url),
+      new URL('../../supabase/migrations/20261127000100_g3_c10_accepted_orders.sql', import.meta.url),
     ].map(file => readFile(file, 'utf8')));
     await sql.begin(async db => {
       await db`SELECT pg_advisory_xact_lock(20261118, 2)`;
@@ -30,6 +31,10 @@ try {
         WHERE table_schema = 'g2_sandbox' AND table_name = 'purchases'
           AND column_name = 'purchase_agreement_version') AS present`;
       if (!agreement.present) await db.unsafe(migrations[3]);
+      const [acceptedOrder] = await db`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'g2_sandbox' AND table_name = 'purchases'
+          AND column_name = 'accepted_order') AS present`;
+      if (!acceptedOrder.present) await db.unsafe(migrations[4]);
     });
   }
   const tables = await sql`SELECT c.relname, c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -38,8 +43,8 @@ try {
   assert.ok(tables.every(row => row.relrowsecurity));
   const agreementColumns = await sql`SELECT column_name FROM information_schema.columns
     WHERE table_schema = 'g2_sandbox' AND table_name = 'purchases'
-      AND column_name IN ('purchase_agreement_version', 'purchase_agreed_at') ORDER BY column_name`;
-  assert.deepEqual(agreementColumns.map(row => row.column_name), ['purchase_agreed_at', 'purchase_agreement_version']);
+      AND column_name IN ('accepted_order', 'purchase_agreement_version', 'purchase_agreed_at') ORDER BY column_name`;
+  assert.deepEqual(agreementColumns.map(row => row.column_name), ['accepted_order', 'purchase_agreed_at', 'purchase_agreement_version']);
   for (const role of ['anon', 'authenticated', 'service_role']) {
     const [permissions] = await sql`SELECT has_schema_privilege(${role}, 'g2_sandbox', 'usage,create') AS allowed`;
     assert.equal(permissions.allowed, false, `${role} cannot access G2 data`);
@@ -73,7 +78,10 @@ async function verifyTransactions() {
     const approved = await first.approveQuote({submissionReference: savedLeft.submission.id, amount: 172500,
       quotedBy: 'AOC calculator 15% project estimate'});
     const agreement = {version: '2026-11-24-audit-purchase-v1', acceptedAt: new Date().toISOString()};
-    const order = {ownerHash, submissionReference: savedLeft.submission.id, agreement,
+    const acceptedOrder = {documentType:'C10',reference:'C10-'+approved.id,version:'C10-fixture-v1',fingerprint:'a'.repeat(64),
+      submissionReference:savedLeft.submission.id,price:{amount:approved.amount,currency:approved.currency},
+      acceptance:{acceptedAt:agreement.acceptedAt}};
+    const order = {ownerHash, submissionReference: savedLeft.submission.id, agreement, acceptedOrder,
       price: {id: 'audit_quote_' + approved.id, quoteReference: approved.id, name: 'Initial audit', amount: approved.amount, currency: approved.currency}};
     const [left, right] = await Promise.all([first.prepare(order), second.prepare(order)]);
     const purchaseId = left.purchase.id;
@@ -83,7 +91,9 @@ async function verifyTransactions() {
     const differentSaved = await second.saveSubmission(differentRequest);
     const differentQuote = await second.approveQuote({submissionReference:differentSaved.submission.id,amount:172500,
       quotedBy:'AOC calculator 15% project estimate'});
-    const differentOrder={ownerHash,submissionReference:differentSaved.submission.id,agreement,
+    const differentAcceptedOrder={...acceptedOrder,reference:'C10-'+differentQuote.id,fingerprint:'b'.repeat(64),
+      submissionReference:differentSaved.submission.id};
+    const differentOrder={ownerHash,submissionReference:differentSaved.submission.id,agreement,acceptedOrder:differentAcceptedOrder,
       price:{id:'audit_quote_'+differentQuote.id,quoteReference:differentQuote.id,name:'Initial audit',amount:differentQuote.amount,currency:differentQuote.currency}};
     const different = await second.prepare(differentOrder);
     assert.notEqual(left.submission.id, different.submission.id);

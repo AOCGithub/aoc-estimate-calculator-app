@@ -193,7 +193,7 @@ function documentCard(icon, title, detail, href, ariaLabel = 'Open document') {
   ));
 }
 
-function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref) {
+function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref, orderPdfHref) {
   return [
     table({width: '100%', bgcolor: colors.panel, style: {borderCollapse: 'separate', border: '1px solid ' + colors.border,
       borderRadius: 10, backgroundColor: colors.panel}},
@@ -210,11 +210,16 @@ function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref) {
     gap(24),
     heading('Your Documents'),
     gap(12),
-    table({width: '100%', className: 'email-docs', style: {tableLayout: 'fixed'}}, tr(
-      documentCard('pdf', 'Estimate PDF:', 'Download attached PDF', estimatePdfHref, 'Download estimate PDF'),
-      td({className: 'email-doc-gap', width: 12, style: {fontSize: 0, lineHeight: 0}}),
-      documentCard('receipt', 'Payment Receipt:', 'View your Stripe receipt', purchase.receiptUrl),
-    )),
+    table({width: '100%', className: 'email-docs'},
+      tr(documentCard('pdf', 'Accepted C10 Order:', 'Download the attached accepted-order PDF', orderPdfHref,
+        'Download accepted C10 order PDF'))),
+    gap(10),
+    table({width: '100%', className: 'email-docs'},
+      tr(documentCard('pdf', 'Estimate PDF:', 'Download the separate attached estimate PDF', estimatePdfHref,
+        'Download estimate PDF'))),
+    gap(10),
+    table({width: '100%', className: 'email-docs'},
+      tr(documentCard('receipt', 'Stripe Payment Receipt:', 'View your separate Stripe receipt', purchase.receiptUrl))),
     divider(24),
     heading('What Happens Next?'),
     gap(10),
@@ -240,7 +245,7 @@ function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref) {
   ];
 }
 
-function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, description}, estimatePdfHref) {
+function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, description}, estimatePdfHref, orderPdfHref) {
   return [
     heading('Client Information', 16),
     gap(8),
@@ -256,6 +261,8 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
       ['Estimate ID:', purchase.submissionReference],
       ['Work Description:', description],
       ['Discovery Fee Paid:', amount],
+      ['Accepted C10 Order:', orderPdfHref ? h('a', {className: 'email-attachment-link', href: orderPdfHref,
+        style: {color: colors.link, textDecoration: 'underline'}}, 'Download attached accepted order') : 'Attached to this email', true],
       ['Estimate PDF:', estimatePdfHref ? h('a', {className: 'email-attachment-link', href: estimatePdfHref,
         style: {color: colors.link, textDecoration: 'underline'}}, 'Download attached PDF') : 'Attached to this email', true],
     ], 8),
@@ -274,6 +281,7 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
     gap(12),
     detailRows([
       ['Purchase:', purchase.purchaseReference],
+      ['C10 order:', purchase.acceptedOrder?.reference || 'Unavailable'],
       ['Work-description record:', purchase.recordingReference],
       ['Discovery intake:', purchase.auditIntakeReference || 'Pending'],
     ], 8),
@@ -282,11 +290,12 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
   ];
 }
 
-export async function renderPaymentEmail({purchase, audience, clientName = '', checkoutEmail, estimatePdfHref = ''}) {
+export async function renderPaymentEmail({purchase, audience, clientName = '', checkoutEmail,
+  estimatePdfHref = '', orderPdfHref = ''}) {
   const isClient = audience === 'client';
   const fields = paymentDetails(purchase);
-  const content = isClient ? clientCopy(purchase, fields, estimatePdfHref)
-    : supportCopy(purchase, clientName, checkoutEmail, fields, estimatePdfHref);
+  const content = isClient ? clientCopy(purchase, fields, estimatePdfHref, orderPdfHref)
+    : supportCopy(purchase, clientName, checkoutEmail, fields, estimatePdfHref, orderPdfHref);
   const markup = await render(h('html', {lang: 'en'},
     h('head', null, h('meta', {name: 'viewport', content: 'width=device-width, initial-scale=1'}),
       h('meta', {name: 'color-scheme', content: 'light'}),

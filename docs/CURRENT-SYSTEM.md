@@ -1,7 +1,7 @@
 # Current system
 
 Status: authoritative
-Reviewed: 25 November 2026
+Reviewed: 27 November 2026
 Rules version: `simplified-2026-11-25-v7-paid-advertising-coming-soon`
 
 This is the concise source of truth for the estimator’s current product behavior. Resolve conflicts using [Documentation governance](DOCUMENTATION-GOVERNANCE.md).
@@ -58,8 +58,10 @@ The application must leave unknown or unapproved prices unavailable. It must not
 - A successful sandbox payment creates one rehearsal intake; duplicate events remain idempotent.
 - Failed, expired, unpaid, mismatched or duplicate events cannot create a new paid confirmation.
 - The Stripe receipt is separate from the AOC next-step email.
-- Payment emails and the saved PDF use the immutable purchase snapshot.
-- Final G3 AOC wording, sender/recipient authorization and rehearsal-project destination remain dependency decisions owned outside the calculator implementation. Sandbox email behavior does not constitute authorization for real paid-order email.
+- Checkout records affirmative acceptance of the exact C10 reference/version before opening Stripe.
+- After verified payment, the email carries separate accepted-C10 and estimate PDF attachments; the Stripe receipt remains a separate link.
+- The accepted C10 and saved estimate use immutable purchase data.
+- Final sender/recipient authorization, live wording and the external rehearsal-project destination remain dependency decisions owned by Vianca/Diana. Sandbox behavior does not authorize a real paid-order email.
 
 ## Deployment
 

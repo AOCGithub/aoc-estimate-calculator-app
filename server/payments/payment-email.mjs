@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import nodemailer from 'nodemailer';
 import questionBank from '../../public/approved-bank.js';
 import { createPurchasePdf } from '../../src/features/payments/purchase-pdf.js';
+import { createC10OrderPdf } from '../../src/features/payments/c10-order-pdf.js';
 import { renderPaymentEmail, supportEmail } from './payment-email-templates.mjs';
 import { createMicrosoftMailTransport } from './microsoft-mail.mjs';
 
@@ -11,18 +12,29 @@ function emailAddress(value) {
 }
 
 let pdfAssets;
-async function estimateAttachment(purchase) {
+async function attachmentAssets() {
   pdfAssets ||= Promise.all([
     new URL('../../public/fonts/noto-sans/NotoSans-Regular.ttf', import.meta.url),
     new URL('../../public/fonts/noto-sans/NotoSans-Bold.ttf', import.meta.url),
     new URL('../../public/favicon.png', import.meta.url),
   ].map(asset => readFile(asset, 'base64'))).catch(error => { pdfAssets = null; throw error; });
   const [regularFont, boldFont, logo] = await pdfAssets;
+  return {regularFont, boldFont, logo};
+}
+
+async function paymentAttachments(purchase) {
+  const {regularFont, boldFont, logo} = await attachmentAssets();
   const doc = createPurchasePdf(purchase, {regularFont, boldFont, logo, questionBank});
-  return {filename: `aoc-estimate-${purchase.submissionReference}.pdf`, contentType: 'application/pdf',
+  const estimate = {filename: `aoc-estimate-${purchase.submissionReference}.pdf`, contentType: 'application/pdf',
     content: Buffer.from(doc.output('arraybuffer')),
     cid: `aoc-estimate-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
     contentDisposition: 'attachment'};
+  const c10 = createC10OrderPdf(purchase, {regularFont, boldFont, logo});
+  const order = {filename: `aoc-c10-accepted-order-${purchase.acceptedOrder.reference}.pdf`, contentType: 'application/pdf',
+    content: Buffer.from(c10.output('arraybuffer')),
+    cid: `aoc-c10-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
+    contentDisposition: 'attachment'};
+  return {estimate, order};
 }
 
 function smtpFailure(error) {
@@ -34,17 +46,17 @@ function smtpFailure(error) {
 }
 
 export function createPaymentEmailSender({store, transport, fromAddress, testClientAddress = ''}) {
-  async function deliver({purchase, audience, to, clientName, checkoutEmail, attachment}) {
+  async function deliver({purchase, audience, to, clientName, checkoutEmail, attachments}) {
     const id = purchase.purchaseReference;
     if (!(await store.claimPaymentEmail(id, audience))) return;
     let message;
     try {
       const copy = await renderPaymentEmail({purchase, audience, clientName, checkoutEmail,
-        estimatePdfHref: `cid:${attachment.cid}`});
+        estimatePdfHref: `cid:${attachments.estimate.cid}`, orderPdfHref: `cid:${attachments.order.cid}`});
       message = {...copy, to: {address: to, name: audience === 'client' ? clientName : 'AOC Support'},
         from: {address: fromAddress, name: 'Always Open Commerce'}, replyTo: supportEmail,
         messageId: `<aoc-audit-${id}-${audience}@${fromAddress.split('@')[1]}>`,
-        attachments: [attachment]};
+        attachments: [attachments.order, attachments.estimate]};
     } catch {
       await store.finishPaymentEmail(id, audience, 'retry');
       throw new Error('payment_email_render_failed');
@@ -65,8 +77,8 @@ export function createPaymentEmailSender({store, transport, fromAddress, testCli
     if (purchase.outcome !== 'paid') return;
     const checkoutEmail = emailAddress(customerDetails?.email);
     const clientName = purchase.snapshot.profile?.name || customerDetails?.name || '';
-    const attachment = await estimateAttachment(purchase);
-    const checkout = {purchase, clientName, checkoutEmail, attachment};
+    const attachments = await paymentAttachments(purchase);
+    const checkout = {purchase, clientName, checkoutEmail, attachments};
     const messages = [deliver({...checkout, audience: 'support', to: supportEmail})];
     // Stripe can report a paid session before the receipt URL is available.
     if (checkoutEmail && purchase.receiptUrl) {

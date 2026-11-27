@@ -142,7 +142,10 @@ export default function PaymentStatusPage() {
     setCheckedAt('');
     try {
       const data = await startAuditCheckout({ consent: true, purchaseAgreement: Boolean(purchase.purchaseAgreementVersion),
-        submissionReference: purchase.submissionReference });
+        submissionReference: purchase.submissionReference,
+        orderReference: purchase.acceptedOrder?.reference,
+        orderVersion: purchase.acceptedOrder?.version,
+        orderFingerprint: purchase.acceptedOrder?.fingerprint });
       const destination = stripeLink(data.checkoutUrl, ['checkout.stripe.com']);
       if (destination || data.purchase.purchaseReference !== reference) {
         window.location.assign(destination || paymentStatusUrl(data.purchase.purchaseReference));

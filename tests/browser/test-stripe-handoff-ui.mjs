@@ -19,6 +19,14 @@ const purchase={testMode:true,submissionReference:randomUUID(),recordingReferenc
  auditIntakeReference:null,outcome:'pending',amount:result.audit*100,currency:'usd',item:auditService.name,receiptUrl:null,
  purchaseAgreementVersion:auditService.purchaseAgreement.version,purchaseAgreedAt:'2026-11-17T10:00:30Z',
  snapshot:{area,description,answers,result,service:auditService,calculatorVersion:'synthetic-ui-fixture',savedAt:'2026-11-17T10:00:00Z'}};
+const order={documentType:'C10',documentTitle:'Process Optimization & Solution Design Order',version:'C10-fixture-v1',fingerprint:'f'.repeat(64),
+ reference:'C10-'+randomUUID(),issuedAt:'2026-11-17T10:00:00Z',submissionReference:purchase.submissionReference,
+ recordingReference:purchase.recordingReference,client:{name:'Synthetic User',company:'Synthetic Company',businessEmail:'g2@example.com',website:'example.com',role:'Tester'},
+ project:{businessArea:'Finance & billing',agreedProcess:description,systems:'Wave',departments:'Finance'},
+ service:{...auditService,changeControl:'Work outside this order requires a separately agreed scope and accepted quote or change order.'},
+ price:{amount:purchase.amount,currency:'usd',tax:'No separate tax added.',total:purchase.amount},
+ acceptance:{agreementVersion:auditService.purchaseAgreement.version,wording:auditService.purchaseAgreement.text}};
+purchase.acceptedOrder={...order,acceptance:{...order.acceptance,acceptedAt:purchase.purchaseAgreedAt}};
 let mode='review',outcome='pending',calls=0,quoteCalls=0,refreshDelay=0,refreshError=false,refreshChecks=0,server,browser;
 const errors=[];
 try{
@@ -48,7 +56,8 @@ try{
     if(mode==='setup'){respond({enabled:true,configured:false});return;}
     if(url.searchParams.has('submission_reference')){
      respond({enabled:true,configured:true,quoteRequest:{submissionReference:purchase.submissionReference,
-       recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',calculated:true,requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
+       recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',calculated:true,order,
+       requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
     }
     if(['missing-return','invalid-return','expired-session','temporary-error'].includes(mode)&&url.searchParams.has('purchase_reference')){
      const code=mode==='invalid-return'?400:mode==='temporary-error'?503:mode==='expired-session'?401:404;
@@ -64,11 +73,13 @@ try{
     assert.equal(body.calculation.answers.steps_band,answers.steps_band);
     for(const retired of ['implementation_fee','management','responsibility_split','legacy_system_check'])assert.equal(body.calculation.answers[retired],undefined);
     quoteCalls++;respond({quoteRequest:{submissionReference:purchase.submissionReference,
-      recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',calculated:true,requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
+      recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',calculated:true,order,
+      requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
    }
    if(url.pathname==='/api/payments/checkout'){
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);assert.equal(body.consent,true);
-    assert.deepEqual(body,{consent:true,purchaseAgreement:true,submissionReference:purchase.submissionReference});
+    assert.deepEqual(body,{consent:true,purchaseAgreement:true,submissionReference:purchase.submissionReference,
+      orderReference:order.reference,orderVersion:order.version,orderFingerprint:order.fingerprint});
     calls++;respond({purchase:{...purchase,outcome}});return;
    }
    next();
@@ -95,11 +106,9 @@ try{
  assert.ok(review.includes('Due today'));assert.ok(review.includes(auditService.included[0]));
  const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
  let agreement=page.getByRole('checkbox',{name:/Purchase agreement/});
- assert.equal(
-  await page.locator('.g2-purchase__agreement small').textContent(),
-  auditService.purchaseAgreement.text,
-  'The current discovery purchase agreement is visible',
- );
+ const agreementCopy=await page.locator('.g2-purchase__agreement small').textContent();
+ assert.ok(agreementCopy.includes(order.reference)&&agreementCopy.includes(order.version)
+  &&agreementCopy.includes(auditService.purchaseAgreement.text),'The exact C10 order and current purchase agreement are visible');
  assert.equal(await agreement.isChecked(),false);
  assert.equal(await pay.isDisabled(),true,'Checkout requires the separate purchase agreement');
  await agreement.check();

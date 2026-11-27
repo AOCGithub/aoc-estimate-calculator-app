@@ -1,12 +1,12 @@
 # Payment emails
 
 Status: operational sandbox feature
-Reviewed: 25 November 2026
+Reviewed: 27 November 2026
 
 After Stripe independently confirms a paid sandbox Checkout session, the app sends separate messages:
 
 - Support receives the client/payment details and immutable estimate/purchase/rehearsal references.
-- The sandbox client recipient receives the AOC next-step message, saved estimate PDF and Stripe receipt link when Stripe supplies a checkout email and receipt.
+- The sandbox client recipient receives the AOC next-step message, accepted C10 PDF, separate saved estimate PDF and separate Stripe receipt link when Stripe supplies a checkout email and receipt.
 
 The Stripe receipt remains Stripe’s document; it is not the AOC email. Failed, expired, unpaid, mismatched and duplicate events cannot create a new paid confirmation.
 
@@ -33,4 +33,4 @@ Support is currently routed to `support@alwaysopencommerce.com`. The final G3 se
 - A `sent` state means the provider accepted the message, not guaranteed inbox placement.
 - Check Sent Items/provider trace before manually retrying an uncertain message.
 
-Run `npm run test:g2` for synthetic webhook, routing, content, attachment and retry coverage. Before claiming hosted email success, complete one authorized sandbox purchase and confirm both actual inboxes. Never use a sandbox message as proof of a real paid order.
+Run `npm run test:g2` for synthetic webhook, routing, C10/estimate attachment and retry coverage. Before claiming hosted email success, complete one authorized sandbox purchase and confirm both actual inboxes. Never use a sandbox message as proof of a real paid order.
