@@ -4,8 +4,8 @@
   height: 100%;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 10% 100%, rgb(21 130 119 / 38%), transparent 65%),
-    radial-gradient(ellipse at 90% 80%, rgb(61 126 157 / 25%), transparent 70%);
+    radial-gradient(ellipse at 10% 100%, rgb(12 65 248 / 38%), transparent 65%),
+    radial-gradient(ellipse at 90% 80%, rgb(64 107 255 / 28%), transparent 70%);
 }
 
 .aurora-container[data-renderer='webgl'] { background: transparent; }

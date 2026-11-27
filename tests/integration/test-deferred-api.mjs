@@ -18,7 +18,7 @@ const response = await handleJourneyCalculation(new Request('https://deferred.ex
   body: JSON.stringify({ area, answers, confirmed: process_confirmed }),
 }), {});
 assert.equal(response.status, 200);
-assert.equal((await response.json()).result.build, 11500);
+assert.equal((await response.json()).result.build, 12250);
 assert.equal(isLoaded('approved-bank.js'), true);
 assert.equal(isLoaded('journey-calculation.js'), true);
 assert.equal(isLoaded('catalog.js'), false, 'Current calculations do not load the historical intake catalog');

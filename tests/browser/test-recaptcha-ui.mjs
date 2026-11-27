@@ -143,13 +143,13 @@ try{
         assert.equal(await page.getByLabel('Your name',{exact:true}).isDisabled(),true);
       }
       await page.locator('.area').first().waitFor();
-      assert.equal(await page.locator('.area').count(),12);assert.equal(googleCalls,beforeCalls+1,'One fresh CAPTCHA per submission, including remembering a profile');
+      assert.equal(await page.locator('.area').count(),11);assert.equal(googleCalls,beforeCalls+1,'One fresh CAPTCHA per submission, including remembering a profile');
       if(version==='v3')assert.equal(await page.evaluate(()=>window.__captchaAction),'calculator_entry');
       assert.equal(submissions,beforeSubmissions+Number(record));
       assert.equal((await page.request.get(origin+'/api/client-profile')).status(),remember?200:404);
       const{area,process_confirmed,...answers}=fixture;
       const result=await page.request.post(origin+'/api/journey/calculate',{headers:{origin},data:{area,answers,confirmed:process_confirmed}});
-      assert.equal(result.status(),200);assert.equal((await result.json()).result.build,11500);
+      assert.equal(result.status(),200);assert.equal((await result.json()).result.build,12250);
       assert.equal(records,beforeRecords+Number(record));
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       await page.getByRole('button',{name:'End session',exact:true}).click();await page.getByRole('button',{name:'Continue to calculator',exact:true}).waitFor();

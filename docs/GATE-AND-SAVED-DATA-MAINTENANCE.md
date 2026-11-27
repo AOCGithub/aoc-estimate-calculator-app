@@ -38,7 +38,7 @@ Check every matching submission if the client entered the form more than once. O
 ## Check after an update
 
 - Blank required fields block entry; corrected answers allow entry.
-- Each saving choice stores the right information in Supabase.
+- Each saving choice stores the right information in Supabase. 
 - Reviewing saved details preserves current edits.
 - Calculations update after answers change or are cleared.
 - Ending the session clears the current answers and returns to the entry form.
@@ -46,7 +46,7 @@ Check every matching submission if the client entered the form more than once. O
 
 Ask the developer to run the saving-failure and access-protection checks too. Keep AI and database keys in Vercel's private server settings.
 
-Developer details: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md) and [profiles](features/OPTIONAL-CLIENT-PROFILES.md).
+Developer details: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md) and [profiles](OPTIONAL-CLIENT-PROFILES.md).
 
 ## Still on hold
 

@@ -100,7 +100,7 @@ export function createHostedHandoffStore(connection) {
         WHERE p.id = ${id} AND s.owner_hash = ${ownerHash}`;
       return pair ?? null;
     },
-    prepare({ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference}) {
+    prepare({ownerHash, requestReference, fingerprint, description, snapshot, price, submissionReference, agreement}) {
       return sql.begin(async db => {
         let parent;
         if (submissionReference) {
@@ -118,13 +118,25 @@ export function createHostedHandoffStore(connection) {
         if (parent.paid_purchase_reference) {
           return {submission: parent, purchase: await purchase(parent.paid_purchase_reference, db)};
         }
-        const [current] = await db`SELECT * FROM g2_sandbox.purchases WHERE submission_reference = ${parent.id}
+        let [current] = await db`SELECT * FROM g2_sandbox.purchases WHERE submission_reference = ${parent.id}
           AND (outcome IN ('pending', 'processing', 'paid') OR checkout_state = 'open')
           ORDER BY created_at DESC LIMIT 1`;
-        if (current) return {submission: parent, purchase: current};
+        if (current) {
+          if (current.purchase_agreement_version && current.purchase_agreement_version !== agreement.version) {
+            throw new Error('agreement_conflict');
+          }
+          if (!current.purchase_agreement_version) {
+            [current] = await db`UPDATE g2_sandbox.purchases SET purchase_agreement_version = ${agreement.version},
+              purchase_agreed_at = ${agreement.acceptedAt}::timestamptz, updated_at = now()
+              WHERE id = ${current.id} RETURNING *`;
+          }
+          return {submission: parent, purchase: current};
+        }
         const [created] = await db`INSERT INTO g2_sandbox.purchases
-          (submission_reference, amount, currency, price_reference, quote_reference, item_name)
-          VALUES (${parent.id}, ${price.amount}, ${price.currency}, ${price.id}, ${price.quoteReference}, ${price.name}) RETURNING *`;
+          (submission_reference, amount, currency, price_reference, quote_reference, item_name,
+            purchase_agreement_version, purchase_agreed_at)
+          VALUES (${parent.id}, ${price.amount}, ${price.currency}, ${price.id}, ${price.quoteReference}, ${price.name},
+            ${agreement.version}, ${agreement.acceptedAt}::timestamptz) RETURNING *`;
         return {submission: parent, purchase: created};
       });
     },

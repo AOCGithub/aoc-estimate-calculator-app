@@ -11,12 +11,10 @@ function createTestPricing() {
   if (fixture.testOnly !== true) throw Error('Synthetic fixture must be explicitly marked test-only.');
   const pricing = structuredClone(require('../../public/approved-pricing.js'));
   pricing.version += '-synthetic-local';
-  pricing.commercial.version = pricing.version;
-  pricing.commercial.supportPrices = structuredClone(fixture.supportPrices);
-  pricing.commercial.notice = `${fixture.label}. Example amounts are for local calculation testing only; they are not a quote or agreed allowance.`;
-  for (const [tier, price] of Object.entries(fixture.supportPrices)) {
-    if (!pricing.commercial.supportTiers.includes(tier) || !Number.isFinite(price) || price <= 0) throw Error('Invalid synthetic support fixture.');
-  }
+  pricing.simplified.version = pricing.version;
+  if (!Number.isFinite(fixture.moderateCore) || fixture.moderateCore <= 0) throw Error('Invalid synthetic core-price fixture.');
+  pricing.simplified.core.moderate = fixture.moderateCore;
+  pricing.simplified.notices.estimate = `${fixture.label}. This synthetic amount is only for local calculation testing; it is not an AOC quote.`;
   const context = vm.createContext({ structuredClone, AOCPricing: pricing });
   for (const filename of ['engine.js', 'approved-bank.js', 'commercial.js', 'journey-engine.js', 'journey-contract.js', 'journey-calculation.js']) {
     vm.runInContext(fs.readFileSync(path.join(projectRoot, 'public', filename), 'utf8'), context, { filename });
@@ -26,8 +24,7 @@ function createTestPricing() {
 }
 
 function banner() {
-  const tiers = Object.entries(fixture.supportPrices).map(([tier, fee]) => `${tier}: $${fee}/month`).join(' | ');
-  return `<aside class="test-pricing-banner" role="note" aria-label="Synthetic local pricing"><strong>${fixture.label}</strong><p>Production is unchanged. Support fees in this preview: ${tiers}.</p><p>Example support fees only; not approved client prices. Fixed-price builds remain the launch offer. AI uses free local organization here; no paid AI calls are made.</p></aside>`;
+  return `<aside class="test-pricing-banner" role="note" aria-label="Synthetic local pricing"><strong>${fixture.label}</strong><p>Production is unchanged. Moderate workflow core in this preview: $${fixture.moderateCore}.</p><p>This is test-only fixed-price data. AI uses free local organization here; no paid AI calls are made.</p></aside>`;
 }
 
 function createPreviewServer() {

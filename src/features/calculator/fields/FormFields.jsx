@@ -1,5 +1,3 @@
-import { marketingAreas } from '../constants.js';
-
 function hasAnswer(value) {
   if (Array.isArray(value)) return value.length > 0;
   return value !== null && value !== undefined && value !== '';
@@ -7,47 +5,20 @@ function hasAnswer(value) {
 
 function requiredFields(state) {
   const required = new Set([
-    'solution',
-    'steps_band',
-    'variation_band',
     'people_count',
     'department_count',
-    'cadence',
-    'handover',
     'systems',
-    'legacy_system_check',
+    'workspace_context',
+    'ai_account_context',
     'documentation_readiness',
+    'data_information_location',
     'data_preparation_level',
-    'responsibility_split',
-    'action_mode',
-    'implementation_route',
-    'delivery_intent',
-    'existing_client',
+    'data_preparation_owner',
+    'team_time',
+    'blended_hourly_cost',
   ]);
 
-  if (state.answers.solution === 'agent') required.add('decision_band');
-  if (state.answers.action_mode && state.answers.action_mode !== 'draft') required.add('consequential');
-
-  if (marketingAreas.has(state.area)) {
-    ['capability_count', 'brand_count', 'language_count', 'delivery_mode']
-      .forEach((id) => required.add(id));
-    if (state.area === 'area7') {
-      required.add('channel_count');
-      required.add('format_count');
-    }
-    if (state.area === 'area8') {
-      ['initial_pages', 'keyword_count', 'market_count'].forEach((id) => required.add(id));
-    }
-    if (state.answers.delivery_mode === 'managed') {
-      if (state.area === 'area8') {
-        required.add('monthly_pages');
-        required.add('monthly_articles');
-      } else {
-        required.add('monthly_outputs');
-      }
-    }
-  }
-
+  if (state.answers.action_mode === 'automatic') required.add('consequential');
   return required;
 }
 
@@ -101,6 +72,7 @@ export function InputField({
   required,
   onChange,
   list,
+  min,
 }) {
   const displayValue = Array.isArray(value) ? value.join(', ') : (value ?? '');
   const missing = required && !hasAnswer(value);
@@ -110,7 +82,7 @@ export function InputField({
       <input
         id={`f_${id}`}
         type={type}
-        min={type === 'number' ? '0' : undefined}
+        min={type === 'number' ? (min ?? '0') : undefined}
         step={type === 'number' ? 'any' : undefined}
         value={displayValue}
         list={list}
@@ -178,6 +150,7 @@ export function createFieldProps(state, mark) {
         value={state.answers[id]}
         filled={state.profileSources?.[id] ? 'profile' : Boolean(state.facts[id])}
         required={required.has(id)}
+        min={['team_time', 'blended_hourly_cost'].includes(id) ? '0.01' : undefined}
         onChange={mark}
         {...extra}
       />

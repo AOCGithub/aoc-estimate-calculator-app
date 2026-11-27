@@ -55,6 +55,8 @@ function view(bundle) {
   const p=bundle.purchase,s=bundle.submission;
   return { testMode:true, submissionReference:s.id, recordingReference:s.recording_reference,
     purchaseReference:p.id, auditIntakeReference:s.audit_intake_reference,
+    purchaseAgreementVersion:p.purchase_agreement_version || null,
+    purchaseAgreedAt:p.purchase_agreed_at || null,
     outcome:p.outcome, amount:p.amount, currency:p.currency, item:p.item_name,paidAt:p.paid_at,
     stripeCheckoutReference:p.checkout_reference, stripePaymentReference:p.payment_reference,
     receiptUrl:p.outcome==='paid'?receiptUrl(p.receipt_url):null,
@@ -77,7 +79,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
 
   function calculatedAudit(snapshot) {
     const result=readSnapshot(snapshot)?.result;
-    if(!result||result.route!=='project'||result.auditPurchasable!==true||result.auditRate!==0.15
+    if(!result||result.auditPurchasable!==true||result.auditRate!==0.15
       ||!Number.isFinite(result.build)||result.build<=0||!Number.isFinite(result.audit)||result.audit<=0)return null;
     const amount=Math.round(result.audit*100),buildCents=Math.round(result.build*100);
     const expected=Number((BigInt(buildCents)*1500n+5000n)/10000n);
@@ -112,7 +114,8 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
   async function references(p) {
     const submission=await store.submission(p.submission_reference);
     return {submission_reference:p.submission_reference,recording_reference:submission.recording_reference,purchase_reference:p.id,
-      ...(p.quote_reference?{quote_reference:p.quote_reference}:{})};
+      ...(p.quote_reference?{quote_reference:p.quote_reference}:{}),
+      ...(p.purchase_agreement_version?{agreement_version:p.purchase_agreement_version}:{})};
   }
   function verifySession(session,p,refs) {
     const metadata=session.metadata||{};
@@ -140,25 +143,28 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
     try { body=JSON.parse((await rawBody(request,160000)).toString('utf8')); }
     catch(error){return json({error:'Send a bounded JSON purchase request.'},error.message==='request_too_large'?413:400);}
     if(!body || typeof body!=='object' || Array.isArray(body)
-      || Object.keys(body).some(key=>!['consent','submissionReference'].includes(key)))
+      || Object.keys(body).some(key=>!['consent','purchaseAgreement','submissionReference'].includes(key)))
       return json({error:'Start payment only from the saved AOC quote.'},400);
     if(body.consent!==true)return json({error:'Confirm saving this submission and work description for the test purchase.'},400);
+    if(!Object.hasOwn(body,'purchaseAgreement'))return json({error:'This checkout page is out of date. Refresh the calculator, review paid discovery again and accept both checkboxes.'},409);
+    if(body.purchaseAgreement!==true)return json({error:'Review and accept the discovery purchase agreement before continuing.'},400);
     let prepared;
     try {
-      if(!uuid(body.submissionReference))return json({error:'Save the calculated audit fee before payment.'},400);
+      if(!uuid(body.submissionReference))return json({error:'Save the calculated discovery fee before payment.'},400);
       const saved=await store.submission(body.submissionReference);
-      if(!saved||saved.owner_hash!==ownerHash)return json({error:'Audit quote not found for this session.'},404);
+      if(!saved||saved.owner_hash!==ownerHash)return json({error:'Discovery quote not found for this session.'},404);
       const quote=await store.quote(saved.id);
       if(quote?.scope_fingerprint!==saved.fingerprint)throw new Error('snapshot_conflict');
       const offer=auditOffer(saved,quote);
-      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer});
-      if(!prepared)return json({error:'Audit quote not found for this session.'},404);
+      const agreement={version:auditService.purchaseAgreement.version,acceptedAt:new Date().toISOString()};
+      prepared=await store.prepare({ownerHash,submissionReference:body.submissionReference,price:offer,agreement});
+      if(!prepared)return json({error:'Discovery quote not found for this session.'},404);
       if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
       if(prepared.purchase.checkout_reference){
         const session=await retrieve(prepared.purchase);
         if(session.status==='expired'){
           await store.closeExpiredCheckout(prepared.purchase.id);
-          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer});
+          prepared=await store.prepare({ownerHash,submissionReference:prepared.submission.id,price:offer,agreement});
           if(prepared.purchase.outcome==='paid')return json({purchase:view(prepared)});
           if(prepared.purchase.checkout_reference)return json({purchase:view(prepared),waitingForPaymentEvent:true});
         }else if(session.status==='open' && checkoutUrl(session.url))return json({purchase:view(prepared),checkoutUrl:checkoutUrl(session.url)});
@@ -167,7 +173,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const p=prepared.purchase,refs=await references(p),origin=new URL(request.url).origin;
       const snapshot=readSnapshot(prepared.submission.snapshot);
       const result=await stripe.checkout.sessions.create({mode:'payment',line_items:[{price_data:{currency:p.currency,
-          unit_amount:p.amount,product_data:{name:p.item_name,description:snapshot.service?.description||'Initial audit of the agreed work. Implementation and ongoing services are separate.'}},quantity:1}],expand:['line_items'],
+          unit_amount:p.amount,product_data:{name:p.item_name,description:snapshot.service?.description||'Discovery and implementation planning for the agreed work. Implementation and ongoing services are separate.'}},quantity:1}],expand:['line_items'],
         allowed_payment_method_types:['card'],adaptive_pricing:{enabled:false},automatic_tax:{enabled:false},allow_promotion_codes:false,
         client_reference_id:prepared.submission.id,metadata:refs,payment_intent_data:{metadata:refs},
         ...(snapshot.profile?.businessEmail?{customer_email:snapshot.profile.businessEmail}:{}),
@@ -180,8 +186,9 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const stored=await store.bundle(p.id,ownerHash);
       return json({purchase:view(stored),...(stored.purchase.outcome==='paid'?{}:{checkoutUrl:checkoutUrl(result.url)})});
     }catch(error){
-      if(error.message==='audit_quote_pending')return json({error:'The saved audit fee does not match 15% of this project estimate. Start a new audit review.'},409);
+      if(error.message==='audit_quote_pending')return json({error:'The saved discovery fee does not match 15% of this project estimate. Start a new discovery review.'},409);
       if(error.message==='snapshot_conflict')return json({error:'This submission has changed. Review it as a new test purchase.'},409);
+      if(error.message==='agreement_conflict')return json({error:'The purchase agreement changed. Review the current terms before starting a new checkout.'},409);
       if(error.message==='purchase_mismatch')return json({error:'Stripe references or amounts need review; no new purchase was created.'},409);
       console.warn('Stripe sandbox checkout failed.',{type:error.type||error.name,code:error.code||null,param:error.param||null});
       return json({error:'Could not open Stripe test checkout. Your saved submission is retained; retry safely.'},502);
@@ -204,10 +211,9 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const {default:Calculation}=await import('../../public/journey-calculation.js');
       let calculated;
       try { calculated=Calculation.calculate(body.calculation); }
-      catch { return json({error:'Review the calculator answers and recalculate before preparing the audit payment.'},400); }
-      if(!body.calculation.confirmed||calculated.result.errors.length||calculated.result.build===null
-        ||body.calculation.answers.legacy_system_check!=='Standard')
-        return json({error:'Confirm a complete, unblocked scope and recalculate before preparing the audit payment.'},400);
+      catch { return json({error:'Review the calculator answers and recalculate before preparing the discovery payment.'},400); }
+      if(!body.calculation.confirmed||calculated.result.errors.length||calculated.result.build===null)
+        return json({error:'Confirm a complete, unblocked scope and recalculate before preparing the discovery payment.'},400);
       let profile=null;
       if(body.profile){const checked=validateAccessProfile(body.profile);if(checked.error)return json({error:checked.error},400);profile=checked.profile;}
       const snapshot={area:body.calculation.area,answers:body.calculation.answers,confirmed:true,result:calculated.result,
@@ -216,14 +222,14 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       const saved=await store.saveSubmission({ownerHash,requestReference:body.requestReference,
         fingerprint:hash(JSON.stringify(input)),description:input.description,snapshot});
       const amount=calculatedAudit(saved.submission.snapshot);
-      if(!amount)return json({error:'The complete one-time project estimate is required to calculate the 15% audit fee.'},400);
+      if(!amount)return json({error:'The complete one-time project estimate is required to calculate the 15% discovery fee.'},400);
       let quote=saved.quote;
       if(!validAuditRecord(saved.submission,quote))quote=await store.approveQuote({submissionReference:saved.submission.id,
         amount,currency:'usd',quotedBy:CALCULATED_AUDIT_SOURCE});
       return json({quoteRequest:quoteView(saved.submission,quote)});
     }catch(error){
-      if(error.message==='snapshot_conflict'||error.message==='quote_locked')return json({error:'This saved request no longer matches the current 15% audit calculation. Start a new estimate before payment.'},409);
-      return json({error:'The audit review request could not be saved. Your estimate is unchanged.'},503);
+      if(error.message==='snapshot_conflict'||error.message==='quote_locked')return json({error:'This saved request no longer matches the current 15% discovery calculation. Start a new estimate before payment.'},409);
+      return json({error:'The discovery review request could not be saved. Your estimate is unchanged.'},503);
     }
   }
 
@@ -294,7 +300,7 @@ export function createG2Payments({ environment:env,store,stripe,checkAccess=requ
       if(submissionReference){
         if(!uuid(submissionReference))return json({error:'Invalid submission reference.'},400);
         const saved=await store.submission(submissionReference);
-        if(!saved||saved.owner_hash!==identity.hash)return json({error:'Audit review request not found for this session.'},404);
+        if(!saved||saved.owner_hash!==identity.hash)return json({error:'Discovery review request not found for this session.'},404);
         const quote=await store.quote(submissionReference);
         return json({enabled:true,configured:true,quoteRequest:quoteView(saved,quote)});
       }

@@ -1,14 +1,17 @@
 (function(root){
 const Bank=typeof module==='object'?require('./approved-bank.js'):root.AOCBank;
+const Price=typeof module==='object'?require('./approved-pricing.js'):root.AOCPricing;
 const Contract=typeof module==='object'?require('./journey-contract.js'):root.AOCJourneyContract;
 const Engine=typeof module==='object'?require('./journey-engine.js'):root.AOCJourneyEngine;
 const Commercial=typeof module==='object'?require('./commercial.js'):root.AOCCommercial;
 const numericIds=new Set([...Commercial.numericIds,'steps_band','variation_band','decision_band','people_count','department_count','incremental_software_cost','provider_removed_amount','software_removed_amount','capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles','team_time','blended_hourly_cost','replacement_provider_cost','software_replaced_cost']);
 const integerIds=new Set(['steps_band','variation_band','decision_band','people_count','department_count','capability_count','channel_count','format_count','brand_count','language_count','initial_pages','keyword_count','market_count','monthly_outputs','monthly_pages','monthly_articles']);
 const strictChoices={
- solution:['workflow','agent'],action_mode:['draft','approved','automatic'],consequential:['yes','no'],handover:['one','group','multiple'],cadence:['monthly','weekly','daily','realtime'],
+ solution:['workflow','agent'],action_mode:['draft','approved','automatic'],consequential:['yes','no'],handover:['one','group','multiple'], cadence:['monthly','weekly','daily','hourly','realtime'],
+ workspace_context:['google_workspace','microsoft_365','other','none','unknown'],
+ ai_account_context:['chatgpt_personal','chatgpt_business','claude_personal','claude_team','gemini','other','none','unknown'],
  legacy_system_check:['Standard','Customized','Older','Restricted','Not sure'],documentation_readiness:['Clear and current','Partial documentation','Notes or examples','Mostly staff knowledge','Not sure'],
- data_preparation_level:['Mostly ready','Some preparation','Substantial preparation','Not sure'],responsibility_split:['aoc','client','shared','help'],tier:['standard','priority','premier'],
+ data_preparation_level:['clean','existing','partial','limited','unknown'],responsibility_split:['aoc','client','shared','help'],tier:['standard','priority','premier'],
  provider_replaced_portion:['none','all','part','unknown'],software_replaced_portion:['none','all','part','unknown'],delivery_mode:['maintenance','managed'],response_need:['next','hours','urgent','recommend'],
  ...Commercial.choices
 };
@@ -22,20 +25,22 @@ function cleanValue(id,value){
 }
 function calculate(body){
  if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Could not read the calculation request.');
- if(typeof body.area!=='string'||!Bank.areas.some(area=>area.id===body.area))throw Error('Choose a valid business area.');
+ if(typeof body.area!=='string'||!Price.simplified.activeAreaIds.includes(body.area))throw Error('Choose a currently available business area.');
  if(!body.answers||typeof body.answers!=='object'||Array.isArray(body.answers))throw Error('Calculation answers are required.');
  if(typeof body.confirmed!=='boolean')throw Error('Confirm whether the reviewed scope is approved.');
- const allowed=new Set(Contract.fields(body.area).map(field=>field.id));
+ const area=Bank.areas.find(candidate=>candidate.id===body.area);
+ if(body.routes!==undefined&&!Array.isArray(body.routes))throw Error('Selected process steps must be a list.');
+ const routes=body.routes===undefined?[]:body.routes;
+ const availableRoutes=new Set([...area.routes,...area.fields.map(field=>field.route).filter(Boolean)]);
+ if(routes.some(route=>typeof route!=='string'||!availableRoutes.has(route)))throw Error('One or more selected process steps are not available for this business area.');
+ const selectedRoutes=[...new Set(routes)];
+ const allowed=new Set([...Contract.fields(body.area).map(field=>field.id),'solution']);
  const answers={};
  for(const [id,value] of Object.entries(body.answers)){
   if(!allowed.has(id))throw Error('Unknown calculation field: '+id+'.');
-  if(id==='management')continue;
   const cleaned=cleanValue(id,value);if(cleaned!==null)answers[id]=cleaned;
  }
- if(typeof answers.systems==='string')answers.systems=answers.systems.split(/[,;\n]+/).map(item=>item.trim()).filter(Boolean).slice(0,100);
- const responsibility=answers.responsibility_split;
- const management=['aoc','shared'].includes(responsibility)?'yes':responsibility==='client'?'no':null;
- const result=Engine.calculate({...answers,area:body.area,management,process_confirmed:body.confirmed===true});
+ const result=Engine.calculate({...answers,area:body.area,process_confirmed:body.confirmed===true,selected_task_count:Math.max(1,selectedRoutes.length)});
  return {result,version:Bank.version};
 }
 const api={calculate};if(typeof module==='object')module.exports=api;else root.AOCJourneyCalculation=api;

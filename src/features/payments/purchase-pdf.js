@@ -10,7 +10,6 @@ const answer=value=>Array.isArray(value)?value.join(', '):String(value);
 const hasAnswer=value=>value!=null&&(Array.isArray(value)?value.length>0:typeof value!=='string'||value.trim()!=='');
 const titleCase=value=>value.charAt(0).toUpperCase()+value.slice(1);
 const solutions={workflow:'Automated workflow',agent:'AI agent'};
-const responsibilities={client:'Client team manages it',aoc:'AOC manages it',shared:'Shared between the client and AOC',help:'To discuss with AOC'};
 const actionModes={draft:'Prepare drafts for a person to approve',approved:'Make changes after approval',automatic:'Routine work proceeds within agreed limits'};
 
 // One AOC template, filled only from the immutable purchase snapshot. It never
@@ -22,7 +21,7 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   const doc=new jsPDF({unit:'mm',format:'a4',compress:true,putOnlyUsedFonts:true});
   doc.addFileToVFS('NotoSans-Regular.ttf',regularFont);doc.addFont('NotoSans-Regular.ttf','NotoSans','normal');
   doc.addFileToVFS('NotoSans-Bold.ttf',boldFont);doc.addFont('NotoSans-Bold.ttf','NotoSans','bold');
-  doc.setProperties({title:'AOC - Audit payment and estimate',author:'Always Open Commerce',subject:purchase.purchaseReference});
+  doc.setProperties({title:'AOC - Paid discovery payment and estimate',author:'Always Open Commerce',subject:purchase.purchaseReference});
   const {snapshot}=purchase,{result,service,profile,answers}=snapshot;
   const display=describeEstimate(result,answers);
   const area=estimatorBank.areas.find(row=>row.id===snapshot.area);
@@ -55,7 +54,7 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   text(statusLabel,10,'bold',green);doc.text(statusLabel,24,y+9);
   const paymentAmount=money(purchase.amount/100)+' '+purchase.currency.toUpperCase();
   text(paymentAmount,21,'bold');doc.text(paymentAmount,24,y+21);
-  text('One-time audit fee',8,'normal',muted);doc.text('One-time audit fee',186,y+21,{align:'right'});y+=40;
+  text('One-time discovery fee',8,'normal',muted);doc.text('One-time discovery fee',186,y+21,{align:'right'});y+=40;
   table([
     ['Payment for',purchase.item],['Payment confirmed',date(purchase.paidAt)],
     ['Purchase reference',purchase.purchaseReference],
@@ -64,8 +63,8 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   ]);
   if(purchase.outcome!=='paid')paragraph('Payment hasn’t been confirmed. Use your Stripe receipt once payment goes through.');
   section('What the payment covers');
-  paragraph(service?'This payment covers the initial audit.':'This payment covers the initial audit. We price the build and any monthly services separately.');
-  if(result.auditRate===.15&&result.build!=null)paragraph('The audit fee is 15% of the saved one-time project estimate. Monthly services and client-paid third-party costs are separate.');
+  paragraph(`This payment covers ${purchase.item || 'the paid discovery service'}. The fixed-price build is confirmed separately.`);
+  if(result.auditRate===.15&&result.build!=null)paragraph('The paid discovery fee is 15% of the saved one-time build estimate. The build remains provisional until AOC confirms scope and price.');
   if(service){
     paragraph(service.description);
     for(const item of service.included)paragraph('• '+item,{color:ink});
@@ -76,8 +75,7 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   section('Work you submitted',42);
   const scope=[
     ['Business area',area?.label||snapshot.area],['Proposed solution',solutions[answers.solution]],
-    ['Connected systems',answers.systems],['Management after launch',responsibilities[answers.responsibility_split]],
-    ['Your responsibilities',answers.client_retained_work],['AOC responsibilities',answers.aoc_owned_work],
+    ['Apps identified for connection',answers.systems],
     ['How changes are approved',actionModes[answers.action_mode]],['What needs approval',answers.client_approval_checkpoints],
   ].filter(([,value])=>hasAnswer(value)).map(([label,value])=>[label,answer(value)]);
   table(scope);
@@ -87,9 +85,9 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   paragraph('All amounts are in USD. You’ll agree the build and any ongoing costs separately with AOC.');
   table([
     ...(result.level?[['Scope classification',titleCase(result.level)]]:[]),
-    ['Project quote entered',result.buildQuoted
+    ['Fixed-price build quote',result.buildQuoted
       ? result.build != null ? money(result.build) : 'AOC needs to confirm the work before showing a total'
-      : 'Project quote to be confirmed by AOC'],
+      : 'To be confirmed by AOC after paid discovery'],
     ['Planning estimate for the build',result.provisionalBuild != null?money(result.provisionalBuild):'AOC needs more detail about the work to estimate the build'],
   ]);
   if(result.buildQuoted&&result.build!=null){
@@ -107,9 +105,8 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
 
   section('Ongoing costs and potential value');
   table([
-    ['AOC monthly service',display.support],
-    ['Added software and usage',result.vendor==null?'Software costs not provided':money(result.vendor)+' / month'],
-    ...(result.recurring!=null?[['New ongoing costs',money(result.recurring)+' / month']]:[]),
+    ['Proposed Launch Support',display.support],
+    ['Future operating costs',display.ongoing],
     ...(result.capacity!=null?[['Value of team time freed',money(result.capacity)+' / month']]:[]),
     ...(result.cash!=null?[['Recurring cash savings',money(result.cash)+' / month']]:[]),
     ...(result.net!=null?[['Estimated monthly value after costs',money(result.net)+' / month']]:[]),
@@ -119,12 +116,12 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   if(display.roiNote)paragraph(display.roiNote);
   if(display.paybackNote)paragraph(display.paybackNote);
 
-  section('Next steps and audit terms');
+  section('Next steps and discovery terms');
   paragraph(purchase.outcome==='paid'
     ? auditNextStep
-    : 'We’ll review your audit request once Stripe confirms payment.');
+    : 'We’ll review your discovery request once Stripe confirms payment.');
   if(service)table([['Credit toward your build',service.credit],['Refund',service.refund]],{labelWidth:42});
-  if(result.credit?.amount!=null)paragraph('This estimate shows an audit credit of '+money(result.credit.amount)+'. AOC will confirm the credit before applying it.');
+  if(result.credit?.amount!=null)paragraph('This estimate shows a discovery fee credit of '+money(result.credit.amount)+'. AOC will confirm the credit before applying it.');
   else if(result.credit?.reason)paragraph(result.credit.reason);
 
   doc.addPage();y=44;
@@ -133,9 +130,9 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
   table([
     ['Submission reference',purchase.submissionReference],['Work-description record',purchase.recordingReference],
     ['Purchase reference',purchase.purchaseReference],
-    ...(purchase.auditIntakeReference?[['Audit request reference',purchase.auditIntakeReference]]:[]),
+    ...(purchase.auditIntakeReference?[['Discovery request reference',purchase.auditIntakeReference]]:[]),
     ['Answers saved',date(snapshot.savedAt)],['Calculator rules',snapshot.calculatorVersion],
-    ...(service?.version?[['Audit offer version',service.version]]:[]),
+    ...(service?.version?[['Discovery offer version',service.version]]:[]),
     ...[['Company website',profile?.website],['Client role',profile?.role]].filter(([,value])=>hasAnswer(value)),
   ]);
   const notices=[...(result.errors||[]),...(result.assumptions||[]),...(result.pending||[]),...(result.warnings||[]),result.commercialNotice].filter(Boolean);
@@ -152,7 +149,7 @@ export function createPurchasePdf(purchase,{regularFont,boldFont,logo,questionBa
     doc.setPage(page);
     if(logo)doc.addImage(logo,'PNG',18,14,9,9);
     text('Always Open Commerce',10,'bold');doc.text('Always Open Commerce',logo?31:18,19);
-    text('AI COMMERCE / AUDIT',7,'normal',muted);doc.text('AI COMMERCE / AUDIT',192,19,{align:'right'});
+    text('AI COMMERCE / DISCOVERY',7,'normal',muted);doc.text('AI COMMERCE / DISCOVERY',192,19,{align:'right'});
     doc.setDrawColor(...line);doc.line(18,29,192,29);doc.line(18,282,192,282);
     text('Sandbox • No real charge',7,'normal',muted);doc.text('Sandbox • No real charge',18,289);
     doc.text(`Page ${page} of ${pages}`,192,289,{align:'right'});
@@ -174,5 +171,5 @@ async function pdfAssets(){
 
 export async function downloadPurchasePdf(purchase){
   const doc=createPurchasePdf(purchase,await pdfAssets());
-  doc.save('aoc-audit-payment-'+purchase.purchaseReference+'.pdf');
+  doc.save('aoc-discovery-payment-'+purchase.purchaseReference+'.pdf');
 }

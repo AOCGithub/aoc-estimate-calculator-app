@@ -14,7 +14,7 @@ export function QuestionBank({ candidates, visible, onAdd, query, onQueryChange 
       <summary>Find another relevant scope question ({candidates.length} in this bank)</summary>
       <p>
         This is a reference bank, not a required questionnaire. Add a detail only if it changes
-        scope, price or feasibility. Detailed implementation questions belong in the audit.
+        scope, price or feasibility. Detailed implementation questions belong in paid discovery.
       </p>
       <input
         value={query}

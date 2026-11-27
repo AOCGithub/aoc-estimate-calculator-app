@@ -90,7 +90,7 @@ try {
     await invitedPage.getByRole('button', { name: 'Open calculator', exact: true }).click();
     stage = `calculator after invitation (${width}px)`;
     await invitedPage.locator('.area').first().waitFor();
-    assert.equal(await invitedPage.locator('.area').count(), 12);
+    assert.equal(await invitedPage.locator('.area').count(), 11);
     const sessionCookie = (await invitedContext.cookies()).find(cookie => cookie.name === 'aoc_estimator_review_access');
     assert.equal(sessionCookie.httpOnly, true);
     assert.equal(sessionCookie.sameSite, 'Lax');

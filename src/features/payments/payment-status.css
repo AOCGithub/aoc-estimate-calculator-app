@@ -18,9 +18,9 @@
 .payment-status__banner {
   padding: clamp(22px, 4vw, 36px);
   border-bottom: 1px solid var(--line);
-  background: #f3f6f4;
+  background: var(--pale);
 }
-.payment-status__banner[data-outcome="paid"] { background: #edf6ef; }
+.payment-status__banner[data-outcome="paid"] { background: var(--brand-primary-soft); }
 .payment-status__banner[data-outcome="failed"] { background: #faf2ef; }
 .payment-status__banner .eyebrow { margin: 0 0 9px; }
 .payment-status__banner h1 { margin: 0 0 9px; font-size: clamp(25px, 4.3vw, 36px); overflow-wrap: anywhere; }
