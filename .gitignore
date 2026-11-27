@@ -7,3 +7,4 @@ dist/
 artifacts/
 .vercel/
 supabase/.temp/
+src/features/payments/c10-template-v6.pdf

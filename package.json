@@ -22,6 +22,7 @@
     "g2:db:setup": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/database/g2-database.mjs setup",
     "preview:test-pricing": "npm run build && node scripts/dev/local-test-pricing.cjs",
     "build": "vite build",
+    "build:c10-template": "node scripts/build/render-c10-template.mjs",
     "build:worker": "npm run build && node scripts/build/build-worker.cjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:domain": "node tests/unit/test-journey.cjs && node tests/unit/test-commercial.cjs && node tests/unit/test-document-rules.cjs && node tests/unit/test-marketing-prefill.cjs",
@@ -50,17 +51,20 @@
     "dev:profiles:database": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-profiles.mjs --database"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@react-email/render": "2.3.1",
     "@vercel/speed-insights": "^2.0.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
     "nodemailer": "10.6.0",
+    "pdf-lib": "^1.17.1",
     "postgres": "3.4.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "stripe": "23.1.0"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.2.1",
     "@vitejs/plugin-react": "^4.3.4",
     "pdfjs-dist": "^6.5.438",
     "playwright-core": "^1.64.1",

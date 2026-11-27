@@ -31,9 +31,9 @@ async function paymentAttachments(purchase) {
     content: Buffer.from(doc.output('arraybuffer')),
     cid: `aoc-estimate-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
     contentDisposition: 'attachment'};
-  const c10 = createC10OrderPdf(purchase, {regularFont, boldFont, logo});
+  const c10 = await createC10OrderPdf(purchase, {regularFont, boldFont});
   const order = {filename: `aoc-c10-accepted-order-${purchase.acceptedOrder.reference}.pdf`, contentType: 'application/pdf',
-    content: Buffer.from(c10.output('arraybuffer')),
+    content: Buffer.from(c10),
     cid: `aoc-c10-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
     contentDisposition: 'attachment'};
   return {estimate, order};
