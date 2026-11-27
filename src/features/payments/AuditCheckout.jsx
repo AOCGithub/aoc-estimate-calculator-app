@@ -168,7 +168,7 @@ export function AuditCheckout({ state, profile, onNavigate }) {
         <p>{(savedScope?.result || state.result)?.buildQuoted ? 'Project quote entered' : 'Build estimate'}: {money((savedScope?.result || state.result)?.buildQuoted ? (savedScope?.result || state.result).build : (savedScope?.result || state.result)?.provisionalBuild)}. Paid discovery is priced and purchased separately.</p>
         <div className="g2-purchase__checkout">
           {order && <div className="g2-purchase__requirements">
-            <strong>C10 order ready for acceptance</strong>
+            <strong>Order summary</strong>
             <p>Order reference: <strong>{order.reference}</strong><br />Version: <strong>{order.version}</strong></p>
             <p>This order records the saved work description, client details, systems, included discovery deliverables, exclusions, fee, delivery, credit, refund and change-control terms shown here.</p>
           </div>}
@@ -185,8 +185,8 @@ export function AuditCheckout({ state, profile, onNavigate }) {
           {quotedAudit && <label className="g2-purchase__consent g2-purchase__agreement">
             <input type="checkbox" checked={purchaseAgreement}
               onChange={event => setPurchaseAgreement(event.target.checked)} />
-            <span><strong>Purchase agreement</strong>
-              <small>I accept C10 order {order?.reference}, version {order?.version}. {service?.purchaseAgreement?.text || 'I have reviewed the discovery details and agree to purchase the AI Commerce Discovery & Implementation Plan. Implementation and ongoing services are separate.'} After verified payment, the accepted C10 order will be emailed as a separate PDF.</small>
+            <span><strong>Confirm order and continue</strong>
+              <small>Order {order?.reference}, version {order?.version}. {service?.purchaseAgreement?.text || 'I have reviewed the discovery details and agree to purchase the AI Commerce Discovery & Implementation Plan. Implementation and ongoing services are separate.'} After Stripe confirms payment, we will email you a PDF copy of this order.</small>
             </span>
           </label>}
           {error && <p role="alert" className="g2-purchase__error">{error}</p>}

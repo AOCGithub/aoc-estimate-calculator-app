@@ -93,7 +93,7 @@ try{
  let review=await page.getByRole('region',{name:'Discovery payment'}).innerText();
  assert.ok(review.includes(money(result.build)));assert.ok(review.includes(money(result.audit)));assert.ok(review.includes('15%'));
  let consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
- assert.equal(await page.getByRole('checkbox',{name:/Purchase agreement/}).count(),0,'Purchase agreement appears only after the exact fee is saved');
+ assert.equal(await page.getByRole('checkbox',{name:/Confirm order and continue/}).count(),0,'Order confirmation appears only after the exact fee is saved');
  const submit=page.getByRole('button',{name:'Save discovery and continue',exact:true});
  assert.equal(await submit.isDisabled(),true);await consent.check();assert.equal(await submit.isEnabled(),true);await submit.click();
  assert.equal(quoteCalls,1);
@@ -104,8 +104,10 @@ try{
  assert.ok(review.includes(auditService.excluded));
  assert.ok(review.includes('No real charge or paid-service booking'));
  assert.ok(review.includes('Due today'));assert.ok(review.includes(auditService.included[0]));
+ assert.equal(review.split(auditService.purchaseAgreement.text).length-1,1,'The purchase agreement appears once');
+ assert.ok(!review.includes('I accept C10 order'),'The retired duplicate acceptance sentence is absent');
  const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
- let agreement=page.getByRole('checkbox',{name:/Purchase agreement/});
+ let agreement=page.getByRole('checkbox',{name:/Confirm order and continue/});
  const agreementCopy=await page.locator('.g2-purchase__agreement small').textContent();
  assert.ok(agreementCopy.includes(order.reference)&&agreementCopy.includes(order.version)
   &&agreementCopy.includes(auditService.purchaseAgreement.text),'The exact C10 order and current purchase agreement are visible');

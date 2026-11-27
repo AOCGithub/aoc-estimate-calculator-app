@@ -418,7 +418,9 @@ try{
   assert.match(client.message.attachments[1].cid,/^aoc-estimate-.+@alwaysopencommerce\.com$/);
   assert.ok(client.message.html.includes(`href="cid:${client.message.attachments[0].cid}"`));
   assert.ok(client.message.html.includes(`href="cid:${client.message.attachments[1].cid}"`));
-  assert.match(client.message.html,/aria-label="Download accepted C10 order PDF"/);
+  assert.match(client.message.html,/aria-label="Download Process Optimization and Solution Design Order PDF"/);
+  assert.match(client.message.text,/Process Optimization & Solution Design Order/);
+  assert.doesNotMatch(client.message.text,/Accepted C10 Order/);
   assert.match(client.message.html,/aria-label="Download estimate PDF"/);
   assert.ok(!client.message.text.includes('cid:'),'plain-text email hides the internal attachment identifier');
   assert.match(client.mime.toString(),/Content-Type: application\/pdf/);
@@ -432,6 +434,7 @@ try{
   assert.ok(internal.html.includes(`href="cid:${internal.attachments[0].cid}"`));
   assert.ok(!internal.text.includes('cid:'),'support plain-text email hides the internal attachment identifier');
   for(const {html} of [client.message,internal]){
+   assert.doesNotMatch(html,/Accepted C10 Order/);
    assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/about-us\/"[^>]*>About Us<\/a>/);
    assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/contact-us\/"[^>]*>Contact Us<\/a>/);
    assert.match(html,/href="https:\/\/alwaysopencommerce\.com\/growth-services\/"[^>]*>Growth Services<\/a>/);

@@ -32,7 +32,7 @@ async function paymentAttachments(purchase) {
     cid: `aoc-estimate-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
     contentDisposition: 'attachment'};
   const c10 = await createC10OrderPdf(purchase, {regularFont, boldFont});
-  const order = {filename: `aoc-c10-accepted-order-${purchase.acceptedOrder.reference}.pdf`, contentType: 'application/pdf',
+  const order = {filename: `aoc-process-optimization-order-${purchase.acceptedOrder.reference}.pdf`, contentType: 'application/pdf',
     content: Buffer.from(c10),
     cid: `aoc-c10-${purchase.purchaseReference.slice(0, 8)}@alwaysopencommerce.com`,
     contentDisposition: 'attachment'};
