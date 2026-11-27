@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npm run dev:access",
     "dev:g2": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-g2.mjs",
+    "dev:g2:email": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-g2-email.mjs",
     "dev:g2:stripe": "node scripts/dev/stripe-listener.mjs",
     "dev:profiles": "node scripts/dev/dev-profiles.mjs",
     "dev:access": "npx --yes vercel@65.7.0 env run -e production --scope aocs-projects-b933e3ab -- node scripts/dev/dev-access.mjs",

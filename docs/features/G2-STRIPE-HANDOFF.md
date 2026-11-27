@@ -41,6 +41,8 @@ npm run dev:g2:stripe
 npm run dev:g2
 ```
 
+Use `npm run dev:g2:email` instead of `npm run dev:g2` only when you intentionally want the sandbox client and AOC support messages delivered to real inboxes.
+
 Use Stripe test cards and the Checkout created by this app. Generic fixture events without the saved references do not prove the handoff. Local rehearsal payment data uses ignored SQLite storage; ordinary consented estimates/profiles keep their existing storage behavior.
 
 Local payment email is enabled automatically in capture mode. After Stripe confirms the test payment, inspect `artifacts/g2/email-capture/` for the actual client/support email files, accepted C10 PDF and separate estimate PDF. No real email is sent.

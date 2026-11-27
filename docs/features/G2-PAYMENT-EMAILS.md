@@ -37,4 +37,6 @@ Support is currently routed to `support@alwaysopencommerce.com`. The final G3 se
 
 `npm run dev:g2` forces payment email into local capture mode even when the linked Vercel environment has a real mail provider configured. After a successful Stripe test payment, open `artifacts/g2/email-capture/` to inspect the client/support `.eml` files, accepted C10 PDF and separate estimate PDF. Capture mode never connects to SMTP or Microsoft 365 and is rejected on Vercel.
 
+To test actual inbox delivery deliberately, place the provider secret in ignored `.env.local` and run `npm run dev:g2:email` instead. Vercel does not export secret values to local processes, so the command checks all required sender fields before starting. This explicit mode uses the configured Microsoft 365 or SMTP sender, ignores the hosted test-recipient redirect, sends the client sandbox confirmation to the email entered in Stripe Checkout, and sends the internal copy to `support@alwaysopencommerce.com`. The Stripe sandbox banner remains in both messages. Do not enter a real client address during rehearsal.
+
 Run `npm run test:g2` for synthetic webhook, routing, C10/estimate attachment and retry coverage. Before claiming hosted email success, complete one authorized sandbox purchase and confirm both actual inboxes. Never use a sandbox message as proof of a real paid order.

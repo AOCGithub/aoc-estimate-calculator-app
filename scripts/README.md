@@ -17,13 +17,14 @@ Routine commands:
 ```sh
 npm run dev:profiles
 npm run dev:g2
+npm run dev:g2:email
 npm run build:worker
 npm test
 ```
 
 `npm run dev:profiles` uses isolated local SQLite. `npm run dev` and `npm run dev:g2` inherit the linked Vercel production environment and can use paid providers or persist explicitly consented records. Use them deliberately.
 
-`npm run dev:g2` is a Stripe sandbox rehearsal. `npm run dev:g2:stripe` runs the local webhook listener. Sandbox secrets belong only in ignored `.env.stripe.local`; live keys are rejected by the payment implementation.
+`npm run dev:g2` is a Stripe sandbox rehearsal with local email/PDF capture. `npm run dev:g2:email` is the explicit real-inbox sandbox-email rehearsal: the Stripe checkout address receives the client copy and AOC support receives the internal copy. `npm run dev:g2:stripe` runs the local webhook listener. Sandbox secrets belong only in ignored `.env.stripe.local`; live keys are rejected by the payment implementation.
 
 For approved rule changes:
 
