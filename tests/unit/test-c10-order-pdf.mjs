@@ -47,7 +47,10 @@ for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
   text += ' ' + content.items.map(item => item.str).join(' ');
 }
 text = text.replace(/\s+/g, ' ');
-for (const expected of [purchase.acceptedOrder.reference, purchase.acceptedOrder.version,
+for (const expected of [
+  'AI COMMERCE JOURNEY', 'Document information', 'Agreed design-service scope',
+  'What happens after purchase', 'Solution design order', 'Timing, exclusions and purchase terms',
+  'Checkout acceptance', purchase.acceptedOrder.reference, purchase.acceptedOrder.version,
   purchase.acceptedOrder.fingerprint,
   purchase.acceptedOrder.client.name, purchase.acceptedOrder.client.company,
   purchase.acceptedOrder.project.agreedProcess, purchase.acceptedOrder.project.systems,
@@ -60,5 +63,15 @@ for (const expected of [purchase.acceptedOrder.reference, purchase.acceptedOrder
 }
 assert.ok(text.includes('Paid'));
 assert.ok(!text.includes('AOC ONLY'));
+assert.ok(!/\[[^\]]+\]/.test(text), 'The client PDF must not contain unresolved template placeholders');
+const sectionOrder = ['Document information', 'Your design service purchase', 'Agreed design-service scope',
+  'What happens after purchase', 'Solution design order', 'Timing, exclusions and purchase terms', 'Checkout acceptance'];
+let previousSection = -1;
+for (const title of sectionOrder) {
+  const position = text.indexOf(title);
+  assert.ok(position > previousSection, `C10 keeps template section order at ${title}`);
+  previousSection = position;
+}
+assert.ok(text.includes('Page 1 of'), 'The document includes page-numbered footers');
 await task.destroy();
-console.log('PASS: accepted C10 PDF preserves the locked client, scope, price, terms, acceptance and payment references without internal template notes.');
+console.log('PASS: accepted C10 follows the linked template structure, preserves locked customer/order details and terms, and excludes unresolved/internal template notes.');

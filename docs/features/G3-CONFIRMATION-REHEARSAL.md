@@ -13,6 +13,8 @@ The G3 branch includes all three requested C10 items:
 
 The accepted C10 and the estimate are separate PDF attachments. The Stripe receipt remains a separate Stripe link. The C10 uses the current service name and saved fee; the older template does not replace current calculator pricing or service wording.
 
+The emailed C10 PDF follows the cover and section order of [Template V6 Design Proof](https://docs.google.com/document/d/1PJuqY3Qv_-UnpZOMHOwcgo5ZDqm4A6BWudHCEfmefLs/edit?tab=t.0). It uses the immutable accepted order for client facts, service wording, pricing and terms; internal draft notes and unresolved template placeholders are excluded.
+
 ## Data recorded in C10
 
 - C10 reference, version, content fingerprint, issue time and acceptance time
