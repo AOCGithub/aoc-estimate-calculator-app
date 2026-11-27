@@ -20,7 +20,7 @@ const payload = { area: fixture.area, confirmed: true,
 const profile = { name: 'Synthetic Person', company: 'Example Company', website: 'example.com', role: 'Testing', businessEmail: 'not-approved@example.com', saveData: true };
 const analysis = { title: 'Invoices', summary: 'Monthly invoices', solution: 'workflow', recommendationReason: 'Defined rules',
   classification: { steps: 2, variations: 1, decisions: null, reason: 'Several steps' }, routes: ['Create and send invoices'],
-  facts: [{ id: 'systems', value: 'Wave', quote: 'Wave' }], relevantFields: [], uncertainties: [] };
+  facts: [{ id: 'systems', value: 'Wave', quote: 'We need the workflow to sync invoices through Wave each month.' }], relevantFields: [], uncertainties: [] };
 let writes = [];
 let failure = '';
 let middleware;
@@ -91,7 +91,7 @@ try {
   response = await post('/api/journey/calculate', payload, cookie);
   assert.equal((await response.json()).record.saved, false);
   failure = '';
-  response = await post('/api/journey/analyze', { area: 'area0', text: 'We prepare 40 invoices in Wave each month.' }, cookie);
+  response = await post('/api/journey/analyze', { area: 'area0', text: 'We need the workflow to sync invoices through Wave each month.' }, cookie);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).analysis.facts[0].value, 'Wave');
   failure = 'ai';

@@ -7,6 +7,7 @@ import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { chromium } from 'playwright-core';
 import Calculation from '../../public/journey-calculation.js';
+import {money} from '../../src/lib/format.js';
 import fixture from '../fixtures/commercial.cjs';
 import {auditService} from '../../server/payments/audit-service.mjs';
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -16,6 +17,7 @@ const result=Calculation.calculate({area,confirmed:true,answers}).result;
 const description='Prepare invoice drafts in Wave. Staff review every invoice. These are the final manually corrected words.';
 const purchase={testMode:true,submissionReference:randomUUID(),recordingReference:randomUUID(),purchaseReference:randomUUID(),
  auditIntakeReference:null,outcome:'pending',amount:result.audit*100,currency:'usd',item:auditService.name,receiptUrl:null,
+ purchaseAgreementVersion:auditService.purchaseAgreement.version,purchaseAgreedAt:'2026-11-17T10:00:30Z',
  snapshot:{area,description,answers,result,service:auditService,calculatorVersion:'synthetic-ui-fixture',savedAt:'2026-11-17T10:00:00Z'}};
 let mode='review',outcome='pending',calls=0,quoteCalls=0,refreshDelay=0,refreshError=false,refreshChecks=0,server,browser;
 const errors=[];
@@ -33,7 +35,7 @@ try{
    }
    if(url.pathname==='/__g2_fixture'){
     const missingQuote=mode==='no-quote',quoteEdited=mode==='quote-edited';
-    respond({state:{area,answers:missingQuote?{...answers,implementation_fee:null}:answers,description,confirmed:true,
+    respond({state:{area,answers,description,confirmed:true,
       dirty:quoteEdited,result:missingQuote||quoteEdited?{...result,build:null,audit:null,auditPurchasable:false}:result,calculationSource:'server'}});return;
    }
    if(url.pathname==='/api/payments/status'){
@@ -58,13 +60,15 @@ try{
    }
    if(url.pathname==='/api/payments/quote-request'){
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);
-    assert.equal(body.consent,true);assert.equal(body.description,description);assert.equal(body.calculation.answers.implementation_fee,11500);
+    assert.equal(body.consent,true);assert.equal(body.description,description);
+    assert.equal(body.calculation.answers.steps_band,answers.steps_band);
+    for(const retired of ['implementation_fee','management','responsibility_split','legacy_system_check'])assert.equal(body.calculation.answers[retired],undefined);
     quoteCalls++;respond({quoteRequest:{submissionReference:purchase.submissionReference,
       recordingReference:purchase.recordingReference,status:'quoted',amount:purchase.amount,currency:'usd',calculated:true,requestedAt:'2026-11-17T10:00:00Z',scope:purchase.snapshot}});return;
    }
    if(url.pathname==='/api/payments/checkout'){
     let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);assert.equal(body.consent,true);
-    assert.deepEqual(body,{consent:true,submissionReference:purchase.submissionReference});
+    assert.deepEqual(body,{consent:true,purchaseAgreement:true,submissionReference:purchase.submissionReference});
     calls++;respond({purchase:{...purchase,outcome}});return;
    }
    next();
@@ -74,21 +78,33 @@ try{
  assert.ok(executablePath,'Set CHROME_PATH to run the G2 browser check.');
  browser=await chromium.launch({executablePath,headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:1000}});page.on('pageerror',error=>errors.push(error.message));
- await page.goto(origin);await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
- let review=await page.getByRole('region',{name:'Audit payment'}).innerText();
- assert.ok(review.includes('$11,500'));assert.ok(review.includes('$1,725'));assert.ok(review.includes('15%'));
+ await page.goto(origin);await page.getByRole('button',{name:'Review discovery payment',exact:true}).click();
+ let review=await page.getByRole('region',{name:'Discovery payment'}).innerText();
+ assert.ok(review.includes(money(result.build)));assert.ok(review.includes(money(result.audit)));assert.ok(review.includes('15%'));
  let consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
- const submit=page.getByRole('button',{name:'Save audit and continue',exact:true});
+ assert.equal(await page.getByRole('checkbox',{name:/Purchase agreement/}).count(),0,'Purchase agreement appears only after the exact fee is saved');
+ const submit=page.getByRole('button',{name:'Save discovery and continue',exact:true});
  assert.equal(await submit.isDisabled(),true);await consent.check();assert.equal(await submit.isEnabled(),true);await submit.click();
  assert.equal(quoteCalls,1);
- await page.getByText('Due today - one-time audit',{exact:true}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).count(),0,'An immediately quoted audit stays in the open review');
- review=await page.getByRole('region',{name:'Audit payment'}).innerText();
- assert.ok(review.includes('$1,725'));assert.ok(review.includes('$11,500'));
+ await page.getByText('Due today - Discovery & Implementation Plan',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Review discovery payment',exact:true}).count(),0,'An immediately quoted discovery stays in the open review');
+ review=await page.getByRole('region',{name:'Discovery payment'}).innerText();
+ assert.ok(review.includes(money(result.audit)));assert.ok(review.includes(money(result.build)));
  assert.ok(review.includes(auditService.excluded));
- assert.ok(review.includes('No real charge or audit booking'));
+ assert.ok(review.includes('No real charge or paid-service booking'));
  assert.ok(review.includes('Due today'));assert.ok(review.includes(auditService.included[0]));
- await page.getByText('Timing, audit credit and refunds',{exact:true}).click();
+ const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
+ let agreement=page.getByRole('checkbox',{name:/Purchase agreement/});
+ assert.equal(
+  await page.locator('.g2-purchase__agreement small').textContent(),
+  auditService.purchaseAgreement.text,
+  'The current discovery purchase agreement is visible',
+ );
+ assert.equal(await agreement.isChecked(),false);
+ assert.equal(await pay.isDisabled(),true,'Checkout requires the separate purchase agreement');
+ await agreement.check();
+ assert.equal(await pay.isEnabled(),true);
+ await page.getByText('Timing, build credit and refunds',{exact:true}).click();
  for(const value of [auditService.delivery,auditService.credit,auditService.refund])assert.equal(await page.getByText(value,{exact:true}).isVisible(),true);
  await mkdir('artifacts/g2',{recursive:true});await page.screenshot({path:'artifacts/g2/audit-review-official-desktop.png',fullPage:true});
  for(const width of [390,320]){
@@ -96,23 +112,25 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   const actions=page.locator('.g2-purchase__checkout .g2-purchase__actions');
   const primary=await actions.getByRole('button',{name:'Continue to Stripe',exact:true}).boundingBox();
-  const back=await actions.getByRole('button',{name:'Back to audit overview',exact:true}).boundingBox();
+  const back=await actions.getByRole('button',{name:'Back to discovery overview',exact:true}).boundingBox();
   assert.ok(primary.height>=44&&back.height>=44&&primary.y<back.y&&primary.width===back.width,'The primary action leads the full-width mobile buttons');
   await page.screenshot({path:`artifacts/g2/audit-review-official-${width}.png`,fullPage:true});
  }
  await page.setViewportSize({width:1440,height:1000});
- const pay=page.getByRole('button',{name:'Continue to Stripe',exact:true});
  consent=page.getByRole('checkbox',{name:/Save my answers and work description/});
  assert.equal(await consent.isChecked(),true,'The consent just given remains valid when the server immediately returns the test quote');
- assert.equal(await pay.isEnabled(),true,'The user can continue without repeating the audit review');
- await page.getByRole('button',{name:'Back to audit overview',exact:true}).click();
- await page.waitForFunction(()=>document.activeElement?.textContent==='Review audit payment');
+ assert.equal(await agreement.isChecked(),true,'The purchase agreement remains selected while this review stays open');
+ await page.getByRole('button',{name:'Back to discovery overview',exact:true}).click();
+ await page.waitForFunction(()=>document.activeElement?.textContent==='Review discovery payment');
  assert.equal(calls,0,'Closing the review makes no checkout request');
- await page.getByRole('button',{name:'Review audit payment',exact:true}).press('Enter');
- await page.waitForFunction(()=>document.activeElement?.tagName==='H2'&&document.activeElement.textContent==='Initial audit & roadmap');
+ await page.getByRole('button',{name:'Review discovery payment',exact:true}).press('Enter');
+ await page.waitForFunction(name=>document.activeElement?.tagName==='H2'&&document.activeElement.textContent===name,auditService.name);
  assert.equal(await consent.isChecked(),false,'Reopening requires fresh consent');
+ assert.equal(await agreement.isChecked(),false,'Reopening requires fresh purchase agreement');
  assert.equal(await pay.isDisabled(),true);
  await consent.check();
+ assert.equal(await pay.isDisabled(),true,'Saving consent alone cannot open Stripe');
+ await agreement.check();
  await page.getByText('You’ll review the total and pay on Stripe.',{exact:true}).waitFor();
  assert.equal(await pay.isEnabled(),true);
  await pay.click();await page.getByRole('heading',{name:'Payment not confirmed'}).waitFor();
@@ -120,7 +138,7 @@ try{
  assert.equal(calls,1);assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),0);
  await page.getByText('Work description and estimate',{exact:true}).click();
  assert.equal(await page.getByText(description,{exact:true}).count(),1);
- await page.getByText('Submission and audit references',{exact:true}).click();
+ await page.getByText('Submission and discovery references',{exact:true}).click();
  assert.equal(await page.getByText('Waiting for payment confirmation',{exact:true}).count(),1);
  for(const value of [purchase.submissionReference,purchase.recordingReference,purchase.purchaseReference])assert.equal(await page.getByText(value,{exact:true}).isVisible(),true);
  mode='return';
@@ -130,9 +148,9 @@ try{
  assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),0,'The return URL itself never confirms a payment');
  outcome='paid';
  await page.getByRole('heading',{name:'Payment received',level:1,exact:true}).waitFor({timeout:9000});
- assert.equal(await page.getByText(/Thanks for your payment.*when you can expect your audit report/).isVisible(),true);
+ assert.equal(await page.getByText(/Thanks for your payment.*when you can expect your discovery and implementation plan/).isVisible(),true);
  assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).getAttribute('href'),'https://pay.stripe.com/receipts/payment/fixture');
- assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).count(),0);
+ assert.equal(await page.getByRole('button',{name:'Review discovery payment',exact:true}).count(),0);
  assert.equal(await page.evaluate(()=>Boolean(window.AOCBank)),false,'Status loads independently of calculator rules');
  assert.equal(await page.getByText('Amount paid',{exact:true}).isVisible(),true);
  assert.equal(await page.getByRole('link',{name:'Back to calculator'}).getAttribute('href'),'/');
@@ -143,7 +161,7 @@ try{
  const pdfTask=getDocument({data:new Uint8Array(bytes)}),pdf=await pdfTask.promise;
  const contents=[];for(let p=1;p<=pdf.numPages;p++)contents.push((await (await pdf.getPage(p)).getTextContent()).items.map(row=>row.str).join(' '));
  const text=contents.join(' ').replace(/\s+/g,' ');
- for(const expected of [description,purchase.submissionReference,purchase.recordingReference,purchase.purchaseReference,'Cash savings count expenses that would go away','This payment covers the initial audit','No real charge or audit booking','$1,725','$11,500',auditService.delivery,auditService.credit,auditService.refund,auditService.version])assert.ok(text.includes(expected),'PDF includes '+expected);
+ for(const expected of [description,purchase.submissionReference,purchase.recordingReference,purchase.purchaseReference,'Cash savings count expenses that would go away','This payment covers '+auditService.name,'No real charge or paid-service booking',money(result.audit),money(result.build),auditService.delivery,auditService.credit,auditService.refund,auditService.version])assert.ok(text.includes(expected),'PDF includes '+expected);
  await mkdir('artifacts/g2',{recursive:true});await import('node:fs/promises').then(fs=>fs.writeFile('artifacts/g2/payment-and-estimate-sample.pdf',bytes));
  await pdfTask.destroy();
  const checkFeedback=page.locator('.g2-purchase__check-feedback');
@@ -189,13 +207,13 @@ try{
  assert.equal(await page.getByRole('alert').count(),0);
  mode='legacy-return';await page.goto(origin+'/?purchase_reference='+purchase.purchaseReference);
  await page.getByRole('heading',{name:'Payment received',exact:true}).waitFor();
- assert.equal(await page.getByText('Audit details',{exact:true}).count(),0,'Current offer terms are not retroactively attached to old saved purchases');
+ assert.equal(await page.getByText('Discovery details',{exact:true}).count(),0,'Current offer terms are not retroactively attached to old saved purchases');
  assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),1,'The legacy root URL still opens the payment status page');
  mode='return';
  outcome='failed';await page.goto(origin+'/?purchase_reference='+purchase.purchaseReference+'&checkout_result=cancelled');
  await page.getByRole('heading',{name:'Payment failed',exact:true}).waitFor();
  assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),0);await page.getByRole('button',{name:'Continue payment',exact:true}).waitFor();
- assert.ok((await page.getByRole('region',{name:'Audit payment'}).innerText()).includes('Your answers are saved'));
+ assert.ok((await page.getByRole('region',{name:'Discovery payment'}).innerText()).includes('Your answers are saved'));
  outcome='processing';await page.goto(origin+'/?purchase_reference='+purchase.purchaseReference);
  await page.getByRole('heading',{name:'Payment processing',exact:true}).waitFor();
  assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),0);
@@ -224,15 +242,15 @@ try{
   assert.ok(new URL(page.url()).searchParams.has('purchase_reference'),'The old link is retained until the user chooses recovery');
   assert.equal(await page.getByText(/Checkout is unavailable right now/).count(),0,'Missing ownership is not a checkout configuration failure');
   assert.equal(await page.getByRole('link',{name:/View Stripe receipt/}).count(),0);
-  assert.ok((await page.getByRole('region',{name:'Audit payment'}).innerText()).includes('share your Stripe receipt with AOC'));
+  assert.ok((await page.getByRole('region',{name:'Discovery payment'}).innerText()).includes('share your Stripe receipt with AOC'));
   await page.getByRole('link',{name:'Back to calculator',exact:true}).click();
-  await page.getByRole('button',{name:'Review audit payment',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Review discovery payment',exact:true}).waitFor();
   const clean=new URL(page.url());assert.equal(clean.searchParams.has('purchase_reference'),false);assert.equal(clean.searchParams.has('checkout_result'),false);
   assert.equal(clean.searchParams.get('keep'),'example');assert.equal(clean.hash,'#estimate');
   assert.equal(await page.getByText('This payment link is not available in this session.',{exact:true}).count(),0);
-  await page.getByRole('button',{name:'Review audit payment',exact:true}).click();
+  await page.getByRole('button',{name:'Review discovery payment',exact:true}).click();
   assert.equal(await page.getByRole('checkbox',{name:/Save my answers and work description/}).isChecked(),false);
-  assert.equal(await page.getByRole('button',{name:'Save audit and continue',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Save discovery and continue',exact:true}).isDisabled(),true);
   await page.getByText('Your work description',{exact:true}).click();
   assert.equal(await page.getByText(description,{exact:true}).isVisible(),true,'Current answers and description are preserved');
   assert.equal(calls,before,'Recovery makes no payment request');
@@ -243,10 +261,10 @@ try{
  assert.equal(await page.getByText('This payment link is not available in this session.',{exact:true}).count(),0);
  mode='return';outcome='paid';await page.getByRole('button',{name:'Refresh payment status',exact:true}).click();
  await page.getByRole('heading',{name:'Payment received',exact:true}).waitFor();
- mode='no-quote';await page.goto(origin);await page.getByText('Audit payment is not ready yet',{exact:true}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
+ mode='no-quote';await page.goto(origin);await page.getByText('Discovery payment is not ready yet',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Review discovery payment',exact:true}).isDisabled(),true);
  mode='quote-edited';await page.goto(origin);await page.getByText('Recalculate after your latest changes.',{exact:true}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Review audit payment',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Review discovery payment',exact:true}).isDisabled(),true);
  mode='setup';await page.goto(origin);await page.getByText(/Checkout is unavailable right now/).waitFor();
  await page.goto(origin+'/payment/status');
  await page.getByText('Use the link from your checkout to see your payment details.',{exact:true}).waitFor();

@@ -55,7 +55,7 @@ try {
     await page.getByLabel('Business email').fill('local-test@example.com');
     await page.getByRole('button', { name: 'Request access / continue' }).click();
     await page.locator('.area').first().waitFor();
-    assert.equal(await page.locator('.area').count(), 12);
+    assert.equal(await page.locator('.area').count(), 11);
     rows = await sql`select review_status from public.access_requests where company = ${company} and business_email = 'local-test@example.com'`;
     assert.equal(rows.length, width === 1440 ? 1 : 2);
     assert.ok(rows.every(row => row.review_status === 'pending'), 'Allowlisted access remains separate from request review.');

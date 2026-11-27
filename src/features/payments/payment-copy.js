@@ -1,4 +1,4 @@
-export const auditNextStep = 'Before we start, we’ll let you know what we need from you and when you can expect your audit report.';
+export const auditNextStep = 'Before we start, we’ll let you know what we need from you and when you can expect your discovery and implementation plan.';
 
 export const paymentOutcomes = {
   pending: ['Payment not confirmed', 'Check the payment status before trying again. We’ve saved your answers.'],
@@ -8,4 +8,4 @@ export const paymentOutcomes = {
   incomplete: ['Checkout not completed', 'We’ve saved your answers. You can pick up where you left off when you’re ready to pay.'],
 };
 
-export const sandboxNotice = 'Stripe test mode. No real charge or audit booking.';
+export const sandboxNotice = 'Stripe test mode. No real charge or paid-service booking.';

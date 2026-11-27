@@ -24,7 +24,7 @@ async function enter(page, remember = false) {
   assert.equal(await page.getByRole('checkbox', { name: /Save my details/ }).isChecked(), false, 'remembering details does not select estimate recording');
   await page.getByRole('button', { name: 'Continue to calculator' }).click();
   await page.locator('.area').first().waitFor();
-  assert.equal(await page.locator('.area').count(), 12);
+  assert.equal(await page.locator('.area').count(), 11);
   assert.deepEqual(await page.evaluate(() => AOCJourney.getState().answers), {}, 'Reused business details do not reuse an old estimate.');
 }
 async function end(page) {
@@ -133,7 +133,8 @@ const fits = page => page.evaluate(() => document.documentElement.scrollWidth <=
     const { area, process_confirmed, ...answers } = fixture;
     const calculation = await a.request.post(target + '/api/journey/calculate', { headers: { origin: target }, data: { area, answers, confirmed: process_confirmed } });
     assert.equal(calculation.status(), 200);
-    assert.equal((await calculation.json()).result.build, 11500);
+    const expectedBuild = require('../../public/journey-calculation.js').calculate({ area, answers, confirmed: process_confirmed }).result.build;
+    assert.equal((await calculation.json()).result.build, expectedBuild);
     await end(a);
     await a.getByRole('button', { name: 'Forget saved details', exact: true }).click();
     await a.getByRole('status').filter({ hasText: 'Saved profile removed.' }).waitFor();

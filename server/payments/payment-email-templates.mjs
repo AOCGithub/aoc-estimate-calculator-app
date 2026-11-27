@@ -113,7 +113,7 @@ function emailFooter() {
   );
 }
 
-function paymentHero(isClient, clientName) {
+function paymentHero(isClient, clientName, serviceName) {
   const firstName = clientName.trim().split(/\s+/)[0];
   const background = isClient ? '#00523d' : '#1d44ab';
   const gradient = isClient ? 'linear-gradient(180deg,#001913 0%,#00523d 100%)'
@@ -126,11 +126,11 @@ function paymentHero(isClient, clientName) {
     h('h1', {style: {margin: 0, color: colors.white, fontSize: 24, fontWeight: 700, lineHeight: '1.2'}},
       'Thank you for your payment!'),
     gap(8),
-    paragraph({}, 'Your AI Commerce Audit purchase has been confirmed.'),
+    paragraph({}, 'Your ' + serviceName + ' purchase has been confirmed.'),
   ] : [
     paragraph({fontWeight: 700}, 'Hi Team,'),
     gap(8),
-    paragraph({}, 'A new AI Commerce Audit payment has been successfully processed through the AOC Estimate Calculator.'),
+    paragraph({}, 'A new ' + serviceName + ' payment has been successfully processed through the AOC Estimate Calculator.'),
   ];
   return tr(td({align: isClient ? 'center' : 'left', bgcolor: background,
     className: 'email-hero', style: {
@@ -202,7 +202,7 @@ function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref) {
       detailRows([
         [h('span', null, 'Estimate', h('br'), 'Reference ID:'), purchase.submissionReference],
         ['Work Description:', description],
-        ['Audit Fee Paid:', amount],
+        ['Discovery Fee Paid:', amount],
         ['Payment Date:', paidAt],
         ['Payment Status:', paidStatus(), true],
       ], 12, '34.16%'),
@@ -224,7 +224,7 @@ function clientCopy(purchase, {amount, paidAt, description}, estimatePdfHref) {
     gap(10),
     table({width: '100%', bgcolor: colors.callout, style: {borderCollapse: 'separate', borderRadius: 6, backgroundColor: colors.callout}},
       tr(td({style: {padding: '11px 14px', color: colors.muted, fontSize: 13, lineHeight: '20px'}},
-        'Your purchase covers the AI Commerce Audit only. Any automation implementation would be quoted and approved separately.'))),
+        'Your purchase covers ' + (purchase.item || 'the paid discovery service') + ' only. The fixed-price build is confirmed separately.'))),
     divider(24),
     heading('Questions or Changes to Your Purchase?'),
     gap(10),
@@ -255,7 +255,7 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
     detailRows([
       ['Estimate ID:', purchase.submissionReference],
       ['Work Description:', description],
-      ['Audit Fee Paid:', amount],
+      ['Discovery Fee Paid:', amount],
       ['Estimate PDF:', estimatePdfHref ? h('a', {className: 'email-attachment-link', href: estimatePdfHref,
         style: {color: colors.link, textDecoration: 'underline'}}, 'Download attached PDF') : 'Attached to this email', true],
     ], 8),
@@ -270,12 +270,12 @@ function supportCopy(purchase, clientName, checkoutEmail, {amount, paidAt, descr
     divider(20),
     heading('Next Step', 16),
     gap(8),
-    paragraph({}, "Please review the corresponding audit intake record and coordinate the next steps for the client's audit."),
+    paragraph({}, "Please review the corresponding paid-discovery intake record and coordinate the next steps for the client's Discovery & Implementation Plan."),
     gap(12),
     detailRows([
       ['Purchase:', purchase.purchaseReference],
       ['Work-description record:', purchase.recordingReference],
-      ['Audit intake:', purchase.auditIntakeReference || 'Pending'],
+      ['Discovery intake:', purchase.auditIntakeReference || 'Pending'],
     ], 8),
     gap(20),
     paragraph({fontSize: 15, fontWeight: 400}, 'Thank you!'),
@@ -300,10 +300,10 @@ export async function renderPaymentEmail({purchase, audience, clientName = '', c
         maxWidth: emailWidth, width: '100%', textAlign: 'left', fontFamily: font, tableLayout: 'fixed',
       }},
       tr(td({}, emailHeader())),
-      paymentHero(isClient, clientName),
+      paymentHero(isClient, clientName, purchase.item || 'AI Commerce Discovery & Implementation Plan'),
       purchase.testMode ? tr(td({align: 'center', bgcolor: colors.panel, className: 'email-content',
         style: {padding: '10px 36px', fontSize: 13, fontWeight: 700, color: colors.ink}},
-      'Stripe sandbox test. No real charge or audit booking.')) : null,
+      'Stripe sandbox test. No real charge or paid-service booking.')) : null,
       tr(td({className: 'email-content', style: {padding: (isClient ? 30 : 29) + 'px 36px'}}, ...content)),
       tr(td({}, emailFooter())),
       ),
@@ -317,8 +317,9 @@ export async function renderPaymentEmail({purchase, audience, clientName = '', c
       emailWidth + '" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->')
     .replace('<template data-mso-frame="end"></template>', '<!--[if mso]></td></tr></table><![endif]-->');
   const prefix = purchase.testMode ? '[Stripe test] ' : '';
-  const subject = isClient ? 'Your AI Commerce Audit payment is confirmed'
-    : 'AI Commerce Audit paid · ' + purchase.submissionReference;
+  const serviceName = purchase.item || 'AI Commerce Discovery & Implementation Plan';
+  const subject = isClient ? 'Your ' + serviceName + ' payment is confirmed'
+    : serviceName + ' paid · ' + purchase.submissionReference;
   return {subject: prefix + subject, html, text: toPlainText(html, {
     selectors: [
       {selector: '.email-branding', format: 'skip'},

@@ -22,6 +22,12 @@ The parent ID identifies a submission, not a verified person. Re-entering the fo
 
 For saved submissions, the server selects the parent ID from its signed HTTP-only session, never a submitted owner ID. No-save sessions have no parent record; older sessions without the saving choice continue without new writes. End the session and submit the form again to choose saving. Browser keys cannot read or write either table. Estimates have RLS enabled and insert-only server permissions; no public history endpoint was added. Deleting a form record is restricted while estimates reference it, preventing accidental history loss.
 
+## Delete a saved submission
+
+In the Supabase Table Editor, copy the selected **access_requests.id**. Filter **estimates.access_request_id** by that exact ID and delete those snapshots first, then delete the matching access request. This permanently removes that submission's saved calculation history. Deleting the parent first is blocked by the foreign key; keep that protection enabled.
+
+Remembered information in **client_profiles** is separate. Remove it separately only when the cleanup also includes that saved profile. Keep all four app tables: **access_requests**, **estimates**, **client_profiles**, and **access_invitations**. The empty invitation table supports the retained, currently paused approval workflow.
+
 ## Configuration and checks
 
 `AOC_ESTIMATE_RECORDS_ENABLED=true` enables recording only with server gating and intake-only mode enabled. The local launcher sets it; the example defaults to false. Review/allowlist modes remain available without recording. No pricing rules changed.

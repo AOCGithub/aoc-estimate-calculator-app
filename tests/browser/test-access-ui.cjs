@@ -140,7 +140,7 @@ const server = http.createServer((request, response) => {
     await page.getByLabel('Business email').fill('approved@example.com');
     await page.getByRole('button', { name: 'Continue to estimator' }).click();
     await page.locator('.area').first().waitFor();
-    assert.equal(await page.locator('.area').count(), 12);
+    assert.equal(await page.locator('.area').count(), 11);
     assert.deepEqual(await page.evaluate(() => ({
       local: Object.keys(localStorage),
       session: Object.keys(sessionStorage),
@@ -185,7 +185,7 @@ const server = http.createServer((request, response) => {
       await page.getByLabel('Business email').fill('approved@example.com');
       await page.getByRole('button', { name: 'Request access / continue' }).click();
       await page.locator('.area').first().waitFor();
-      assert.equal(await page.locator('.area').count(), 12);
+      assert.equal(await page.locator('.area').count(), 11);
       await page.reload({ waitUntil: 'networkidle' });
       await page.locator('.area').first().waitFor();
       await page.getByRole('button', { name: 'End session' }).click();
@@ -223,7 +223,7 @@ const server = http.createServer((request, response) => {
       await page.getByRole('button', { name: 'Continue to calculator' }).click();
       await page.locator('.area').first().waitFor();
       await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();
-      assert.equal(await page.locator('.area').count(), 12);
+      assert.equal(await page.locator('.area').count(), 11);
       await page.reload({ waitUntil: 'networkidle' });
       await page.locator('.area').first().waitFor();
       await page.getByRole('note').filter({ hasText: 'Data saving is off.' }).waitFor();

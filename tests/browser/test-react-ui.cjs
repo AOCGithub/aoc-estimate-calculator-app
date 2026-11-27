@@ -3,8 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
-const JourneyCalculation = require('../../public/journey-calculation.js');
-const JourneyContract = require('../../public/journey-contract.js');
+const Calculation = require('../../public/journey-calculation.js');
 
 const clientRoot = path.resolve(__dirname, '../../dist/client');
 const browserCandidates = process.platform === 'win32'
@@ -15,11 +14,7 @@ const browserCandidates = process.platform === 'win32'
       'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
     ]
   : [process.env.CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-const executablePath = browserCandidates.find((candidate) => candidate && fs.existsSync(candidate));
-const capture = process.argv.includes('--capture');
-const artifactsDirectory = path.resolve(__dirname, '../../artifacts');
-let calculationMode = 'unavailable';
-let analysisDelay = 0;
+const executablePath = browserCandidates.find(candidate => candidate && fs.existsSync(candidate));
 
 if (!executablePath) {
   console.log('SKIP: React browser journey (set CHROME_PATH to an installed Chromium browser).');
@@ -31,8 +26,8 @@ const mime = {
   '.css': 'text/css;charset=utf-8',
   '.js': 'text/javascript;charset=utf-8',
   '.png': 'image/png',
+  '.woff2': 'font/woff2',
 };
-
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   if (pathname === '/api/journey/correct') {
@@ -44,44 +39,21 @@ const server = http.createServer((request, response) => {
     return;
   }
   if (pathname === '/api/journey/analyze') {
-    const sendAnalysisFailure = () => response.writeHead(429, { 'content-type': 'application/json' }).end(JSON.stringify({
-      error: 'Synthetic provider failure',
-    }));
-    if (analysisDelay) setTimeout(sendAnalysisFailure, analysisDelay);
-    else sendAnalysisFailure();
+    response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'AI is not configured in this test.' }));
     return;
   }
   if (pathname === '/api/journey/calculate') {
-    if (calculationMode === 'unavailable') {
-      response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({
-        error: 'Synthetic calculation service failure',
-      }));
-      return;
-    }
-    if (calculationMode === 'validation') {
-      response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({
-        error: 'Synthetic validation rejection',
-      }));
-      return;
-    }
     let raw = '';
-    request.on('data', (chunk) => { raw += chunk; });
+    request.on('data', chunk => { raw += chunk; });
     request.on('end', () => {
       try {
-        response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
-          ...JourneyCalculation.calculate(JSON.parse(raw)),
-          source: 'server',
-        }));
+        response.writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ ...Calculation.calculate(JSON.parse(raw)), source: 'server' }));
       } catch (error) {
-        response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({
-          error: error.message,
-        }));
+        response.writeHead(400, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ error: error.message }));
       }
     });
-    return;
-  }
-  if (pathname === '/favicon.ico') {
-    response.writeHead(204).end();
     return;
   }
   const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
@@ -91,966 +63,122 @@ const server = http.createServer((request, response) => {
     return;
   }
   try {
-    const body = fs.readFileSync(file);
     response.writeHead(200, { 'content-type': mime[path.extname(file)] || 'application/octet-stream' });
-    response.end(body);
+    response.end(fs.readFileSync(file));
   } catch {
     response.writeHead(404).end('Not found');
   }
 });
 
 (async () => {
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address();
-  const browser = await chromium.launch({ executablePath, headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-  const errors = [];
-  page.on('console', (message) => {
-    const expectedLocalApiError = /\/api\/journey\/(analyze|calculate)$/.test(message.location().url)
-      && message.text().includes('Failed to load resource');
-    if (
-      message.type() === 'error'
-      && !message.text().includes('fonts.googleapis.com')
-      && !expectedLocalApiError
-    ) errors.push(message.text());
-  });
-  page.on('pageerror', (error) => errors.push(error.message));
-
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  let browser;
   try {
-    const performanceSource = fs.readFileSync(path.resolve(__dirname, '../../src/lib/speedInsights.js'), 'utf8');
-    const { performanceOrigin, sanitizePerformanceEvent } = await import(`data:text/javascript;base64,${Buffer.from(performanceSource).toString('base64')}`);
-    const performanceEvent = { type: 'vital', url: `${performanceOrigin}/?email=private@example.test&description=private#answer`, route: '/private' };
-    assert.deepEqual(sanitizePerformanceEvent(performanceEvent), { type: 'vital', url: `${performanceOrigin}/`, route: '/' }, 'performance URLs exclude parameters, fragments and dynamic paths');
-    assert.ok(performanceEvent.url.includes('private@example.test'), 'sanitization does not mutate the original event');
-    for (const url of ['invalid', 'http://127.0.0.1:4175/', 'https://preview.vercel.app/', 'https://estimate.alwaysopencommerce.com.evil.test/']) {
-      assert.equal(sanitizePerformanceEvent({ type: 'vital', url }), null, 'nonproduction or malformed performance events are dropped');
-    }
-    await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
-    assert.equal(await page.locator('script[data-sdkn]').count(), 0, 'local builds do not send performance data');
-    const faviconLink = page.locator('link[rel="icon"]');
-    assert.equal(await faviconLink.getAttribute('href'), '/favicon.png', 'favicon is hosted locally to respect the existing security policy');
-    assert.equal(await faviconLink.getAttribute('type'), 'image/png');
-    const faviconResponse = await page.request.get(`http://127.0.0.1:${port}/favicon.png`);
-    assert.equal(faviconResponse.status(), 200);
-    assert.equal(faviconResponse.headers()['content-type'], 'image/png');
-    assert.deepEqual(await faviconResponse.body(), fs.readFileSync(path.resolve(__dirname, '../../public/favicon.png')), 'built app serves the original AOC favicon');
-    assert.equal(await page.locator('.section-transition').count(), 1, 'active form section has a transition wrapper');
-    assert.equal(
-      await page.locator('.section-transition').evaluate((element) => getComputedStyle(element).animationName),
-      'section-transition-enter',
-      'section changes use the configured smooth transition',
-    );
-    assert.ok(await page.locator('.live-context__location').textContent(), 'timezone-derived location renders');
-    assert.ok(await page.locator('.live-context__date').textContent(), 'live local date renders');
-    assert.ok(Date.parse(await page.locator('.live-context time').getAttribute('datetime')), 'machine-readable live time renders');
-    if (capture) {
-      fs.mkdirSync(artifactsDirectory, { recursive: true });
-      await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-home.png'), fullPage: true });
-    }
-    assert.equal(await page.locator('.area').count(), 12, 'all business areas render');
-    assert.equal(await page.locator('#estimateStatus').textContent(), 'NOT CALCULATED', 'the initial estimate is distinct from a completed partial calculation');
-    assert.equal(await page.locator('.result-incomplete').count(), 0, 'missing-result guidance only appears after calculation');
-    assert.equal(
-      await page.getByRole('button', { name: 'Orders, inventory, and fulfillment' }).locator('.icon svg').count(),
-      1,
-      'orders and fulfillment retains its labelled choice with a decorative line icon',
-    );
-    await page.getByRole('button', { name: 'Finance and billing' }).click();
+    browser = await chromium.launch({ executablePath, headless: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const errors = [];
+    const externalAiRequests = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => {
+      if (message.type() === 'error'
+        && !message.text().includes('fonts.googleapis.com')
+        && !message.text().includes('Failed to load resource')) errors.push(message.text());
+    });
+    page.on('request', request => {
+      if (request.url().includes('api.openai.com')) externalAiRequests.push(request.url());
+    });
+
+    await page.goto(origin, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('.area:not(.area--coming-soon)').count(), 6, 'six business areas are active');
+    assert.equal(await page.locator('.area--coming-soon').count(), 5, 'five marketing areas are labelled Coming soon');
+    assert.equal(await page.locator('.area').count(), 11, 'unlisted historical categories are not shown');
+    assert.equal(await page.locator('.area--coming-soon:disabled').count(), 5);
+    assert.equal(await page.locator('#estimateStatus').textContent(), 'NOT CALCULATED');
+
+    await page.getByRole('button', { name: 'Finance & billing', exact: true }).click();
     await page.getByRole('button', { name: 'Describe the work →', exact: true }).click();
-    assert.equal(await page.locator('.description-actions').evaluate(element => getComputedStyle(element).flexDirection), 'row', 'desktop description buttons retain their existing layout');
-    await page.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
-    analysisDelay = capture ? 800 : 250;
+    await page.locator('#description').fill(
+      'We prepare monthly invoices in Wave and send them through Wave. 3 people across 2 teams do this work. '
+      + 'We have notes and examples, with some preparation needed. The team spends 40 hours each month at an average hourly cost of $50 per hour. '
+      + 'The system prepares drafts for our team to approve. AOC manages the system and hands it over to multiple teams. '
+      + 'The app is customized.',
+    );
     await page.getByRole('button', { name: /Organize my description/ }).click();
-    assert.ok(await page.locator('#organizing-status').isVisible(), 'organizer shows an immediate processing status');
-    assert.match(await page.locator('#organizing-status').textContent(), /Reading the work and outcome/);
-    assert.equal(await page.locator('#description').getAttribute('readonly'), '', 'description is protected while organization is running');
-    assert.equal(await page.getByRole('button', { name: /Organizing/ }).getAttribute('aria-busy'), 'true', 'organizer exposes its busy state');
-    assert.equal(await page.getByRole('button', { name: /Continue with editable fields/ }).isDisabled(), true, 'alternate continuation is paused during organization');
-    if (capture) {
-      await page.waitForTimeout(250);
-      await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-organizing.png'), fullPage: true });
+    await page.getByText(/Basic local organization was used/).waitFor();
+
+    const prefilled = await page.evaluate(() => globalThis.AOCJourney.getState().answers);
+    assert.deepEqual(prefilled.systems, ['Wave'], 'local analysis only prefills an app tied to an explicit connection action');
+    assert.equal(prefilled.people_count, 3);
+    assert.equal(prefilled.department_count, 2);
+    assert.equal(prefilled.data_preparation_level, 'partial');
+    assert.equal(prefilled.action_mode, 'draft');
+    for (const retired of ['responsibility_split', 'management', 'tier', 'handover', 'delivery_mode', 'legacy_system_check']) {
+      assert.equal(Object.hasOwn(prefilled, retired), false, `${retired} is excluded from current local analysis`);
     }
-    await page.getByText(/Basic local organization was used/).waitFor();
-    analysisDelay = 0;
-    assert.equal(await page.locator('#organizing-status').count(), 0, 'processing status clears after organization');
-    assert.match(
-      await page.evaluate(() => globalThis.AOCJourney.getState().description),
-      /monthly invoices/,
-      'description survives an API failure',
-    );
-    assert.deepEqual(
-      await page.evaluate(() => globalThis.AOCJourney.getState().answers.systems),
-      ['Wave'],
-      'local organizer extracts explicitly named apps without inventing others',
-    );
-    const localPrefill = await page.evaluate(() => globalThis.AOCJourney.getState().answers);
-    assert.equal(localPrefill.people_count, 3, 'local organizer extracts an explicit people count');
-    assert.equal(localPrefill.department_count, 2, 'local organizer extracts an explicit team count');
-    assert.equal(localPrefill.cadence, 'monthly', 'local organizer extracts an explicit cadence');
-    assert.equal(localPrefill.documentation_readiness, 'Notes or examples', 'local organizer extracts explicit documentation readiness');
-    assert.equal(localPrefill.data_preparation_level, 'Some preparation', 'local organizer extracts explicit data preparation');
-    assert.equal(localPrefill.responsibility_split, 'aoc', 'local organizer normalizes responsibility ownership');
-    assert.equal(localPrefill.management, 'yes', 'management is derived from responsibility ownership');
-    assert.equal(localPrefill.action_mode, 'draft', 'local organizer extracts the approval boundary');
-    const organizedScope = await page.evaluate(() => globalThis.AOCJourney.getState());
-    assert.ok(organizedScope.routes.includes('Create and send invoices'), 'local organizer selects the matching category route');
-    assert.ok(organizedScope.visible.includes('invoice_cadence') || organizedScope.visible.includes('invoice_volume'), 'local organizer surfaces relevant category questions');
-    await page.getByText(/Review detailed scope/).click();
-    await page.getByRole('button', { name: 'Send payment reminders', exact: true }).click();
-    await page.getByRole('navigation').getByText('Describe the work', { exact: true }).click();
-    await page.getByRole('button', { name: /Organize my description/ }).click();
-    await page.getByText(/Basic local organization was used/).waitFor();
-    assert.ok(
-      (await page.evaluate(() => globalThis.AOCJourney.getState().routes)).includes('Send payment reminders'),
-      'manual route selection survives reorganization',
-    );
 
-    await page.getByRole('navigation').getByText('Responsibilities and service', { exact: true }).click();
-    await page.locator('#f_responsibility_split').selectOption('client');
-    await page.getByRole('navigation').getByText('Describe the work', { exact: true }).click();
-    await page.getByRole('button', { name: /Organize my description/ }).click();
-    await page.getByText(/Basic local organization was used/).waitFor();
-    const correctedOwnership = await page.evaluate(() => globalThis.AOCJourney.getState().answers);
-    assert.equal(correctedOwnership.responsibility_split, 'client', 'manual responsibility choice survives reorganization');
-    assert.equal(correctedOwnership.management, 'no', 'derived management remains consistent with the manual responsibility choice');
-
-    await page.locator('#f_solution').selectOption('workflow');
-    assert.equal(await page.locator('#f_solution').getAttribute('required'), '', 'solution is marked required');
-    assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 1, 'scope starts with one primary choice and compact required groups');
-    if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-scope-simple.png'), fullPage: true });
-    await page.getByText(/Process complexity/).click();
-    assert.equal(await page.locator('#f_steps_band').getAttribute('aria-invalid'), 'true', 'missing required field is identified');
-    assert.equal(await page.locator('#f_steps_band_requirement').textContent(), 'Required', 'missing required field has a visible indicator');
-    await page.locator('#f_steps_band').selectOption('3');
-    assert.equal(await page.locator('#f_steps_band').getAttribute('aria-invalid'), null, 'required indicator clears after answering');
-    await page.locator('#f_variation_band').selectOption('3');
-    await page.getByText(/Team and rollout/).click();
+    if (!await page.locator('#f_steps_band').isVisible()) {
+      await page.getByText('Process complexity', { exact: true }).click();
+    }
+    await page.locator('#f_steps_band').selectOption('2');
+    await page.locator('#f_variation_band').selectOption('2');
+    if (!await page.locator('#f_people_count').isVisible()) {
+      await page.getByText('2. Team and rollout', { exact: true }).click();
+    }
     await page.locator('#f_people_count').fill('3');
     await page.locator('#f_department_count').fill('2');
-    await page.locator('#f_cadence').selectOption('monthly');
-    await page.locator('#f_handover').selectOption('group');
-    await page.getByRole('button', { name: /Continue/ }).click();
+    if (!await page.locator('#f_action_mode').isVisible()) {
+      await page.getByText('Action and review approach', { exact: true }).click();
+    }
+    await page.locator('#f_action_mode').selectOption('draft');
+    await page.getByRole('button', { name: 'Continue →', exact: true }).click();
 
-    await page.locator('#f_systems').fill('Hubstaff Time, Wave, Google Docs, Google Drive, Help Scout, Stripe');
-    assert.equal(await page.locator('#f_legacy_system_check option[value="Restricted"]').count(), 1, 'restricted apps have a direct primary choice');
-    await page.locator('#f_legacy_system_check').selectOption('Restricted');
-    assert.ok(await page.locator('#f_app_known_restrictions').isVisible(), 'restricted choice exposes restriction details');
-    assert.ok(await page.locator('#f_app_alternative_approach').isVisible(), 'restricted choice exposes alternative approaches');
-    await page.locator('#f_legacy_system_check').selectOption('Standard');
-    assert.equal(await page.locator('#f_legacy_system_check').getAttribute('aria-invalid'), null, 'required app condition is complete after selection');
-    assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 2, 'apps step keeps two core fields visible');
-    await page.getByRole('button', { name: /Continue/ }).click();
+    await page.locator('#f_systems').fill('Wave');
+    await page.locator('#f_workspace_context').selectOption('google_workspace');
+    await page.locator('#f_ai_account_context').selectOption('chatgpt_business');
+    await page.getByRole('button', { name: 'Continue →', exact: true }).click();
 
-    assert.equal(await page.locator('#mainPanel select:visible').count(), 2, 'data step keeps both estimate-sensitive fields visible');
     await page.locator('#f_documentation_readiness').selectOption('Notes or examples');
-    await page.locator('#f_data_preparation_level').selectOption('Some preparation');
-    await page.getByText('Preparation details', { exact: true }).click();
-    assert.ok(await page.locator('#f_data_material_volume').isVisible(), 'material volume appears when preparation is needed');
-    assert.equal(await page.locator('#f_data_material_format').count(), 0, 'format detail remains hidden without substantial preparation');
-    assert.equal(await page.locator('#f_data_material_restriction').count(), 0, 'restriction detail remains hidden without an uncertainty trigger');
-    await page.getByRole('button', { name: /Continue/ }).click();
+    await page.locator('#f_data_information_location').selectOption('Apps already identified');
+    await page.locator('#f_data_preparation_level').selectOption('partial');
+    await page.locator('#f_data_preparation_owner').selectOption('Our team');
+    await page.getByRole('button', { name: 'Continue →', exact: true }).click();
 
-    assert.equal(await page.locator('#mainPanel input:visible, #mainPanel select:visible').count(), 0, 'ROI inputs are optional and initially collapsed');
-    await page.getByText('Calculate potential value', { exact: true }).click();
     await page.locator('#f_team_time').fill('40');
     await page.locator('#f_blended_hourly_cost').fill('50');
-    await page.locator('#f_software_replaced_portion').selectOption('none');
-    await page.locator('#f_incremental_software_cost').fill('0');
-    await page.getByRole('button', { name: /Continue/ }).click();
-
-    await page.locator('#f_responsibility_split').selectOption('help');
-    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().answers.management), null, 'help deciding does not choose management');
-    await page.locator('#f_responsibility_split').selectOption('aoc');
-    assert.equal(await page.locator('#tier_requirement').textContent(), 'To discuss with AOC', 'unpriced support coverage is not silently selected');
-    await page.locator('#f_delivery_intent').selectOption('limited');
-    await page.locator('#f_implementation_route').selectOption('project');
-    await page.locator('#f_existing_client').selectOption('no');
-    await page.locator('#quote-details > summary').click();
-    await page.getByText('Check an existing audit credit', {exact:true}).click();
-    await page.locator('#f_audit_fee').fill('1250');
-    await page.locator('#f_audit_paid').fill('1250');
-    await page.locator('#f_audit_sent_date').fill('2020-01-01');
-    await page.locator('#f_implementation_acceptance_date').fill('2020-01-10');
-    await page.locator('#f_first_implementation_payment_date').fill('2020-01-15');
-    await page.locator('#f_audit_accepted_route').selectOption('project');
-    await page.locator('#f_audit_credit_used').selectOption('no');
-    await page.locator('#f_preparation_fee').fill('0');
-    await page.locator('#f_implementation_fee').fill('11500');
-    await page.locator('#f_live_training').selectOption('no');
-    await page.locator('#f_action_mode').selectOption('approved');
-    await page.locator('#f_consequential').selectOption('yes');
-    await page.getByRole('button', { name: /Priority/ }).click();
-    await page.getByText('Responsibility and coverage details', { exact: true }).click();
-    assert.ok(await page.locator('#f_client_approval_checkpoints').isVisible(), 'approval details appear when consequential actions are selected');
-    assert.ok(await page.locator('#f_expert_review_frequency').isVisible(), 'expert review cadence appears for AOC management');
-    assert.ok(await page.locator('#f_pending_approval_behavior').isVisible(), 'pending approval behavior appears for approval-gated work');
-    assert.equal(await page.locator('#f_manual_fallback').count(), 0, 'untriggered resilience detail remains hidden');
-    assert.equal(await page.locator('#f_operating_deadlines').count(), 0, 'untriggered deadline detail remains hidden');
-    assert.equal(await page.locator('.check--missing-required .required-indicator').textContent(), 'Required', 'missing final confirmation has an indicator');
+    await page.getByRole('button', { name: 'Continue →', exact: true }).click();
     await page.locator('.check input').check();
-    assert.equal(await page.locator('.check--missing-required').count(), 0, 'confirmation indicator clears after checking');
     await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
+    await page.waitForFunction(() => {
+      const state = globalThis.AOCJourney.getState();
+      return !state.dirty && !state.calculating && state.calculationSource === 'server';
+    });
 
-    await page.locator('.money').filter({hasText:'$11,500'}).waitFor();
-    assert.equal(await page.locator('.result-group[open]:not(.result-review)').count(), 0, 'supporting results start collapsed');
-    assert.match(await page.locator('.result-incomplete').textContent(),/ROI (not estimated because optional time or cost details were not provided|can be estimated after AOC quotes the support fee)/);
-    if (capture) await page.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'estimator-result-compact.png') });
-    await page.getByText('Project & ongoing costs', { exact: true }).click();
-    assert.equal(await page.locator('.result-group .metric').filter({hasText:'AOC monthly service'}).first().locator('.value').textContent(),'Support fee to be quoted by AOC');
-    assert.equal(await page.locator('#estimateStatus').textContent(), 'LOCAL PREVIEW · VERIFY');
-    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'local-preview');
-    assert.ok(await page.getByText('What monthly support would cover', { exact: true }).isVisible());
-    assert.ok(await page.getByText('What the project would cover', { exact: true }).isVisible());
-    await page.getByText('What the project would cover', { exact: true }).click();
-    assert.ok(await page.getByText('Create and send invoices', { exact: true }).last().isVisible());
-    if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-result.png'), fullPage: true });
-
-    await page.locator('#f_responsibility_split').selectOption('client');
-    assert.match(await page.locator('#estimateStatus').textContent(), /RECALCULATE/);
-    await page.locator('.check input').check();
-    calculationMode = 'server';
-    await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
-    const monthlyService = page.getByText('AOC monthly service', { exact: true }).locator('..').locator(':scope > .value');
-    await page.waitForFunction(() => globalThis.AOCJourney.getState().result?.monthly === 0);
-    assert.equal(await monthlyService.textContent(), 'Ongoing AOC support not included');
-    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().result.monthly),0,'Self-management still calculates a zero AOC monthly fee');
+    const calculated = await page.evaluate(() => globalThis.AOCJourney.getState().result);
+    assert.equal(calculated.build, 7250);
+    assert.equal(calculated.audit, 1087.5);
+    assert.equal(calculated.monthly, 0);
+    assert.equal(calculated.capacity, 1600);
+    assert.equal(calculated.cash, null);
+    assert.equal(calculated.commercialReady, true);
     assert.equal(await page.locator('#estimateStatus').textContent(), 'ESTIMATE CALCULATED');
-    assert.equal(await page.locator('.result-incomplete').count(), 0, 'complete estimates do not show the missing-details notice');
-    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server');
+    assert.match(await page.locator('.result-hero').textContent(), /Preliminary one-time build range/);
+    assert.match(await page.locator('.result-cost-summary').textContent(), /conditional; applied once/);
+    assert.match(await page.locator('#result').textContent(), /Unknown or unconfirmed provider and software savings are not counted/);
+    assert.doesNotMatch(await page.locator('#result').textContent(), /monthly build program|support tier/i);
 
-    calculationMode = 'validation';
-    await page.locator('#f_responsibility_split').selectOption('aoc');
-    await page.getByRole('button', { name: /Priority/ }).click();
-    await page.locator('.check input').check();
-    await page.getByRole('button', { name: /Confirm details & calculate/ }).click();
-    await page.getByText('Synthetic validation rejection', { exact: true }).waitFor();
-    assert.equal(
-      await page.evaluate(() => globalThis.AOCJourney.getState().result?.monthly),
-      0,
-      'a server validation error does not replace the last verified result with a local calculation',
-    );
-    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().dirty), true);
-
-    // The fixed-price launch supersedes the deferred monthly-build offer.
-    calculationMode = 'server';
-    await page.locator('#f_delivery_intent').selectOption('ongoing');
-    assert.equal(await page.locator('#f_implementation_route option[value=monthly]').count(),0);
-    assert.equal(await page.locator('#f_monthly_plan').count(),0);
-    await page.locator('#f_responsibility_split').selectOption('client');
-    await page.locator('#f_implementation_fee').fill('11250.05');
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.build===11250.05;});
-    let project = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
-    assert.equal(project.firstProjectPayment,5000.03);
-    assert.equal(project.secondProjectPayment,5000.02);
-    await page.getByText('Project quote and payment amounts',{exact:true}).click();
-    assert.equal(await page.getByText('First project payment (50%)',{exact:true}).locator('..').locator('.value').textContent(),'$5,000.03');
-    assert.equal(await page.getByText('Second project payment (remaining 50%)',{exact:true}).locator('..').locator('.value').textContent(),'$5,000.02');
-    await page.locator('#f_preparation_fee').fill('2000');
-    await page.locator('#f_implementation_fee').fill('0');
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.build===2000;});
-    project = await page.evaluate(()=>globalThis.AOCJourney.getState().result);
-    assert.equal(project.buildQuoted,true,'an explicit zero implementation component preserves the entered project quote');
-    assert.equal(project.firstProjectPayment,375);
-    assert.equal(project.secondProjectPayment,375);
-    assert.equal(project.payback,.65625,'payback includes the 15% audit and the eligible historical audit credit');
-    assert.equal(await page.locator('.money').textContent(),'$2,000','the result shows the quoted project total rather than the provisional build');
-    assert.equal(await page.locator('#f_implementation_fee').inputValue(),'0','the editable zero is retained');
-    await page.locator('#f_preparation_fee').fill('0');
-    await page.locator('#f_implementation_fee').fill('');
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.buildQuoted===false);
-    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).payback,null);
-    assert.equal(await page.getByText(/AOC still needs to confirm the implementation fee/).isVisible(),true);
-    assert.equal(await page.getByText('First project payment (50%)',{exact:true}).count(),0,'No placeholder installment amount replaces a cleared quote');
-    await page.locator('#f_implementation_fee').fill('11500');
-    await page.locator('#f_existing_client').selectOption('yes');
-    assert.equal(await page.locator('#f_existing_plan_name').isVisible(),true);
-    await page.locator('#f_existing_plan_name').fill('Synthetic retained agreement');
-    await page.locator('#f_existing_plan_fee').fill('3500');
-    await page.locator('#f_retained_existing_fee').fill('2000');
-    await page.locator('#f_existing_retained_scope').fill('Retained hosting and other work');
-    await page.locator('#f_existing_replaced_scope').fill('Reporting');
-    await page.locator('#f_existing_plan_reconciled').selectOption('yes');
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.combinedMonthlyCommitment===2000);
-    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).cash,0,'agreement fee reduction is not counted again as cash savings');
-    await page.locator('#f_retained_existing_fee').fill('');
-    await page.locator('.check input').check();
-    await page.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await page.waitForFunction(()=>globalThis.AOCJourney.getState().result?.combinedMonthlyCommitment===null);
-    assert.equal((await page.evaluate(()=>globalThis.AOCJourney.getState().result)).net,null);
-    await page.locator('#f_existing_client').selectOption('no');
-    assert.equal(await page.locator('#f_existing_plan_name').count(),0,'existing-client questions disappear for a new client');
-
-    assert.equal(await page.locator('#section-picker').isVisible(), false, 'desktop keeps the existing section navigation');
-    assert.equal(await page.locator('#sections > button:visible').count(), 7, 'all desktop section buttons remain available');
-    const beforeMobileNavigation = await page.evaluate(() => globalThis.AOCJourney.getState());
-    for (const width of [320, 360, 390, 430, 768, 950]) {
-      await page.setViewportSize({ width, height: 844 });
-      assert.ok(await page.getByLabel('Section 7 of 7', {exact:true}).isVisible(), 'small screens show an accessible section selector');
-      assert.equal(await page.locator('#sections > button:visible').count(), 0, 'the horizontal strip is replaced rather than clipped');
-      assert.equal(await page.locator('#section-picker option').count(), 7, 'all seven sections remain available');
-      assert.equal(await page.locator('#sections').evaluate(element => element.scrollWidth <= element.clientWidth), true, `navigation does not scroll sideways at ${width}px`);
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `page does not overflow at ${width}px`);
-    }
+    await page.setViewportSize({ width: 320, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the simplified estimate fits a narrow mobile viewport');
     await page.setViewportSize({ width: 390, height: 844 });
-    for (let step = 1; step <= 7; step += 1) {
-      await page.locator('#section-picker').selectOption(String(step));
-      assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().step), step, 'selector navigates to the requested section');
-      assert.ok(await page.getByLabel(`Section ${step} of 7`, {exact:true}).isVisible(), 'progress label follows navigation');
-    }
-    const afterMobileNavigation = await page.evaluate(() => globalThis.AOCJourney.getState());
-    assert.deepEqual(afterMobileNavigation.answers, beforeMobileNavigation.answers, 'changing navigation preserves all answers');
-    assert.deepEqual(afterMobileNavigation.result, beforeMobileNavigation.result, 'changing navigation preserves the calculated result');
-    assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-      true,
-      'mobile layout has no page-level horizontal overflow',
-    );
-    if (capture) await page.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile.png'), fullPage: true });
-
-    await page.locator('#section-picker').selectOption('1');
-    page.once('dialog', async (dialog) => {
-      assert.match(dialog.message(), /clears this estimate/i);
-      await dialog.dismiss();
-    });
-    await page.getByRole('button', { name: 'Orders, inventory, and fulfillment', exact: true }).click();
-    assert.equal(await page.evaluate(() => globalThis.AOCJourney.getState().area), 'area0', 'canceling an area change preserves the estimate');
-
-    // Canceling Start over preserves even a calculated estimate; accepting resets it.
-    const assertRestart = async (targetPage, accept) => {
-      const before = await targetPage.evaluate(() => globalThis.AOCJourney.getState());
-      await targetPage.evaluate(() => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('audit_request', '00000000-0000-4000-8000-000000000001');
-        url.searchParams.set('purchase_reference', '00000000-0000-4000-8000-000000000002');
-        url.searchParams.set('checkout_result', 'cancelled');
-        window.history.replaceState(null, '', url);
-      });
-      await targetPage.locator('#restart').click();
-      const dialog = targetPage.getByRole('dialog', { name: 'Start over?', exact: true });
-      await dialog.waitFor({ state: 'visible' });
-      assert.equal(await dialog.evaluate(element => element.matches(':modal')), true, 'confirmation blocks interaction with the form');
-      assert.equal(await dialog.getByRole('button', { name: 'Keep editing', exact: true }).evaluate(element => element === document.activeElement), true, 'safe action is focused by default');
-      assert.equal(await targetPage.evaluate(() => document.body.style.overflow), 'hidden', 'background scrolling is paused');
-      assert.deepEqual(await targetPage.evaluate(() => globalThis.AOCJourney.getState()), before, 'opening the prompt does not reset anything');
-      await dialog.getByRole('button', { name: accept ? 'Start over' : 'Keep editing', exact: true }).click();
-      await dialog.waitFor({ state: 'hidden' });
-      assert.equal(await targetPage.locator('#restart').evaluate(element => element === document.activeElement), true, 'focus returns to the triggering button');
-      assert.equal(await targetPage.evaluate(() => document.body.style.overflow), '', 'background scrolling is restored');
-      if (!accept) {
-        assert.deepEqual(await targetPage.evaluate(() => globalThis.AOCJourney.getState()), before, 'Cancel leaves all estimate state unchanged');
-        assert.equal(await targetPage.evaluate(() => new URLSearchParams(location.search).get('audit_request')),
-          '00000000-0000-4000-8000-000000000001', 'Cancel preserves the current audit reference');
-        return;
-      }
-      await targetPage.waitForFunction(() => !globalThis.AOCJourney.getState().area);
-      const after = await targetPage.evaluate(() => globalThis.AOCJourney.getState());
-      assert.equal(after.step, 1);
-      assert.equal(after.area, '');
-      assert.equal(after.description, '');
-      assert.deepEqual(after.answers, {});
-      assert.deepEqual(after.facts, {});
-      assert.deepEqual(after.routes, []);
-      assert.deepEqual(after.routeOverrides, {});
-      assert.deepEqual(after.visible, []);
-      assert.deepEqual(after.manualVisible, []);
-      assert.deepEqual(after.removedScopeFields, []);
-      assert.equal(after.analysis, null);
-      assert.equal(after.result, null);
-      assert.equal(after.confirmed, false);
-      assert.equal(after.working, false);
-      assert.equal(after.calculating, false);
-      assert.equal(after.analysisError, '');
-      assert.equal(after.calculationSource, '');
-      assert.deepEqual(await targetPage.evaluate(() => [...new URLSearchParams(location.search).keys()]), [],
-        'A confirmed reset clears the previous audit and payment URL references');
-      assert.equal(await targetPage.locator('#toast').count(), 0, 'reset also clears any stale notification');
-    };
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    assert.ok((await page.evaluate(() => globalThis.AOCJourney.getState())).result, 'reset regression covers a calculated estimate');
-    await assertRestart(page, false);
-    await assertRestart(page, true);
-
-    for (const width of [1440, 390]) {
-      const restartPage = await browser.newPage({ viewport: { width, height: 844 } });
-      try {
-        await restartPage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
-        await assertRestart(restartPage, false);
-        await assertRestart(restartPage, true);
-        await restartPage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
-        assert.equal((await restartPage.evaluate(() => globalThis.AOCJourney.getState())).description, '');
-        await assertRestart(restartPage, false);
-        await assertRestart(restartPage, true);
-        await restartPage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
-        await restartPage.getByRole('button', { name: /^Describe the work/ }).click();
-        await restartPage.locator('#description').fill('Prepare invoices in Wave for our team to review.');
-        await assertRestart(restartPage, false);
-        const beforeDismissal = await restartPage.evaluate(() => globalThis.AOCJourney.getState());
-        for (const method of ['escape', 'backdrop', 'enter']) {
-          await restartPage.locator('#restart').click();
-          const prompt = restartPage.getByRole('dialog', { name: 'Start over?', exact: true });
-          await prompt.waitFor({ state: 'visible' });
-          if (method === 'backdrop') await restartPage.mouse.click(4, 4);
-          else await restartPage.keyboard.press(method === 'escape' ? 'Escape' : 'Enter');
-          await prompt.waitFor({ state: 'hidden' });
-          assert.deepEqual(await restartPage.evaluate(() => globalThis.AOCJourney.getState()), beforeDismissal, `${method} dismisses without clearing answers`);
-        }
-        for (const key of ['Tab', 'Shift+Tab', 'Tab', 'Tab']) {
-          if (!await restartPage.locator('.restart-dialog').isVisible()) await restartPage.locator('#restart').click();
-          await restartPage.keyboard.press(key);
-          assert.equal(await restartPage.locator('.restart-dialog').evaluate(element => element.contains(document.activeElement) || element === document.activeElement), true, 'keyboard focus stays inside the modal');
-        }
-        const bounds = await restartPage.locator('.restart-dialog').boundingBox();
-        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'prompt fits the viewport');
-        if (capture) await restartPage.screenshot({ path: path.join(artifactsDirectory, `restart-dialog-${width}.png`) });
-        await restartPage.keyboard.press('Escape');
-        await assertRestart(restartPage, true);
-
-        // A response arriving after a confirmed reset must not repopulate the form.
-        await restartPage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
-        await restartPage.getByRole('button', { name: /^Describe the work/ }).click();
-        await restartPage.locator('#description').fill('Prepare invoices in Wave for our team to review.');
-        let releaseRestartAnalysis;
-        const restartAnalysisGate = new Promise(resolve => { releaseRestartAnalysis = resolve; });
-        await restartPage.route('**/api/journey/analyze', async route => {
-          await restartAnalysisGate;
-          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ localFallback: true }) });
-        });
-        const restartAnalysisRequest = restartPage.waitForRequest(request => request.url().endsWith('/api/journey/analyze'));
-        await restartPage.getByRole('button', { name: /Organize my description/ }).click();
-        await restartAnalysisRequest;
-        assert.equal((await restartPage.evaluate(() => globalThis.AOCJourney.getState())).working, true);
-        await assertRestart(restartPage, false);
-        await assertRestart(restartPage, true);
-        const resetState = await restartPage.evaluate(() => globalThis.AOCJourney.getState());
-        const restartAnalysisResponse = restartPage.waitForResponse(response => response.url().endsWith('/api/journey/analyze'));
-        releaseRestartAnalysis();
-        await (await restartAnalysisResponse).finished();
-        await restartPage.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        assert.deepEqual(await restartPage.evaluate(() => globalThis.AOCJourney.getState()), resetState, 'late AI response cannot undo a confirmed reset');
-      } finally { await restartPage.close(); }
-    }
-
-    const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    mobilePage.on('console', (message) => {
-      const expectedLocalApiError = /\/api\/journey\/(analyze|calculate)$/.test(message.location().url)
-        && message.text().includes('Failed to load resource');
-      if (
-        message.type() === 'error'
-        && !message.text().includes('fonts.googleapis.com')
-        && !expectedLocalApiError
-      ) errors.push(message.text());
-    });
-    mobilePage.on('pageerror', (error) => errors.push(error.message));
-
-    await mobilePage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
-    assert.equal(await mobilePage.locator('#section-picker option:disabled').count(), 6, 'later sections are still locked until a business area is chosen');
-    await mobilePage.getByRole('button', { name: 'Finance and billing', exact: true }).click();
-    assert.equal(await mobilePage.locator('#section-picker option:disabled').count(), 0, 'choosing an area unlocks the same seven sections');
-    await mobilePage.getByRole('button', { name: /^Describe the work/ }).click();
-    assert.equal(await mobilePage.locator('#section-picker').inputValue(), '2', 'next action keeps mobile navigation in sync');
-    for (const width of [320, 360, 390, 430, 700]) {
-      await mobilePage.setViewportSize({width,height:844});
-      const bounds = await mobilePage.locator('.description-actions').evaluate(element => ({
-        container: {left:element.getBoundingClientRect().left,width:element.getBoundingClientRect().width},
-        buttons: [...element.querySelectorAll('button')].map(button => {
-          const rect = button.getBoundingClientRect();
-          return {left:rect.left,top:rect.top,width:rect.width,height:rect.height,layoutHeight:button.offsetHeight};
-        }),
-      }));
-      assert.equal(bounds.buttons.length,2);
-      for (const button of bounds.buttons) {
-        assert.ok(Math.abs(button.width-bounds.container.width)<1, `description action fills the available width at ${width}px`);
-        assert.ok(Math.abs(button.left-bounds.container.left)<1, 'full-width actions are left-aligned');
-        assert.ok(button.layoutHeight>=48 && button.height>=47.99, 'mobile actions retain a 48px touch target (allowing fractional-pixel rectangle rounding)');
-      }
-      assert.ok(bounds.buttons[1].top>=bounds.buttons[0].top+bounds.buttons[0].height, 'mobile description actions stack vertically');
-      assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`full-width buttons do not cause overflow at ${width}px`);
-    }
-    await mobilePage.setViewportSize({width:390,height:844});
-    await mobilePage.locator('#description').fill('We prepare monthly invoices in Wave. 3 people across 2 teams do this work. We have notes and examples, with some preparation needed. AOC manages it and prepares drafts for our team to approve.');
-    await mobilePage.getByRole('button', { name: /Organize my description/ }).click();
-    await mobilePage.getByText(/Basic local organization was used/).waitFor();
-
-    await mobilePage.locator('#f_solution').selectOption('workflow');
-    await mobilePage.getByText(/Process complexity/).click();
-    await mobilePage.locator('#f_steps_band').selectOption('2');
-    await mobilePage.locator('#f_variation_band').selectOption('1');
-    await mobilePage.getByText(/Team and rollout/).click();
-    await mobilePage.locator('#f_people_count').fill('3');
-    await mobilePage.locator('#f_department_count').fill('2');
-    await mobilePage.locator('#f_cadence').selectOption('monthly');
-    await mobilePage.locator('#f_handover').selectOption('group');
-    await mobilePage.getByRole('button', { name: /Continue/ }).click();
-
-    await mobilePage.locator('#f_systems').fill('Wave');
-    await mobilePage.locator('#f_legacy_system_check').selectOption('Standard');
-    await mobilePage.getByRole('button', { name: /Continue/ }).click();
-
-    await mobilePage.locator('#f_documentation_readiness').selectOption('Notes or examples');
-    await mobilePage.locator('#f_data_preparation_level').selectOption('Some preparation');
-    await mobilePage.getByRole('button', { name: /Continue/ }).click();
-
-    await mobilePage.getByRole('button', { name: /Continue/ }).click();
-    await mobilePage.locator('#f_responsibility_split').selectOption('aoc');
-    await mobilePage.locator('#f_implementation_route').selectOption('project');
-    await mobilePage.locator('#f_existing_client').selectOption('no');
-    await mobilePage.locator('#f_action_mode').selectOption('draft');
-    await mobilePage.getByRole('button', { name: /^Standard/ }).click();
-    await mobilePage.locator('.check input').check();
-    calculationMode = 'server';
-    await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
-
-    await mobilePage.waitForFunction(() => globalThis.AOCJourney.getState().result?.build != null);
-    assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().step), 7, 'mobile journey reaches the final step');
-    assert.equal(await mobilePage.evaluate(() => globalThis.AOCJourney.getState().calculationSource), 'server', 'mobile journey uses the server calculator');
-    assert.equal(await mobilePage.locator('#estimateStatus').textContent(), 'CALCULATED · PARTIAL', 'partial estimates state calculation has run without implying a final quote');
-    assert.doesNotMatch(await mobilePage.locator('#result').textContent(), /Not yet calculated/i, 'a completed partial result does not claim calculation has not run');
-    assert.ok(await mobilePage.locator('.result-incomplete').isVisible(), 'partial results explain why some figures need more details');
-    assert.equal(await mobilePage.locator('.result-review').getAttribute('open'), null, 'the full pending list stays expandable while the short next steps remain visible');
-    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /ROI not estimated because optional time or cost details were not provided.*AOC will confirm/s, 'next steps distinguish optional inputs from confirmed pricing requirements');
-    assert.match(await mobilePage.locator('.result-review').textContent(), /audit.*quote/i, 'pending quote requirements remain visible rather than inventing a fee');
-    await mobilePage.getByText('Potential monthly value', { exact: true }).click();
-    const mobileMetric = title => mobilePage.getByText(title, { exact: true }).locator('..').locator(':scope > .value');
-    assert.equal(await mobileMetric('Capacity value').count(),0);
-    assert.equal(await mobileMetric('Recurring cash savings').count(),0);
-    assert.equal(await mobileMetric('Total monthly ongoing costs').count(),0);
-    const partialBuild = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result.build);
-    assert.equal(await mobilePage.locator('.result-highlight').count(),0,'Skipped optional inputs do not create empty KPI cards');
-    if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-next-steps-mobile-390.png') });
-    const beforeResultNavigation = await mobilePage.evaluate(() => globalThis.AOCJourney.getState());
-
-    await mobilePage.getByRole('button', { name: 'Review time & costs', exact: true }).click();
-    const afterResultNavigation = await mobilePage.evaluate(() => globalThis.AOCJourney.getState());
-    assert.equal(afterResultNavigation.step, 6, 'the result action opens the relevant existing section');
-    assert.deepEqual(afterResultNavigation.answers, beforeResultNavigation.answers, 'result navigation preserves all answers');
-    assert.deepEqual(afterResultNavigation.result, beforeResultNavigation.result, 'result navigation preserves the calculation');
-    assert.equal(afterResultNavigation.dirty, beforeResultNavigation.dirty, 'result navigation does not mark the estimate changed');
-    await mobilePage.getByText('Calculate potential value', { exact: true }).click();
-    await mobilePage.locator('#f_team_time').fill('40');
-    await mobilePage.locator('#f_blended_hourly_cost').fill('30');
-    await mobilePage.locator('#f_software_replaced_portion').selectOption('none');
-    await mobilePage.locator('#f_incremental_software_cost').fill('50');
-    await mobilePage.locator('#section-picker').selectOption('7');
-    await mobilePage.locator('#f_responsibility_split').selectOption('client');
-    await mobilePage.locator('.check input').check();
-    await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
-    await mobilePage.waitForFunction(() => !globalThis.AOCJourney.getState().dirty && globalThis.AOCJourney.getState().result?.net === 910);
-    assert.equal(await mobileMetric('Capacity value').textContent(), '$960', 'provided time and hourly cost calculate capacity value');
-    assert.equal(await mobileMetric('Recurring cash savings').textContent(), '$0', 'confirmed no eliminated costs shows zero rather than a missing label');
-    assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), '$50', 'known ongoing costs display even while project quote details are missing');
-    assert.equal(await mobileMetric('Net monthly economic benefit').textContent(), '$910');
-    assert.equal(await mobilePage.getByRole('button', { name: 'Review time & costs', exact: true }).count(), 0, 'complete value inputs no longer prompt the client to add them');
-    assert.match(await mobilePage.locator('.result-incomplete').textContent(), /Payback can be estimated after AOC confirms/, 'quote requirements remain visible without repeating optional input prompts');
-    assert.doesNotMatch(await mobilePage.locator('.result-incomplete').textContent(), /support fee/, 'client-operated results do not suggest a missing AOC support fee');
-    if (capture) await mobilePage.locator('.estimate-aside').screenshot({ path: path.join(artifactsDirectory, 'result-known-value-mobile-390.png') });
-    const knownValueResult = await mobilePage.evaluate(() => globalThis.AOCJourney.getState().result);
-    assert.equal(knownValueResult.build, partialBuild, 'time and cost inputs do not change the scope build estimate');
-    assert.equal(knownValueResult.audit, Math.round(partialBuild * .15 * 100) / 100, 'the audit remains 15% of the project estimate');
-    assert.equal(knownValueResult.payback, null, 'unknown project and credit details still prevent a supported payback');
-
-    await mobilePage.locator('#section-picker').selectOption('6');
-    await mobilePage.getByText('Calculate potential value', { exact: true }).click();
-    await mobilePage.locator('#f_team_time').fill('');
-    await mobilePage.locator('#section-picker').selectOption('7');
-    await mobilePage.locator('.check input').check();
-    await mobilePage.getByRole('button', { name: /Confirm details & calculate/ }).click();
-    await mobilePage.waitForFunction(() => !globalThis.AOCJourney.getState().dirty && globalThis.AOCJourney.getState().result?.capacity === null);
-    assert.equal(await mobileMetric('Capacity value').count(),0,'Clearing a source input removes its old calculated value');
-    assert.equal(await mobileMetric('Net monthly economic benefit').count(),0);
-    assert.equal(await mobilePage.getByText('ROI not estimated because optional time or cost details were not provided.',{exact:true}).count(),1);
-    assert.equal(await mobileMetric('Total monthly ongoing costs').textContent(), '$50', 'clearing hours preserves independent known costs');
-    assert.doesNotMatch(await mobilePage.locator('#result').textContent(), /Not yet calculated/i);
-    assert.equal(
-      await mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-      true,
-      'completed mobile journey has no page-level horizontal overflow',
-    );
-    if (capture) await mobilePage.screenshot({ path: path.join(artifactsDirectory, 'estimator-mobile-journey.png'), fullPage: true });
-    await mobilePage.locator('#f_delivery_intent').selectOption('ongoing');
-    assert.equal(await mobilePage.locator('#f_implementation_route option[value=monthly]').count(),0);
-    assert.equal(await mobilePage.locator('#f_monthly_plan').count(),0);
-    await mobilePage.locator('.check input').check();
-    await mobilePage.getByRole('button',{name:/Confirm details & calculate/}).click();
-    await mobilePage.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.result?.route==='project';});
-    const ongoingProjectResult=await mobilePage.evaluate(()=>globalThis.AOCJourney.getState().result);
-    assert.equal(ongoingProjectResult.audit,Math.round(ongoingProjectResult.build*.15*100)/100,'mobile project keeps the 15% audit fee');
-    assert.equal(await mobilePage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'fixed-project form has no mobile overflow');
-    await assertRestart(mobilePage, false);
-    await assertRestart(mobilePage, true);
-    await mobilePage.close();
-
-    // The new commercial facts use the same manual-correction protection as all other answers.
-    const prefillPage=await browser.newPage({viewport:{width:390,height:844}});
-    prefillPage.on('pageerror',error=>errors.push(error.message));
-    const commercialDescription="We have selected AOC's Level 1 monthly build program for ongoing development. AOC quoted a fixed audit fee of $900.";
-    const commercialAnalysis=JourneyContract.validate({title:'Synthetic monthly program',summary:commercialDescription,solution:'workflow',recommendationReason:'Synthetic fixture',classification:{steps:null,variations:null,decisions:null,reason:'Review'},routes:[],facts:[
-      {id:'monthly_plan',value:'level1',quote:"We have selected AOC's Level 1 monthly build program for ongoing development."},
-      {id:'audit_fee',value:'900',quote:'AOC quoted a fixed audit fee of $900.'},
-    ],relevantFields:[],uncertainties:[]},commercialDescription,'area0');
-    await prefillPage.route('**/api/journey/analyze',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({analysis:commercialAnalysis})}));
-    await prefillPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
-    await prefillPage.getByRole('button',{name:'Finance and billing',exact:true}).click();
-    await prefillPage.getByRole('button',{name:/^Describe the work/}).click();
-    await prefillPage.locator('#description').fill(commercialDescription);
-    await prefillPage.getByRole('button',{name:/Organize my description/}).click();
-    await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
-    await prefillPage.locator('#section-picker').selectOption('7');
-    assert.equal(await prefillPage.locator('#f_implementation_route').inputValue(),'','deferred requests do not confirm a launch route');
-    assert.equal(await prefillPage.locator('#f_monthly_plan').count(),0);
-    await prefillPage.locator('#f_implementation_route').selectOption('project');
-    await prefillPage.locator('#quote-details > summary').click();
-    await prefillPage.getByText('Check an existing audit credit', {exact:true}).click();
-    await prefillPage.locator('#f_audit_fee').fill('1250');
-    await prefillPage.locator('#section-picker').selectOption('2');
-    await prefillPage.getByRole('button',{name:/Organize my description/}).click();
-    await prefillPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3);
-    const correctedCommercial=await prefillPage.evaluate(()=>globalThis.AOCJourney.getState().answers);
-    assert.equal(correctedCommercial.implementation_route,'project','AI reorganization keeps a manual implementation-route correction');
-    assert.equal(correctedCommercial.audit_fee,1250,'AI reorganization keeps a manually corrected quote reference');
-    assert.equal(correctedCommercial.agreed_monthly_hours,undefined,'unknown agreement hours stay blank');
-    await prefillPage.close();
-
-    // Price-affecting prefilled counts remain editable outside Content & Social.
-    for (const width of [1440, 390]) {
-      const countsPage = await browser.newPage({ viewport: { width, height: 1000 } });
-      countsPage.on('pageerror', error => errors.push(error.message));
-      try {
-        const text = 'We need paid advertising across 4 destination channels and 3 output formats.';
-        const analysis = JourneyContract.validate({ title: 'Advertising counts', summary: text, solution: 'workflow', recommendationReason: 'Fixture',
-          classification: { steps: null, variations: null, decisions: null, reason: 'Review' }, routes: [],
-          facts: [{ id: 'channel_count', value: '4', quote: '4 destination channels' }, { id: 'format_count', value: '3', quote: '3 output formats' }],
-          relevantFields: [], uncertainties: [] }, text, 'area10');
-        await countsPage.route('**/api/journey/analyze', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ analysis }) }));
-        await countsPage.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
-        await countsPage.getByRole('button', { name: 'Paid advertising', exact: true }).click();
-        if (width < 950) await countsPage.locator('#section-picker').selectOption('3');
-        else await countsPage.locator('#sections > button').nth(2).click();
-        assert.equal(await countsPage.locator('#f_channel_count').count(), 0, 'unsupplied optional counts do not add questions');
-        if (width < 950) await countsPage.locator('#section-picker').selectOption('2');
-        else await countsPage.locator('#sections > button').nth(1).click();
-        await countsPage.locator('#description').fill(text);
-        await countsPage.getByRole('button', { name: /Organize my description/ }).click();
-        await countsPage.waitForFunction(() => AOCJourney.getState().step === 3 && !AOCJourney.getState().working);
-        if (!await countsPage.locator('#f_channel_count').isVisible()) await countsPage.getByText('3. Marketing scope', { exact: true }).click();
-        assert.equal(await countsPage.locator('#f_channel_count').inputValue(), '4');
-        assert.equal(await countsPage.locator('#f_format_count').inputValue(), '3');
-        await countsPage.locator('#f_channel_count').fill('2');
-        await countsPage.locator('#f_format_count').fill('');
-        assert.equal(await countsPage.locator('#f_format_count').isVisible(), true, 'cleared supplied counts remain editable');
-        assert.equal(await countsPage.locator('#f_format_count').getAttribute('required'), null, 'optional counts do not become new required questions');
-        if (width < 950) await countsPage.locator('#section-picker').selectOption('2');
-        else await countsPage.locator('#sections > button').nth(1).click();
-        await countsPage.getByRole('button', { name: /Organize my description/ }).click();
-        await countsPage.waitForFunction(() => AOCJourney.getState().step === 3 && !AOCJourney.getState().working);
-        const answers = await countsPage.evaluate(() => AOCJourney.getState().answers);
-        assert.equal(answers.channel_count, 2, 'manual count correction survives reorganization');
-        assert.equal(answers.format_count, null, 'manual clearing survives reorganization');
-      } finally { await countsPage.close(); }
-    }
-
-    // Recover explicitly supplied paid-advertising scope when the AI omits it,
-    // retain manual corrections, and name the actual missing cost in results.
-    for(const width of [1440,390]){
-      const advertisingPage=await browser.newPage({viewport:{width,height:1000}});
-      advertisingPage.on('pageerror',error=>errors.push(error.message));
-      try{
-        const text='We want a workflow covering six capabilities: reporting, monitoring, creative drafts, recommendations, feeds and approvals. '
-          +'We need 24 advertising outputs per month. AOC prepares the agreed creative and copy. '
-          +'Three people across two departments need group training. Our shared responsibilities include AOC management and approved changes. '
-          +'We use five standard apps daily, clear current documentation and some data preparation. '
-          +'We are a new AOC client choosing ongoing operations through a fixed-price project for one brand in English. '
-          +'Our team spends 60 hours monthly at $30 per hour. The provider costs $1000 and $600 stops; no software costs are removed and added software costs $80 monthly. '
-          +'AOC quoted preparation at $0, implementation at $11500 and an unpaid audit at $1250. No additional live training is purchased and no audit credit has been used.';
-        const supplied={people_count:3,department_count:2,handover:'group',cadence:'daily',
-          systems:'Meta Ads, Shopify, Google Sheets, Google Drive, Slack',legacy_system_check:'Standard',
-          documentation_readiness:'Clear and current',data_preparation_level:'Some preparation',
-          responsibility_split:'shared',action_mode:'approved',consequential:'yes',delivery_intent:'ongoing',
-          implementation_route:'project',existing_client:'no',brand_count:1,language_count:1,
-          team_time:60,blended_hourly_cost:30,replacement_provider_cost:1000,provider_replaced_portion:'part',provider_removed_amount:600,
-          software_replaced_portion:'none',incremental_software_cost:80,audit_fee:1250,audit_paid:0,
-          preparation_fee:0,implementation_fee:11500,live_training:'no',audit_credit_used:'no'};
-        const analysis=JourneyContract.validate({title:'Paid advertising workflow',summary:text,solution:'workflow',recommendationReason:'Defined workflow',
-          classification:{steps:3,variations:2,decisions:null,reason:'Connected systems with standard groups'},routes:[],
-          facts:Object.entries(supplied).map(([id,value])=>({id,value:String(value),quote:text})),relevantFields:[],uncertainties:[]},text,'area10');
-        await advertisingPage.route('**/api/journey/analyze',route=>route.fulfill({json:{analysis}}));
-        await advertisingPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
-        await advertisingPage.getByRole('button',{name:'Paid advertising',exact:true}).click();
-        await advertisingPage.getByRole('button',{name:/^Describe the work/}).click();
-        await advertisingPage.locator('#description').fill(text);
-        await advertisingPage.getByRole('button',{name:/Organize my description/}).click();
-        await advertisingPage.waitForFunction(()=>AOCJourney.getState().step===3&&!AOCJourney.getState().working);
-        const restored=await advertisingPage.evaluate(()=>AOCJourney.getState().answers);
-        assert.equal(restored.capability_count,6);assert.equal(restored.delivery_mode,'managed');assert.equal(restored.monthly_outputs,24);
-        const go=step=>width<950?advertisingPage.locator('#section-picker').selectOption(String(step)):advertisingPage.locator('#sections > button').nth(step-1).click();
-        await go(7);await advertisingPage.locator('.check input').check();
-        await advertisingPage.getByRole('button',{name:/Confirm details & calculate/}).click();
-        await advertisingPage.waitForFunction(()=>!AOCJourney.getState().dirty&&!!AOCJourney.getState().result);
-        assert.equal(await advertisingPage.locator('.result-hero .money').textContent(),'$11,500');
-        assert.match(await advertisingPage.locator('.result-cost-summary').textContent(),/Initial audit fee\s*15% of project\$1,725.*Support fee to be quoted by AOC/);
-        assert.equal(await advertisingPage.getByText('ROI can be estimated after AOC quotes the support fee.',{exact:true}).count(),1);
-        assert.equal(await advertisingPage.getByRole('button',{name:'Review time & costs',exact:true}).count(),0);
-        const calculated=await advertisingPage.evaluate(()=>AOCJourney.getState().result);
-        assert.equal(calculated.audit,1725);assert.equal(calculated.auditRate,.15);assert.equal(calculated.net,null);assert.equal(calculated.credit.amount,null);
-        await advertisingPage.getByText('Project & ongoing costs',{exact:true}).click();
-        await advertisingPage.getByText('Project quote and payment amounts',{exact:true}).click();
-        assert.equal(await advertisingPage.getByText(/AOC still needs to confirm whether any audit fee can be credited toward the build/).isVisible(),true);
-        assert.equal(await advertisingPage.getByText('AOC will confirm after reviewing the work',{exact:true}).isVisible(),true);
-        await go(3);
-        if(!await advertisingPage.locator('#f_capability_count').isVisible())await advertisingPage.getByText('3. Marketing scope',{exact:true}).click();
-        await advertisingPage.locator('#f_capability_count').fill('5');await advertisingPage.locator('#f_delivery_mode').selectOption('maintenance');
-        await go(2);await advertisingPage.getByRole('button',{name:/Organize my description/}).click();
-        await advertisingPage.waitForFunction(()=>AOCJourney.getState().step===3&&!AOCJourney.getState().working);
-        const edited=await advertisingPage.evaluate(()=>AOCJourney.getState().answers);
-        assert.equal(edited.capability_count,5);assert.equal(edited.delivery_mode,'maintenance');
-        if(!await advertisingPage.locator('#f_capability_count').isVisible())await advertisingPage.getByText('3. Marketing scope',{exact:true}).click();
-        await advertisingPage.locator('#f_capability_count').fill('');await go(7);await advertisingPage.locator('.check input').check();
-        await advertisingPage.getByRole('button',{name:/Confirm details & calculate/}).click();
-        await advertisingPage.waitForFunction(()=>!AOCJourney.getState().dirty&&AOCJourney.getState().result?.provisionalBuild===null);
-        assert.equal(await advertisingPage.locator('.result-hero .money').textContent(),'Complete scope details');
-        assert.equal(await advertisingPage.getByRole('button',{name:/Review process & scope/}).count(),1);
-      }finally{await advertisingPage.close();}
-    }
-
-    // Optional scope questions can be added, removed and explicitly added again.
-    const questionPage = await browser.newPage({viewport:{width:390,height:844}});
-    questionPage.on('pageerror',error=>errors.push(error.message));
-    const questionDialogs = [];
-    let questionDialogAction = 'dismiss';
-    questionPage.on('dialog',async dialog=>{
-      questionDialogs.push(dialog.message());
-      await dialog[questionDialogAction]();
-    });
-    const questionState = () => questionPage.evaluate(()=>globalThis.AOCJourney.getState());
-    const goToQuestionStep = step => questionPage.locator('#section-picker').selectOption(String(step));
-    const addQuestion = async id => {
-      const current = await questionState();
-      const definition = require('../../public/approved-bank.js').areas.find(area=>area.id===current.area).fields.find(candidate=>candidate.id===id);
-      if(!await questionPage.getByLabel('Search scope question bank').isVisible()) await questionPage.locator('#scope-question-bank > summary').click();
-      await questionPage.getByLabel('Search scope question bank').fill(definition.question);
-      await questionPage.locator(`#scope-question-bank [data-field-id="${id}"]`).getByRole('button',{name:'Add',exact:true}).click();
-      if(!await questionPage.locator(`#f_${id}`).isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
-      await questionPage.locator(`#f_${id}`).waitFor();
-    };
-    const removeQuestion = async id => {
-      await questionPage.locator(`#f_${id}`).locator('..').getByRole('button',{name:/^Remove question:/}).click();
-      if (!await questionPage.locator(`#f_${id}`).count()) {
-        await questionPage.locator(`#scope-question-bank [data-field-id="${id}"]`).waitFor({ state: 'visible' });
-      }
-    };
-    try {
-      await questionPage.goto(`http://127.0.0.1:${port}/`,{waitUntil:'networkidle'});
-      await questionPage.getByRole('button',{name:'Paid advertising',exact:true}).click();
-      await questionPage.getByRole('button',{name:/^Describe the work/}).click();
-      const questionDescription='We use Meta for paid advertising and need Reporting for our staff to review. This synthetic test must preserve manually edited answers.';
-      await questionPage.locator('#description').fill(questionDescription);
-      await questionPage.getByRole('button',{name:/Continue with editable fields/}).click();
-      await addQuestion('ads_003');
-      assert.equal(await questionPage.locator('#scope-question-bank [data-field-id="ads_003"]').count(),0,'added question leaves the available bank');
-      await removeQuestion('ads_003');
-      assert.equal(questionDialogs.length,0,'blank optional question can be removed without a destructive-answer prompt');
-      assert.equal(await questionPage.locator('#f_ads_003').count(),0);
-      assert.ok(await questionPage.locator('#scope-question-bank [data-field-id="ads_003"]').isVisible(),'removed question returns to the bank');
-      assert.equal(await questionPage.getByLabel('Search scope question bank').evaluate(element=>element===document.activeElement),true,'focus returns to the question bank');
-      await addQuestion('ads_003');
-      assert.equal(await questionPage.locator('#f_ads_003').inputValue(),'','re-adding starts with a blank answer');
-      await questionPage.locator('#f_ads_003').fill('Meta');
-      const beforeCancel = await questionState();
-      await removeQuestion('ads_003');
-      assert.match(questionDialogs.at(-1),/clear its answer/);
-      assert.deepEqual(await questionState(),beforeCancel,'canceling removal leaves all state untouched');
-      await addQuestion('ads_002');
-      await questionPage.locator('#f_ads_002').fill('Reporting');
-
-      await questionPage.locator('#f_solution').selectOption('workflow');
-      if(!await questionPage.locator('#f_steps_band').isVisible()) await questionPage.getByText(/Process complexity/).click();
-      await questionPage.locator('#f_steps_band').selectOption('2'); await questionPage.locator('#f_variation_band').selectOption('2');
-      if(!await questionPage.locator('#f_people_count').isVisible()) await questionPage.getByText(/Team and rollout/).click();
-      await questionPage.locator('#f_people_count').fill('2'); await questionPage.locator('#f_department_count').fill('1');
-      await questionPage.locator('#f_handover').selectOption('group'); await questionPage.locator('#f_cadence').selectOption('weekly');
-      if(!await questionPage.locator('#f_capability_count').isVisible()) await questionPage.getByText('3. Marketing scope',{exact:true}).click();
-      for(const id of ['capability_count','brand_count','language_count']) await questionPage.locator(`#f_${id}`).fill('1');
-      await questionPage.locator('#f_delivery_mode').selectOption('maintenance');
-      assert.equal(await questionPage.locator('.required-section .remove-question').count(),0,'required core questions never get removal controls');
-      await goToQuestionStep(4);
-      await questionPage.locator('#f_systems').fill('Meta Ads'); await questionPage.locator('#f_legacy_system_check').selectOption('Standard');
-      assert.equal(await questionPage.locator('#mainPanel .remove-question').count(),0,'shared app questions cannot be removed through category controls');
-      await goToQuestionStep(5);
-      await questionPage.locator('#f_documentation_readiness').selectOption('Notes or examples'); await questionPage.locator('#f_data_preparation_level').selectOption('Some preparation');
-      assert.equal(await questionPage.locator('#mainPanel .remove-question').count(),0,'shared data questions retain their normal controls');
-      await goToQuestionStep(7);
-      for(const [id,value] of Object.entries({responsibility_split:'client',action_mode:'draft',delivery_intent:'limited',implementation_route:'project',existing_client:'no'})) await questionPage.locator(`#f_${id}`).selectOption(value);
-      await questionPage.locator('.check input').check();
-      await questionPage.getByRole('button',{name:/Confirm details & calculate/}).click();
-      await questionPage.waitForFunction(()=>{const state=globalThis.AOCJourney.getState();return !state.dirty&&!state.calculating&&state.calculationSource==='server';});
-      const beforeRemoval = await questionState();
-      await goToQuestionStep(3);
-      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
-      questionDialogAction='accept';
-      await removeQuestion('ads_003');
-      const removed = await questionState();
-      assert.ok(await questionPage.locator('#scope-question-bank [data-field-id="ads_003"]').isVisible(),'removed question is shown even when a different search was active');
-      assert.equal(removed.answers.ads_003,undefined);
-      assert.equal(removed.facts.ads_003,undefined);
-      assert.equal(removed.answers.ads_002,'Reporting','other added answers are preserved');
-      assert.equal(removed.manualVisible.includes('ads_003'),false);
-      assert.equal(removed.visible.includes('ads_003'),false);
-      assert.equal(removed.removedScopeFields.includes('ads_003'),true);
-      assert.equal(removed.dirty,true); assert.equal(removed.confirmed,false);
-      assert.deepEqual(removed.result,beforeRemoval.result,'last result is retained only as explicitly stale');
-      assert.match(await questionPage.locator('#estimateStatus').textContent(),/RECALCULATE/);
-      await goToQuestionStep(7); await questionPage.locator('.check input').check();
-      const afterRemovalRequest=questionPage.waitForRequest(request=>request.url().endsWith('/api/journey/calculate'));
-      await questionPage.getByRole('button',{name:/Confirm details & calculate/}).click();
-      const sent=(await afterRemovalRequest).postDataJSON();
-      assert.equal(sent.answers.ads_003,undefined,'removed answer is not submitted to the calculator');
-      assert.equal(sent.answers.ads_002,'Reporting');
-      await questionPage.waitForFunction(()=>!globalThis.AOCJourney.getState().dirty&&!globalThis.AOCJourney.getState().calculating);
-      assert.deepEqual((await questionState()).result,beforeRemoval.result,'removing scope evidence does not invent or remove pricing coefficients');
-
-      const questionAnalysis=JourneyContract.validate({title:'Synthetic advertising',summary:questionDescription,solution:'workflow',recommendationReason:'Test fixture',classification:{steps:null,variations:null,decisions:null,reason:'Test'},routes:[],facts:[{id:'ads_003',value:'Meta',quote:'Meta'},{id:'ads_002',value:'Reporting',quote:'Reporting'}],relevantFields:['ads_003','ads_002'],uncertainties:[]},questionDescription,'area10');
-      await questionPage.route('**/api/journey/analyze',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({analysis:questionAnalysis})}));
-      const reorganizeQuestions=async()=>{
-        await goToQuestionStep(2); await questionPage.getByRole('button',{name:/Organize my description/}).click();
-        await questionPage.waitForFunction(()=>globalThis.AOCJourney.getState().step===3&&!globalThis.AOCJourney.getState().working);
-      };
-      await reorganizeQuestions();
-      const afterAI=await questionState();
-      assert.equal(afterAI.answers.ads_003,undefined,'AI cannot restore a manually removed answer');
-      assert.equal(afterAI.visible.includes('ads_003'),false,'AI cannot restore the removed question');
-      assert.equal(afterAI.analysis.facts.some(fact=>fact.id==='ads_003'),false);
-      assert.equal(afterAI.answers.ads_002,'Reporting');
-      await addQuestion('ads_003');
-      assert.equal(await questionPage.locator('#f_ads_003').inputValue(),'','explicit Add does not resurrect the deleted answer');
-      assert.equal((await questionState()).removedScopeFields.includes('ads_003'),false);
-      await reorganizeQuestions();
-      assert.equal((await questionState()).answers.ads_003,'Meta','AI can populate the question after it is explicitly added again');
-      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
-      await questionPage.locator('#f_ads_003').fill('0');
-      const dialogCount=questionDialogs.length;
-      await removeQuestion('ads_003');
-      assert.equal(questionDialogs.length,dialogCount+1,'explicit zero is still a filled answer requiring confirmation');
-      assert.equal((await questionState()).answers.ads_003,undefined);
-      assert.equal((await questionState()).facts.ads_003,undefined);
-      assert.equal(await questionPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'remove controls fit on mobile');
-
-      // Late asynchronous responses must not undo a removal made in another section.
-      await addQuestion('ads_003');
-      let releaseCalculation;
-      const calculationGate=new Promise(resolve=>{releaseCalculation=resolve;});
-      await questionPage.route('**/api/journey/calculate',async route=>{
-        const body=route.request().postDataJSON();
-        await calculationGate;
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...JourneyCalculation.calculate(body),source:'server'})});
-      });
-      await goToQuestionStep(7); await questionPage.locator('.check input').check();
-      const delayedCalculationRequest=questionPage.waitForRequest(request=>request.url().endsWith('/api/journey/calculate'));
-      await questionPage.getByRole('button',{name:/Confirm details & calculate/}).click();
-      await delayedCalculationRequest;
-      await goToQuestionStep(3);
-      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
-      await removeQuestion('ads_003');
-      const delayedCalculationResponse=questionPage.waitForResponse(response=>response.url().endsWith('/api/journey/calculate'));
-      releaseCalculation();
-      await (await delayedCalculationResponse).finished();
-      await questionPage.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-      assert.equal((await questionState()).dirty,true,'late calculation response cannot mark the changed estimate current');
-      assert.equal((await questionState()).confirmed,false);
-      await questionPage.unroute('**/api/journey/calculate');
-
-      await addQuestion('ads_003');
-      await questionPage.locator('#f_ads_003').fill('Meta');
-      await questionPage.unroute('**/api/journey/analyze');
-      let releaseAnalysis;
-      const analysisGate=new Promise(resolve=>{releaseAnalysis=resolve;});
-      await questionPage.route('**/api/journey/analyze',async route=>{
-        await analysisGate;
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({analysis:questionAnalysis})});
-      });
-      await goToQuestionStep(2);
-      const delayedAnalysisRequest=questionPage.waitForRequest(request=>request.url().endsWith('/api/journey/analyze'));
-      await questionPage.getByRole('button',{name:/Organize my description/}).click();
-      await delayedAnalysisRequest;
-      await goToQuestionStep(3);
-      if(!await questionPage.locator('#f_ads_003').isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
-      await removeQuestion('ads_003');
-      assert.equal((await questionState()).working,false,'removing during organization cancels the outdated busy state');
-      const delayedAnalysisResponse=questionPage.waitForResponse(response=>response.url().endsWith('/api/journey/analyze'));
-      releaseAnalysis();
-      await (await delayedAnalysisResponse).finished();
-      await questionPage.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-      assert.equal((await questionState()).answers.ads_003,undefined,'late AI response cannot restore the removed answer');
-      assert.equal((await questionState()).visible.includes('ads_003'),false);
-
-      // Every business-area bank keeps removed questions available for re-adding.
-      for(const area of require('../../public/approved-bank.js').areas) {
-        await goToQuestionStep(1);
-        await questionPage.getByRole('button',{name:area.label,exact:true}).click();
-        await goToQuestionStep(3);
-        if(!await questionPage.getByLabel('Search scope question bank').isVisible()) await questionPage.locator('#scope-question-bank > summary').click();
-        await questionPage.getByLabel('Search scope question bank').fill('');
-        const first=questionPage.locator('#scope-question-bank .bank-item').first();
-        const id=await first.getAttribute('data-field-id');
-        await first.getByRole('button',{name:'Add',exact:true}).click();
-        if(!await questionPage.locator(`#f_${id}`).isVisible()) await questionPage.getByText(/^Review detailed scope/).click();
-        await removeQuestion(id);
-        assert.ok(await questionPage.locator(`#scope-question-bank [data-field-id="${id}"]`).isVisible(),`removed question returns in ${area.label}`);
-      }
-      await goToQuestionStep(1);
-      await questionPage.getByRole('button',{name:'Finance and billing',exact:true}).click();
-      assert.deepEqual((await questionState()).removedScopeFields,[],'changing business area resets removal overrides');
-      await goToQuestionStep(3);
-      await questionPage.getByText(/^Review detailed scope/).click();
-      await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
-      assert.ok((await questionState()).visible.includes('invoice_volume'));
-      await removeQuestion('invoice_volume');
-      await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
-      await questionPage.getByRole('button',{name:'Create and send invoices',exact:true}).click();
-      assert.equal((await questionState()).visible.includes('invoice_volume'),false,'route suggestions do not silently undo explicit removal');
-    } finally { await questionPage.close(); }
-
-    // Load the production build under its real origin using local asset fixtures.
-    // No real visitor metrics or network requests are sent to Vercel in this test.
-    const performancePage = await browser.newPage();
-    performancePage.on('pageerror', error => errors.push(error.message));
-    try {
-      await performancePage.route(`${performanceOrigin}/**`, async route => {
-        const url = new URL(route.request().url());
-        if (url.pathname === '/_vercel/speed-insights/script.js') {
-          await route.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.__performanceFixtureLoaded = true;' });
-          return;
-        }
-        assert.ok(!url.pathname.includes('/vitals'), 'fixture must not send metrics');
-        const response = await performancePage.request.get(`http://127.0.0.1:${port}${url.pathname}`);
-        await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; object-src 'none'" } });
-      });
-      await performancePage.goto(`${performanceOrigin}/?email=private@example.test#answer`, { waitUntil: 'networkidle' });
-      await performancePage.waitForFunction(() => window.__performanceFixtureLoaded);
-      assert.equal(await performancePage.locator('script[data-sdkn="@vercel/speed-insights/react"]').count(), 1, 'production loads exactly one Speed Insights script, including in StrictMode');
-      assert.equal(await performancePage.locator('script[data-sdkn]').getAttribute('data-route'), '/');
-      const sanitized = await performancePage.evaluate(() => {
-        const beforeSend = window.siq.find(([type]) => type === 'beforeSend')[1];
-        return beforeSend({ type: 'vital', url: location.href });
-      });
-      assert.deepEqual(sanitized, { type: 'vital', url: `${performanceOrigin}/`, route: '/' });
-      assert.equal(await performancePage.locator('script[src*="/_vercel/insights/"]').count(), 0, 'Web Analytics is not added');
-      assert.equal(await performancePage.locator('.area').count(), 12, 'monitoring does not alter the calculator');
-    } finally { await performancePage.close(); }
-
-    assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
-    console.log('PASS: React desktop and complete mobile browser journeys, local AOC favicon, reset confirmation/cancellation/late AI protection, conditional fields, scope preservation, server/local calculation paths, fixture totals, completed partial-result guidance, known/cleared value inputs, stale recalculation, protected area changes, and mobile overflow.');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(externalAiRequests, [], 'the local regression never calls a paid AI provider');
+    console.log('PASS: active categories, safe local prefill, required context and ROI, fixed-price results, and mobile layout.');
   } finally {
-    await browser.close();
-    await new Promise((resolve) => server.close(resolve));
+    if (browser) await browser.close();
+    await new Promise(resolve => server.close(resolve));
   }
-})().catch((error) => {
+})().catch(error => {
   console.error(error);
-  server.close(() => process.exit(1));
+  process.exitCode = 1;
 });

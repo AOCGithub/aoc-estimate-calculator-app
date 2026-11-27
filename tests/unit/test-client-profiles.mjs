@@ -79,9 +79,9 @@ try {
   response = await store.handle(request('', 'POST', { ...body, expectedRevision: updatedRow.id, profile: profileB }, renewedCookieA));
   assert.equal(response.status, 409, 'A new client cannot overwrite another saved company.');
   const facts = { systems: { value: ['Wave'], source: { kind: 'client_entry' } },
-    app_access_owner: { value: 'Internal staff', source: { kind: 'client_entry' } },
     data_information_location: { value: 'Shared files', source: { kind: 'ai_extracted', quote: 'shared files' } } };
-  for (const invalid of [{ monthly_plan: { value: '10000' } }, { systems: { value: 'Not sure' } }]) {
+  for (const invalid of [{ monthly_plan: { value: '10000' } }, { systems: { value: 'Not sure' } },
+    { app_access_owner: { value: 'Internal staff' } }]) {
     response = await store.handle(request('', 'POST', { ...body, expectedRevision: updatedRow.id, area: 'area0', facts: invalid }, renewedCookieA));
     assert.equal(response.status, 400, 'Pricing and unknowns cannot become reusable company facts.');
   }
@@ -101,12 +101,6 @@ try {
   renewedCookieA = response.headers.get('set-cookie').split(';')[0];
   savedSnapshot = await (await store.handle(request('', 'GET', undefined, renewedCookieA))).json();
   assert.deepEqual(savedSnapshot.facts.systems.value, ['Wave'], 'Saving contact details does not erase company facts.');
-  response = await store.handle(request('', 'POST', { ...body, expectedRevision: identityRevision, removeIds: ['app_access_owner'] }, renewedCookieA));
-  assert.equal(response.status, 200);
-  renewedCookieA = response.headers.get('set-cookie').split(';')[0];
-  savedSnapshot = await (await store.handle(request('', 'GET', undefined, renewedCookieA))).json();
-  assert.equal(savedSnapshot.facts.app_access_owner, undefined);
-  assert.ok(savedSnapshot.facts.systems, 'Explicit removal preserves other facts.');
   response = await store.handle(request('', 'POST', { ...body, expectedRevision: savedSnapshot.revision, area: 'area0', facts: {
     data_information_location: { value: 'Shared files', source: { kind: 'reviewed_saved_profile' } },
   } }, renewedCookieA));
