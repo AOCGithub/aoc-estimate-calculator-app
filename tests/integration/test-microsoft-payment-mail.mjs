@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createMicrosoftMailTransport } from '../../server/payments/microsoft-mail.mjs';
-import { configurePaymentEmailSender } from '../../server/payments/payment-email.mjs';
+import { configurePaymentEmailSender, createLocalCaptureTransport } from '../../server/payments/payment-email.mjs';
 
 const settings = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -21,6 +24,22 @@ const message = {
 };
 const fakeToken = () => Response.json({access_token: 'synthetic-access-token', expires_in: 3600});
 const accepted = () => new Response(null, {status: 202});
+
+{
+  const directory = await mkdtemp(join(tmpdir(), 'aoc-g3-mail-capture-'));
+  try {
+    const result = await createLocalCaptureTransport(directory).sendMail(message);
+    assert.deepEqual(result.accepted, [user.address]);
+    const files = await readdir(directory);
+    assert.equal(files.filter(file => file.endsWith('.eml')).length, 1);
+    assert.equal(files.filter(file => file.endsWith('--estimate.pdf')).length, 1);
+    const eml = await readFile(join(directory, files.find(file => file.endsWith('.eml'))), 'utf8');
+    assert.match(eml, /Subject: Audit payment/);
+    assert.match(eml, /Content-Type: application\/pdf/);
+  } finally {
+    await rm(directory, {recursive: true});
+  }
+}
 
 {
   let tokenRequests = 0;
@@ -91,4 +110,8 @@ assert.throws(() => createMicrosoftMailTransport({...settings, mailboxId: 'audit
 assert.throws(() => configurePaymentEmailSender({VERCEL: '1', AOC_G2_EMAIL_FROM: 'audit@example.com'}, {}), /microsoft_mail_config_incomplete/);
 assert.equal(typeof configurePaymentEmailSender({AOC_G2_EMAIL_FROM: 'audit@example.com',
   AOC_G2_SMTP_HOST: '127.0.0.1', AOC_G2_SMTP_USER: 'local-fixture', AOC_G2_SMTP_PASSWORD: 'fixture'}, {}), 'function');
+assert.equal(typeof configurePaymentEmailSender({AOC_G2_EMAIL_FROM: 'sandbox@localhost.test',
+  AOC_G2_EMAIL_PROVIDER: 'capture'}, {}), 'function');
+assert.throws(() => configurePaymentEmailSender({VERCEL: '1', AOC_G2_EMAIL_FROM: 'sandbox@localhost.test',
+  AOC_G2_EMAIL_PROVIDER: 'capture'}, {}), /provider_invalid/);
 console.log('PASS: Microsoft OAuth, shared token, one sender mailbox, MIME attachment, recipient routing, retry states and local SMTP preview. No Microsoft requests or emails.');

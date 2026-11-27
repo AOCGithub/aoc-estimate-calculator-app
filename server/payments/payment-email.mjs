@@ -1,4 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import questionBank from '../../public/approved-bank.js';
 import { createPurchasePdf } from '../../src/features/payments/purchase-pdf.js';
@@ -102,6 +104,27 @@ function smtpTransport(environment) {
     disableFileAccess: true, disableUrlAccess: true});
 }
 
+export function createLocalCaptureTransport(directory = fileURLToPath(
+  new URL('../../artifacts/g2/email-capture/', import.meta.url))) {
+  const renderer = nodemailer.createTransport({streamTransport: true, buffer: true, newline: 'windows'});
+  return {async sendMail(message) {
+    await mkdir(directory, {recursive: true});
+    const rendered = await renderer.sendMail(message);
+    const base = String(message.messageId || `local-${Date.now()}`)
+      .replace(/[<>]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-');
+    const paths = [join(directory, `${base}.eml`)];
+    await writeFile(paths[0], rendered.message);
+    for (const attachment of message.attachments || []) {
+      const filename = String(attachment.filename || 'attachment.bin').replace(/[^a-zA-Z0-9._-]+/g, '-');
+      const path = join(directory, `${base}--${filename}`);
+      await writeFile(path, attachment.content);
+      paths.push(path);
+    }
+    console.log('Local payment email captured.', {to: message.to.address, files: paths});
+    return {accepted: [message.to.address], capturePaths: paths};
+  }};
+}
+
 export function configurePaymentEmailSender(environment, store) {
   const fromAddress = emailAddress(environment.AOC_G2_EMAIL_FROM);
   const testClientAddress = emailAddress(environment.AOC_G2_EMAIL_TEST_CLIENT_TO);
@@ -116,6 +139,8 @@ export function configurePaymentEmailSender(environment, store) {
       mailboxId: environment.AOC_G2_MS_MAILBOX_ID});
   } else if (provider === 'smtp') {
     transport = smtpTransport(environment);
+  } else if (provider === 'capture' && !environment.VERCEL) {
+    transport = createLocalCaptureTransport();
   } else {
     throw new Error('payment_email_provider_invalid');
   }

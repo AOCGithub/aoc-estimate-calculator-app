@@ -33,6 +33,7 @@ Internal template instructions are not included in the client PDF. The accepted 
 - Failed, expired, incomplete and unpaid payments send no paid confirmation.
 - Duplicate or concurrent events retain one intake and one delivery claim per audience.
 - Sandbox messages remain clearly marked and never claim a real charge or booking.
+- Local rehearsal captures the actual `.eml`, C10 PDF and estimate PDF under `artifacts/g2/email-capture/` without contacting a mail provider.
 
 ## Decisions still required from Vianca/Diana
 

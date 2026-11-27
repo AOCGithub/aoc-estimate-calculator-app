@@ -24,8 +24,11 @@ Object.assign(process.env,{
   AOC_CLIENT_PROFILES_ENABLED:'true',AOC_LOCAL_CLIENT_PROFILES_ENABLED:String(!databaseConfigured),
   AOC_AI_ORGANIZER_ENABLED:'true',AOC_VOICE_ENABLED:'true',AOC_DESCRIPTION_CORRECTION_ENABLED:'true',
   AOC_G2_STORE_PATH:fileURLToPath(new URL('../../artifacts/g2/stripe-handoff.sqlite',import.meta.url)),
+  AOC_G2_PAYMENT_EMAILS_ENABLED:'true',AOC_G2_EMAIL_PROVIDER:'capture',
+  AOC_G2_EMAIL_FROM:'sandbox@localhost.test',AOC_G2_EMAIL_TEST_CLIENT_TO:'tester@localhost.test',
 });
 const port=process.env.AOC_G2_PORT || '5173';
+console.log('Local payment emails are enabled in capture mode. Open the .eml and PDF files in artifacts/g2/email-capture; nothing is sent to a real inbox.');
 console.log(`G2 local rehearsal: http://localhost:${port}/ — Stripe sandbox records stay local. ${databaseConfigured?'Opted-in details, profiles and estimates use the configured Supabase database.':'Supabase saving is unavailable; profile rehearsal is local only.'}`);
 const child=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',port,'--strictPort'],{stdio:'inherit',env:process.env});
 child.on('exit',code=>{process.exitCode=code || 0;});

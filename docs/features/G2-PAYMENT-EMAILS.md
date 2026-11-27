@@ -33,4 +33,8 @@ Support is currently routed to `support@alwaysopencommerce.com`. The final G3 se
 - A `sent` state means the provider accepted the message, not guaranteed inbox placement.
 - Check Sent Items/provider trace before manually retrying an uncertain message.
 
+## Local capture mailbox
+
+`npm run dev:g2` forces payment email into local capture mode even when the linked Vercel environment has a real mail provider configured. After a successful Stripe test payment, open `artifacts/g2/email-capture/` to inspect the client/support `.eml` files, accepted C10 PDF and separate estimate PDF. Capture mode never connects to SMTP or Microsoft 365 and is rejected on Vercel.
+
 Run `npm run test:g2` for synthetic webhook, routing, C10/estimate attachment and retry coverage. Before claiming hosted email success, complete one authorized sandbox purchase and confirm both actual inboxes. Never use a sandbox message as proof of a real paid order.

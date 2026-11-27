@@ -43,6 +43,8 @@ npm run dev:g2
 
 Use Stripe test cards and the Checkout created by this app. Generic fixture events without the saved references do not prove the handoff. Local rehearsal payment data uses ignored SQLite storage; ordinary consented estimates/profiles keep their existing storage behavior.
 
+Local payment email is enabled automatically in capture mode. After Stripe confirms the test payment, inspect `artifacts/g2/email-capture/` for the actual client/support email files, accepted C10 PDF and separate estimate PDF. No real email is sent.
+
 ## Hosted sandbox
 
 1. Prepare and check the private `g2_sandbox` schema with the database tool.
