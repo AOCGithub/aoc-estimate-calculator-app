@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { createC10OrderPdf } from '../../src/features/payments/c10-order-pdf.js';
+import { createC10OrderPdf } from '../../src/features/payments/c10-order-pdf.mjs';
 
 const [regularFont, boldFont] = await Promise.all([
   '../../public/fonts/noto-sans/NotoSans-Regular.ttf',

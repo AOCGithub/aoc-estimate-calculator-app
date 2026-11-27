@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import questionBank from '../../public/approved-bank.js';
 import { createPurchasePdf } from '../../src/features/payments/purchase-pdf.js';
-import { createC10OrderPdf } from '../../src/features/payments/c10-order-pdf.js';
+import { createC10OrderPdf } from '../../src/features/payments/c10-order-pdf.mjs';
 import { renderPaymentEmail, supportEmail } from './payment-email-templates.mjs';
 import { createMicrosoftMailTransport } from './microsoft-mail.mjs';
 
