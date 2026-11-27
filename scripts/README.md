@@ -1,13 +1,16 @@
 # Project commands
 
-Run commands from the repository root. Existing npm command names are unchanged; `package.json` points them to the grouped files below.
+Status: operational
+Reviewed: 25 November 2026
+
+Run commands from the repository root.
 
 | Folder | Responsibility |
 | --- | --- |
-| `build/` | Compile approved workbook/rule data, package the retained Worker and validate its artifact |
-| `dev/` | Local entry/profile previews and isolated sample support-pricing preview |
-| `database/` | Explicit schema setup/checks and operator-only invitation tooling |
-| `deployment/` | Explicit Vercel profile-settings configuration |
+| `build/` | Compile current rules, package the retained Worker and validate artifacts |
+| `dev/` | Local entry/profile/payment previews and Stripe test listener |
+| `database/` | Explicit additive schema checks/setup and operator tools |
+| `deployment/` | Explicit Vercel configuration helpers |
 
 Routine commands:
 
@@ -18,10 +21,16 @@ npm run build:worker
 npm test
 ```
 
-The profile preview uses local SQLite by default. `npm run dev` and commands wrapped in `vercel env run -e production` use the linked project's server settings; they can call real providers or persist opted-in information. Database/deployment scripts are operator tools, not build steps. Do not run setup/configuration scripts as part of routine UI changes.
+`npm run dev:profiles` uses isolated local SQLite. `npm run dev` and `npm run dev:g2` inherit the linked Vercel production environment and can use paid providers or persist explicitly consented records. Use them deliberately.
 
-`npm run dev:g2` starts G2 on port 5173 with the existing Vercel server settings, AI prefill and optional Supabase saving. Saving details/estimates and remembering profiles still require their separate unchecked consents. Payment rehearsal records remain in local SQLite. The Git-ignored `.env.stripe.local` overrides inherited Stripe credentials and must contain a sandbox key. Run `npm run dev:g2:stripe` in a separate terminal for sandbox webhooks. Checkout uses the server-calculated 15% audit fee; no fixed Price ID is needed. See [G2 setup](../docs/features/G2-STRIPE-HANDOFF.md). Neither command deploys or enables real billing.
+`npm run dev:g2` is a Stripe sandbox rehearsal. `npm run dev:g2:stripe` runs the local webhook listener. Sandbox secrets belong only in ignored `.env.stripe.local`; live keys are rejected by the payment implementation.
 
-For approved workbook changes, run `node scripts/build/compile-approved.cjs`, review the generated files and run `npm test`. Keep sample pricing isolated to `npm run preview:test-pricing`; it does not replace missing AOC prices.
+For approved rule changes:
 
-See [pricing/form maintenance](../docs/PRICING-AND-FORM-MAINTENANCE.md), [profile setup](../docs/features/OPTIONAL-CLIENT-PROFILES.md) and the [test guide](../tests/README.md).
+```sh
+node scripts/build/compile-approved.cjs
+npm run test:domain
+npm run build
+```
+
+Database/deployment scripts can change external state and are not routine build steps. Verify the target environment and use synthetic records. Follow [documentation governance](../docs/DOCUMENTATION-GOVERNANCE.md) and [pricing/form maintenance](../docs/PRICING-AND-FORM-MAINTENANCE.md).
