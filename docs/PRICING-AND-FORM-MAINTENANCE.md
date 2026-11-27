@@ -1,50 +1,60 @@
-# Pricing and Form Maintenance
+# Pricing and form maintenance
 
-Updated: 17 November 2026
+Status: operational
+Reviewed: 25 November 2026
 
-Apply the approved source changes, test the affected forms and calculations, then publish the tested update.
+Use [documentation governance](DOCUMENTATION-GOVERNANCE.md) for every change. The latest approved source wins; old snapshots and tests are regression evidence only.
 
-## Current source baseline
+## Current baseline
 
-The sources were rechecked on 17 November: the framework and agreement remain modified on 29 October; the workbook was modified on 5 November. Current pricing values and formulas were read again for the detailed calculation audit. The active commercial direction remains the 28-29 October baseline. Its fixed-price launch decision supersedes the older monthly-build instructions: fixed-price builds are active; monthly build subscriptions and their hour allowances are deferred. Optional monthly management stays separate, with missing prices left unknown. Reusable training is included; separately purchased live training uses its accepted quote. Clients own and pay for their Make accounts directly.
+- Authoritative summary: [Current system](CURRENT-SYSTEM.md)
+- Editable rules: `data/simplified-calculator-rules.json`
+- Implemented version: `simplified-2026-11-25-v7-paid-advertising-coming-soon`
+- Latest workbook: <https://docs.google.com/spreadsheets/d/1vUDbKYWQPTaVIvJEYGzY5pVDCt0n369Ywel0tPk9M7s/edit>
+- Latest change document: <https://docs.google.com/document/d/1ZR-7dAayjtmejgo6GQrtJeI3FSj3kGjNeq_7zIuEPMA/edit>
 
-The production AOC hostname and organizer are active. Production browser verification and publication records must still be refreshed whenever the commercial rules or form change.
+Older `commercial-rules-*`, workbook snapshots and legacy modules do not define current category availability or current simplified pricing.
 
-## 1. Request a change
+## Apply an approved change
 
-Send Gino the approved change:
-- **Form:** identify the question or section, the replacement wording or answer options, and when it should appear or be required.
-- **Pricing:** identify the price or rule, the approved replacement, and when it should apply.
+1. Record the exact new wording/value, owner approval, source version/date and affected subjects.
+2. State what it supersedes. A narrow update must not silently replace unrelated current rules.
+3. Update `data/simplified-calculator-rules.json` for pricing/category changes. Update the relevant React question or section for form-only changes.
+4. Preserve stable field IDs unless a reviewed migration covers stored answers and tests.
+5. Regenerate compiled rule assets:
 
-Use the implementation notes, [current framework](https://docs.google.com/document/d/1okDUVm5wE4MrPiFANlvQIrCJ1sC8omfXCssy37WqCdw/edit), [agreement](https://docs.google.com/document/d/15BxB-yzw8U1oP_1B2cpJu2EUgh3P8rnqKT5_ZqdT3dA/edit) and pricing workbook as the business references. Follow explicit supersession notes. **Editing the workbook does not automatically update the website.** Request missing amounts rather than inventing them.
+   ```sh
+   node scripts/build/compile-approved.cjs
+   ```
 
-## 2. Apply the change
+6. Update `CURRENT-SYSTEM.md` and only the affected operational guide. Replace conflicting text instead of appending another dated account.
+7. Update fixtures and tests to the same version.
 
-**Form changes:** update the relevant [form components](../src/features/calculator/sections) or the question bank in the [reviewed workbook snapshot](../data/sheet-snapshot-20261018.json). Preserve existing field identifiers and check conditional questions, required fields, editable answers, and AI prefill.
+Do not edit `public/approved-pricing.js` or `public/approved-bank.js` as independent sources. Do not invent missing fees. Proposed items must remain clearly proposed and excluded from approved totals unless the source explicitly approves them.
 
-**Pricing changes:** update the reviewed [current rules](../data/commercial-rules-20261029.json) and [commercial calculations](../public/commercial.js). The older snapshot retains the provisional build model and question bank; the current rules override included-training amounts. The compiler uses detailed question rows, excluding route-overview and excluded rows. Regenerate with `node scripts/build/compile-approved.cjs`, update the version and test expectations, and compare with the workbook. Do not edit generated pricing alone. Keep deferred planning values inactive.
+## Verify
 
-## 3. Test and publish
+At minimum:
 
-1. Run `npm test`.
-2. Check the affected form journey and estimates, including changed and cleared answers, applicable prices, audit credit, and ROI. Confirm manual corrections are preserved and unknown facts remain blank.
-3. Push tested changes to GitHub's `main` branch. Vercel deploys automatically.
-4. Confirm Vercel reports **Ready**, check fixed projects, optional management and changed/cleared answers, and record the results in the [production test results](PRODUCTION-TEST-RESULTS.md). Confirm deferred monthly programs remain unavailable.
+```sh
+npm run test:domain
+npm run test:local-pricing
+npm run test:vercel
+npm run build
+```
 
-Keep AI keys in Vercel's server settings.
+Run `npm run test:ui` for form/layout changes and `npm run test:g2` for payment/email changes. Run the full `npm test` before a broad release when the environment supports Chrome.
 
-For entry fields, the two independent saving choices, Supabase record lookup and repeatable live checks, see [entry and saved-data maintenance](GATE-AND-SAVED-DATA-MAINTENANCE.md).
+Check these behaviors manually:
 
-## Current pricing status
+- Only the six current areas calculate; Paid Advertising and the other five listed items remain Coming Soon.
+- Selected process steps are valid for the chosen active area.
+- Required inputs, cleared answers and manual corrections behave correctly.
+- The server and browser report the same rules version.
+- The paid discovery amount is exactly 15% of the complete one-time estimate.
+- Unknown or proposed amounts are not presented as approved.
+- All supported categories expose the same discovery/payment path when configured.
 
-The confirmed 24 November change replaces the separately quoted audit amount: the initial audit fee is now 15% of the complete one-time project estimate. An entered project quote is used when all quoted one-time components are supplied; otherwise the complete calculated build estimate is used. Monthly support, advertising spend, software subscriptions and other client-paid third-party costs remain separate. The existing one-time audit-credit checks and fixed-project balance/payment rules remain unchanged. Standard/Priority/Premier support prices stay unknown because the sources do not supply them.
+## Publish
 
-Quote components accept explicitly quoted zero amounts; blank means unknown. For comparison, `Web Calculator Test!B59,B68,B71` still need reconciliation with the written incremental-cost and accepted-quote rules. The app follows those written rules rather than adding retained unrelated costs to ROI or replacing an accepted quote with a draft estimate.
-
-The 17 November audit also reproduced a missing-answer difference: with an expired audit window but unknown acceptance/first-payment dates, `Audit & Project Quote!B11:B12` stays pending while the app sets the credit to $0. That behavior needs targeted review/correction and retesting; it was not changed during the audit. See the [detailed calculation verification](history/CALCULATION-VERIFICATION-2026-11-17.md) for exact inputs and expected/actual payments. The passing ordinary calculations do not establish full parity for this incomplete-record case.
-
-Unknown fees, credit eligibility and existing-agreement changes stay pending. Provider savings apply only to marketing areas 6–10; app savings apply where relevant. Partial replacement requires both the current total and the eliminated amount. Missing figures leave net ROI/payback unknown; savings cannot exceed current costs. The 18 and 21 October models remain historical regression coverage.
-
-Publishing and deployed-version verification are separate steps. The tested corrections and refactor were published on 11 November in commit `39f004e`; monthly-value wording was published and verified in commit `2a423f6`. The [production test results](PRODUCTION-TEST-RESULTS.md) distinguish that release, later manual feedback, historical pre-release tests and the verification still outstanding. The latest source/calculation comparison is dated 17 November; a later workbook edit requires review of the affected rules.
-
-For developer setup and further technical details, see the [README](../README.md).
+Push the tested commit to `main`, wait for Vercel **Ready**, then check the public rules version and one representative active-category journey. Record the single release result in [Production test results](PRODUCTION-TEST-RESULTS.md).

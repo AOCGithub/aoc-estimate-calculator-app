@@ -1,71 +1,66 @@
 # Always Open Commerce Estimator
 
-React calculator with editable, relevant questions, optional AI prefill and voice input, server-side estimates, and independent choices for remembering business details and saving estimates. Visitors enter five business details; verification and AOC approval are currently paused.
+Status: operational project overview
 
-Production entry uses the [server-verified reCAPTCHA v2 checkbox](docs/features/RECAPTCHA.md). Business verification and AOC approval remain separate and paused. Local preview commands disable CAPTCHA because the production key is registered for the AOC hostname.
+React/Vite estimator with server-validated calculations, editable AI-assisted intake, optional saving, profiles, voice input and a Stripe sandbox rehearsal flow.
 
-Start with the [AOC maintenance guide](docs/GATE-AND-SAVED-DATA-MAINTENANCE.md), [pricing/form instructions](docs/PRICING-AND-FORM-MAINTENANCE.md), or [documentation index](docs/README.md). Published checks are recorded in [Production Test Results](docs/PRODUCTION-TEST-RESULTS.md).
+Current rules: `simplified-2026-11-25-v7-paid-advertising-coming-soon`
+Production: <https://estimate.alwaysopencommerce.com/>
+
+Read [documentation governance](docs/DOCUMENTATION-GOVERNANCE.md) before applying requirements. The latest approved change supersedes older notes; [current system](docs/CURRENT-SYSTEM.md) is the concise product source of truth.
 
 ## Local development
 
-Use Node 22.13 or newer (the offline profile adapter uses `node:sqlite`). Checks were run with Node 24.11.1.
+Use Node 22.13 or newer. Node 24.11.1 is the currently verified development version.
 
 ```sh
 npm ci
 npm run dev:profiles
 ```
 
-This opens the offline profile preview at `http://127.0.0.1:5174/`. Profiles use a private local SQLite file; these records are not copied to Supabase. Optional AI features depend on server environment settings. See [.env.example](.env.example) for configuration; keep keys server-side and never prefix secrets with `VITE_`.
-
-`npm run dev` starts the entry form using the linked Vercel project's production server environment. It requires authorized Vercel CLI access, can use paid AI, and can save to Supabase when consent is selected. Use the offline preview for routine UI work. `npm run dev:profiles:database` is the explicit real-database profile preview.
+The offline profile preview runs at `http://127.0.0.1:5174/`. `npm run dev` and `npm run dev:g2` use the linked Vercel project’s production server environment and may use paid providers or persist explicitly consented records. Keep secrets in ignored environment files or Vercel; never expose them with a `VITE_` prefix.
 
 ```sh
 npm test
 ```
 
-This builds the app and retained Worker, then runs local pricing, access, profile, API and Chromium checks with synthetic providers. It does not call paid AI or write to production Supabase. See [tests](tests/README.md) for focused commands and separate database/provider checks.
+See [tests](tests/README.md) for focused, database and provider checks.
+
+## Current product boundary
+
+Six business areas are active: customer service, finance, orders/fulfillment, sales/CRM, people/HR and back-office administration. CRO, content/social, SEO/GEO, email/lifecycle and Paid Advertising are Coming Soon.
+
+All supported categories use the same estimate-to-**AI Commerce Discovery & Implementation Plan** path. The fee is 15% of the complete one-time project estimate. Stripe remains sandbox-only; no real charge or real paid-order email is authorized by this repository state.
 
 ## Project layout
 
-| Folder | Responsibility |
-| --- | --- |
-| `src/features/access/` | Business-details entry and access state |
-| `src/features/calculator/` | Seven sections, field controls, estimate display and state |
-| `src/features/description/` | Live dictation and description correction |
-| `src/features/profiles/` | Optional profile consent, review and reuse |
-| `src/components/` | Shared branding, icons, dialogs and visuals |
-| `src/lib/`, `src/styles/` | Shared browser helpers and styles |
-| `api/` | Stable public Vercel API routes |
-| `server/` | Shared Node handlers; helpers grouped into access, calculator, description and profiles |
-| `shared/` | Profile rules shared by browser and server |
-| `public/` | Public assets and framework-independent pricing runtime |
-| `data/` | Private versioned pricing/workbook snapshots |
-| `supabase/migrations/` | Database schema migrations |
-| `scripts/` | Build, development, database and deployment commands |
-| `tests/` | Unit, integration, browser, database, provider and historical checks |
-| `docs/` | Current guides, feature references and historical reports |
-| `worker/` | Retained Worker deployment adapter |
-| `legacy/` | Pricing modules used by the workbook compiler and historical calculation checks |
+| Folder            | Responsibility                                           |
+| ----------------- | -------------------------------------------------------- |
+| `src/`            | React UI, feature state and browser helpers              |
+| `api/`, `server/` | Vercel routes and shared server handlers                 |
+| `public/`         | Generated rules and framework-independent runtime assets |
+| `data/`           | Versioned editable rules and retained snapshots          |
+| `shared/`         | Browser/server contracts                                 |
+| `supabase/`       | Additive database migrations                             |
+| `scripts/`        | Build, local, database and deployment commands           |
+| `tests/`          | Unit, integration, browser, database and provider checks |
+| `docs/`           | Current authoritative and operational documentation       |
+| `worker/`         | Retained Worker adapter                                  |
+| `legacy/`         | Historical/compiler dependencies only                    |
 
-`dist/` is generated output, `artifacts/` contains local test reports/screenshots, and `node_modules/` contains installed dependencies. These are ignored by Git. Local environment files and `.vercel/` are private configuration, also ignored.
+Generated output (`dist/`), test artifacts, local environment files and `.vercel/` are ignored and must not be committed.
 
-Keep feature-specific components and hooks together. Put components in `src/components/` only when they are shared across features. Use direct imports; no barrel files or extra abstraction layers are required.
+## Rules and builds
 
-## Pricing and builds
-
-The active rules are `2026-10-29-fixed-project-v1`: fixed-price builds, included reusable training, separately quoted live training and optional management. Monthly build programs are deferred; unspecified support prices remain unknown.
-
-The [compiler](scripts/build/compile-approved.cjs) combines the retained 18 October workbook snapshot with the current [commercial rules](data/commercial-rules-20261029.json). Pricing-sheet edits do not automatically change the website. Follow the [maintenance instructions](docs/PRICING-AND-FORM-MAINTENANCE.md), regenerate the approved files and run tests.
+Edit `data/simplified-calculator-rules.json`, then regenerate and test:
 
 ```sh
 node scripts/build/compile-approved.cjs
 npm test
 ```
 
-`public/` retains stable runtime filenames because the browser, Node handlers and Worker share them. Do not move them into a feature folder or edit generated pricing independently. `/api/journey/calculate` validates answers and calculates server-side; an unavailable endpoint is shown as a labelled local preview.
+Do not edit generated rule files independently. Missing or unapproved amounts stay unavailable.
 
 ## Deployment
 
-Vercel uses `npm run build`, `dist/client` and the existing `api/` routes. `npm run build:worker` additionally packages the retained Worker in `dist/server/index.js`. Build output should not be edited by hand.
-
-Follow [Vercel deployment](docs/VERCEL-DEPLOYMENT.md). Push tested changes to `main` only when ready to publish, then verify the deployed version. Keep AI/database keys in private server settings. The AOC website link/button remains deferred.
+Push a verified commit to `main`; Vercel deploys automatically. Confirm **Ready**, verify the public rules version and run the release smoke test in [Vercel deployment](docs/VERCEL-DEPLOYMENT.md).

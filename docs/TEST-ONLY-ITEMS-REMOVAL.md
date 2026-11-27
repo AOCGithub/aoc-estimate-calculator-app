@@ -1,37 +1,27 @@
-# Test-only items to remove before client release
+# Test-only payment boundary
 
-Last reviewed: 24 November 2026
+Status: operational safety note
+Reviewed: 25 November 2026
 
-This note records temporary items used to test the calculator-to-Stripe handoff. They are not real client billing settings.
+The deployed payment handoff is a Stripe sandbox rehearsal. It is not live billing.
 
-## Removed: fictional audit quote
+## Current safeguards
 
-- **Previous temporary amount:** $1,250 USD.
-- **Previous reason:** it allowed the team to exercise Stripe while the audit amount was unspecified.
-- **Removed on:** 24 November 2026.
-- **Replacement:** the confirmed audit fee is calculated automatically as 15% of the complete one-time project estimate. Recurring support, advertising spend, software subscriptions and other client-paid third-party costs remain separate.
+- Server code accepts test keys/events only and rejects live mode.
+- Browser and server sandbox flags default off and must be enabled together.
+- Sandbox records are stored separately from real business records.
+- UI, email subjects and records identify test mode.
+- Failed, expired, incomplete, mismatched and duplicate events cannot create a new paid confirmation.
+- The retired fictional `$1,250` audit quote and manual quote flow are not current rules.
+- The current discovery fee is calculated as 15% of the complete one-time project estimate.
 
-The Vercel variable, synthetic handler, UI notice, release warning, manual quote command and fixture-specific assertions were removed. General payment security and regression coverage remain.
+## Before any live-payment release
 
-## Stripe sandbox mode
+1. Obtain explicit approval for commercial scope, payment terms, sender/recipient, email wording and record destination.
+2. Implement a separate live-mode configuration and review; do not merely replace the sandbox key.
+3. Register and verify the live webhook and production storage.
+4. Verify successful payment, failed payment, replay/idempotency, receipt, AOC email and project-record creation with an approved controlled plan.
+5. Remove or disable the sandbox-only feature flags only after the reviewed live flow replaces them.
+6. Retain required rehearsal evidence, then clean sandbox rows using an approved, exact-target procedure.
 
-The current G2 handoff deliberately uses Stripe test mode. The test secret key, webhook secret, test feature flags, test receipts and `[Stripe test]` email wording are not a live billing setup.
-
-Before accepting real payments:
-
-1. Keep the sandbox isolated until AOC approves the commercial terms and live-payment release plan.
-2. Do not simply replace the test key with a live key. The current server intentionally rejects live-mode checkout and webhooks.
-3. Implement and review a separate live-payment configuration, register its live webhook, and run a controlled release test without using real card details in chat or source code.
-4. Remove or disable the sandbox-only flags after the reviewed live flow replaces them:
-   - `AOC_STRIPE_TEST_HANDOFF_ENABLED`
-   - `VITE_AOC_STRIPE_TEST_HANDOFF_ENABLED`
-
-## Sandbox records
-
-Test purchases, audit intakes, Stripe events and email-delivery rows are stored under the private `g2_sandbox` database schema. They are evidence of testing, not client orders.
-
-Before client release, retain any test evidence required for handoff, then delete the remaining sandbox records through the approved database cleanup procedure. Do not treat sandbox receipts or emails as revenue or real client work.
-
-## Remaining release reminder
-
-The fictional-quote reminder is retired because the fixture has been removed. Continue to state that Stripe remains in sandbox mode until the separate live-payment release checklist is completed.
+The Stripe receipt is not the AOC next-step email. Never send or label a real paid-order confirmation for a sandbox, failed, unpaid or duplicate payment.

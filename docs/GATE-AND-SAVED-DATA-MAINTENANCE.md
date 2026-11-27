@@ -1,53 +1,45 @@
-# AOC calculator maintenance guide
+# Entry and saved-data maintenance
 
-Updated: 6 November 2026
+Status: operational
+Reviewed: 25 November 2026
 
-## How entry and saving work
+This guide covers the current production entry and optional persistence behavior. It inherits the precedence rule in [documentation governance](DOCUMENTATION-GOVERNANCE.md).
 
-Visitors enter their name, company, website, role and business email to open the calculator. All five fields are required. Verification and approval are currently paused.
+## Current entry
 
-Both saving options start unchecked:
+Visitors provide name, company, website, role and business email, then complete reCAPTCHA. Email ownership verification and mandatory AOC approval are paused; entry is not proof of identity or approval.
 
-- **Remember my business details:** saves details for review and reuse in the same browser.
-- **Save my details and estimates with AOC:** saves the form submission and calculated results.
+Both persistence choices start unchecked:
 
-Visitors can choose either, both or neither. Choosing neither saves no new records at entry or calculation. Visitors can still separately choose to save company facts in a profile inside the calculator.
+- **Remember my business details** stores a private same-browser profile for review and reuse.
+- **Save my details and estimates with AOC** stores the entry and linked calculation snapshots.
 
-Remembered profiles expire 30 days after the latest save. Forgetting a profile does not delete separately saved estimates. Clients can download their current estimate; viewing past estimates inside the app is not available yet.
+Either, both or neither can be selected. The signed server session carries the choice; request-body flags cannot grant saving. AI/provider processing is separate from database-saving consent.
 
-## Find saved client information
+## Find saved records
 
-In Supabase, open **Table Editor**:
+In Supabase Table Editor:
 
-1. Open **access_requests** and search the client's **business_email**.
-2. Copy the matching record's **id**.
-3. Open **estimates** and filter **access_request_id** using that ID.
-4. Open **answers** and **result** to view the responses and calculation.
+1. Find the submission in `access_requests` by `business_email` and copy its `id`.
+2. Filter `estimates.access_request_id` by that ID.
+3. Inspect each matching snapshot; repeated submissions with the same email are separate records.
+4. Optional remembered details and company facts are in `client_profiles`.
 
-Check every matching submission if the client entered the form more than once. Optional remembered details and company facts are in **client_profiles**.
+There is no client-facing estimate history or email-based record-recovery feature.
 
-## Make a form or pricing change
+## Delete a saved submission
 
-1. Give the developer the approved wording, question or pricing change and its source document.
-2. The developer applies it and tests the affected form and calculations.
-3. Publish the tested update through GitHub and Vercel, then check it on the live website.
-4. Record what changed and the test result in [Production Test Results](PRODUCTION-TEST-RESULTS.md).
+Delete matching `estimates` rows first, then the parent `access_requests` row. Delete a `client_profiles` row separately only when that separately consented profile is also in scope. This is irreversible; verify exact UUIDs before deletion.
 
-**Editing the pricing spreadsheet does not automatically update the website.** Missing prices should stay marked as unknown until supplied.
+## Release checks
 
-## Check after an update
+- Blank required fields and an unsolved CAPTCHA block entry.
+- Each consent combination stores only the authorized data.
+- Database failure never produces a false saved confirmation.
+- Changed or cleared answers create a new supported result; earlier snapshots remain immutable.
+- Logout clears the active browser journey without deleting already saved records.
+- Desktop and mobile journeys remain usable.
 
-- Blank required fields block entry; corrected answers allow entry.
-- Each saving choice stores the right information in Supabase. 
-- Reviewing saved details preserves current edits.
-- Calculations update after answers change or are cleared.
-- Ending the session clears the current answers and returns to the entry form.
-- The journey works on desktop and mobile.
+Use `npm run test:access`, `npm run test:profiles`, `npm run test:recaptcha` and the opt-in database checks in [Tests](../tests/README.md). Keep database, session and provider secrets server-side.
 
-Ask the developer to run the saving-failure and access-protection checks too. Keep AI and database keys in Vercel's private server settings.
-
-Developer details: [pricing/forms](PRICING-AND-FORM-MAINTENANCE.md) and [profiles](OPTIONAL-CLIENT-PROFILES.md).
-
-## Still on hold
-
-The AOC website link/button and the website-to-calculator test are deferred. Verification and AOC approval remain paused. Changing a submission's review status currently does not control access.
+The retained review/allowlist modes are documented as inactive references under `docs/features/`; they do not define current production entry.
