@@ -7,7 +7,7 @@ Detailed historical test diaries were removed from the active tree to prevent ob
 
 ## Current production release
 
-- Application release: `cb8185b` — `Add explicit local sandbox email delivery`
+- Application release: `ab7c9f9` — `Align C10 PDF with Template V6 layout`
 - Branch: `main`
 - Vercel deployment: Ready
 - Production URL: <https://estimate.alwaysopencommerce.com/>
@@ -15,15 +15,11 @@ Detailed historical test diaries were removed from the active tree to prevent ob
 
 Verified on the public deployment:
 
-- Home and generated pricing assets returned HTTP 200.
-- The public rules asset contained the exact current version.
-- Six active-area IDs matched the current rules.
-- Paid Advertising was listed under Coming Soon.
-- The production JavaScript included the discovery-to-Stripe checkout UI.
-- The private production payment schema accepted the G3 `accepted_order` migration and passed its access checks.
-- Checkout and email code include exact C10 acceptance plus separate accepted-C10 and estimate PDF attachments.
-- An unauthenticated payment-status request returned 401.
-- Required Stripe sandbox and payment-email environment variable names were present in Production; their values were not displayed.
+- Homepage and public access-status endpoint returned HTTP 200 after this release.
+- C10 now follows the linked Template V6 cover and section order while retaining the accepted order's saved wording, scope, price and terms.
+- C10 PDF tests confirm internal notes and unresolved template placeholders are excluded.
+- The full `npm test` suite passed before deployment.
+- No sandbox payment was made and no customer or support email was sent during this deployment check.
 
 ## Release checks
 
