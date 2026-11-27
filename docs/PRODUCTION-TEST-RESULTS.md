@@ -7,7 +7,7 @@ Detailed historical test diaries were removed from the active tree to prevent ob
 
 ## Current production release
 
-- Application release: `ab7c9f9` — `Align C10 PDF with Template V6 layout`
+- Application release: `5d8e5f2` — `Use Template V6 for accepted C10 PDFs`
 - Branch: `main`
 - Vercel deployment: Ready
 - Production URL: <https://estimate.alwaysopencommerce.com/>
@@ -15,11 +15,12 @@ Detailed historical test diaries were removed from the active tree to prevent ob
 
 Verified on the public deployment:
 
-- Homepage and public access-status endpoint returned HTTP 200 after this release.
-- C10 now follows the linked Template V6 cover and section order while retaining the accepted order's saved wording, scope, price and terms.
-- C10 PDF tests confirm internal notes and unresolved template placeholders are excluded.
-- The full `npm test` suite passed before deployment.
-- No sandbox payment was made and no customer or support email was sent during this deployment check.
+- Vercel deployment `dpl_AFwaMQfqJEqg1d8E8vRNZ68TPKHz` completed Ready and is aliased to the production URL.
+- Homepage and public access-status endpoint returned HTTP 200. An unauthenticated payment-status request returned HTTP 401 as expected.
+- C10 now uses the actual client-facing Template V6 page artwork, populated with each accepted order's saved facts, scope, pricing and terms. The blank source page and AOC-only notes page are excluded.
+- C10 PDF tests and visual inspection confirm the five-page output, filled order data, preserved table borders, no unresolved placeholders and safe overflow pages.
+- The full `npm test` suite passed before deployment, including the production build and payment/email integration tests.
+- Production checks were read-only. No sandbox payment was made and no customer or support email was sent.
 
 ## Release checks
 
