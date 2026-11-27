@@ -67,7 +67,7 @@ The application must leave unknown or unapproved prices unavailable. It must not
 
 Production: <https://estimate.alwaysopencommerce.com/>
 Production branch: `main`
-Current deployed release commit: `ca76fe0`
+Current G3 application release: `cb8185b` on `main` (documentation-only follow-ups may be newer)
 
 Vercel deploys `main` automatically. A release is complete only after Vercel reports **Ready** and the public `approved-pricing.js` exposes the intended rules version.
 

@@ -1,13 +1,13 @@
 # Production test results
 
 Status: operational release record
-Latest release: 25 November 2026
+Latest release: 27 November 2026
 
 Detailed historical test diaries were removed from the active tree to prevent obsolete behavior from being mistaken for current requirements. Git history retains earlier evidence.
 
 ## Current production release
 
-- Commit: `ca76fe0` — `Apply simplified calculator rules and discovery checkout`
+- Application release: `cb8185b` — `Add explicit local sandbox email delivery`
 - Branch: `main`
 - Vercel deployment: Ready
 - Production URL: <https://estimate.alwaysopencommerce.com/>
@@ -20,6 +20,8 @@ Verified on the public deployment:
 - Six active-area IDs matched the current rules.
 - Paid Advertising was listed under Coming Soon.
 - The production JavaScript included the discovery-to-Stripe checkout UI.
+- The private production payment schema accepted the G3 `accepted_order` migration and passed its access checks.
+- Checkout and email code include exact C10 acceptance plus separate accepted-C10 and estimate PDF attachments.
 - An unauthenticated payment-status request returned 401.
 - Required Stripe sandbox and payment-email environment variable names were present in Production; their values were not displayed.
 
@@ -34,11 +36,10 @@ Passed locally before deployment:
 - Stripe backend: 27 payment/idempotency/failure/replay checks.
 - Payment email routing and PDF generation tests.
 - Stripe browser handoff in an approved browser run.
-
-One later combined `npm run test:g2` invocation could not launch Chrome inside the restricted workspace (`spawn EPERM`); its backend, email and PDF portions passed, and the same browser handoff test had already passed in the approved browser environment. This was an execution-permission limitation, not an application assertion failure.
+- The complete `npm run test:g2` suite, including headless Chrome, passed for the release candidate.
 
 ## Payment boundary
 
-The deployed checkout remains Stripe test mode. No real charge, real paid-order confirmation or final G3 rehearsal-project integration was performed during release. A sandbox success must never be represented as a real order.
+The deployed checkout remains Stripe test mode. G3 C10 acceptance, persistence and post-payment attachment delivery are deployed. No charge or customer email was generated during release verification; an authorized sandbox transaction is still required to confirm actual inbox receipt. A sandbox success must never be represented as a real order.
 
 For the next release, replace this section with the newest concise result; do not append another full historical diary.
