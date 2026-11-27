@@ -63,25 +63,30 @@ assert.ok(coverOperators.fnArray.includes(OPS.paintImageXObject),
   'The original Template V6 cover artwork is embedded in the PDF');
 const text = result.pages.map(page => page.text).join(' ').replace(/\s+/g, ' ');
 for (const expected of [
-  'Accepted order — sandbox payment confirmed',
   'C10-22222222-2222-4222-8222-222222222222', 'Example Commerce', 'Finance & billing',
   'C10-2026-11-27-v1', 'Prepare invoice drafts and route every invoice for approval.',
   'Finance and operations', 'Reduce invoice handling time', 'Shopify, Stripe, Google Drive',
-  'Review the current process and available information.',
-  'Provide a written report covering options, risks and responsibilities.',
-  'If viable, provide a build plan, proposed steps, quote and estimated running costs.',
+  'This paid design service examines your current process',
+  'Current-process review, findings, feasibility, risks and practical recommendations.',
+  'Proposed workflow diagram, phased project scope, dependencies and responsibilities.',
+  'Likely software needs and estimated usage where supportable',
+  'private Loom guide', 'No presentation is needed.', 'review our process summary',
+  'Stripe receipt, same accepted-order PDF and separate workflow guide',
+  '15% of the preliminary build estimate', 'Client pays at checkout',
   'Implementation and ongoing services are separate.',
   'Within 5 business days after complete inputs.',
   'The eligible fee can be credited once toward an accepted build.',
   'A full refund applies if AOC cannot validate and deliver a viable approach.',
   'Work outside this order requires a separately accepted quote or change order.',
-  'USD 1,725.00', 'Stripe payment: pi_c10_fixture',
-  purchase.purchaseReference, 'I accept this paid discovery order.',
+  'USD 1,725.00', 'Confirmation pi_c10_fixture',
+  purchase.purchaseReference,
 ]) {
   assert.ok(text.includes(expected), `Accepted C10 PDF includes ${expected}`);
 }
 assert.ok(!text.includes('AOC ONLY'));
 assert.ok(!text.includes('WORKING DRAFT'));
+assert.ok(!text.includes('ACCEPTED WORDING'));
+assert.ok(!text.includes('accepted C10'));
 assert.ok(!/\[[^\]]+\]/.test(text), 'The PDF text layer contains no unresolved placeholders');
 await result.task.destroy();
 
@@ -89,10 +94,10 @@ const longPurchase = structuredClone(purchase);
 longPurchase.acceptedOrder.project.agreedProcess = 'Invoice routing detail. '.repeat(300);
 const longBytes = await createC10OrderPdf(longPurchase, {regularFont, boldFont});
 const longResult = await extractPdf(longBytes);
-assert.ok(longResult.pdf.numPages > 5, 'Long accepted processes receive a continuation page');
+assert.equal(longResult.pdf.numPages, 5, 'The client document keeps the five-page Template V6 structure');
 const longText = longResult.pages.map(page => page.text).join(' ').replace(/\s+/g, ' ');
-assert.ok(longText.includes('AGREED PROCESS DETAILS'));
-assert.ok(longText.includes('Invoice routing detail.'));
+assert.ok(!longText.includes('AGREED PROCESS DETAILS'));
+assert.ok(longText.includes('Invoice routing'));
 assert.ok(longText.includes('Finance and operations'));
 assert.ok(!/\[[^\]]+\]/.test(longText));
 await longResult.task.destroy();
@@ -101,4 +106,4 @@ await assert.rejects(
   createC10OrderPdf({...purchase, outcome: 'unpaid'}, {regularFont, boldFont}),
   /confirmed payment/,
 );
-console.log('PASS: C10 uses the Template V6 artwork, fills accepted order data, excludes the blank/internal pages and adds overflow safely.');
+console.log('PASS: C10 uses the five-page Template V6 client artwork, fills accepted order data and excludes blank/internal/additional pages.');

@@ -10,8 +10,21 @@ const colors = {
   body: rgb(0.33, 0.42, 0.54),
   green: rgb(0.07, 0.51, 0.24),
   muted: rgb(0.35, 0.42, 0.52),
-  white: rgb(1, 1, 1),
-  rule: rgb(0.78, 0.81, 0.85),
+};
+const templateText = {
+  serviceDescription: "This paid design service examines your current process, identifies efficiency and cost-saving opportunities, and proposes an optimized workflow and phased solution plan. You'll receive findings, recommendations, solution design and an implementation roadmap. This is design only: no build, configuration, testing or activation. Implementation is quoted and approved separately.",
+  scopeBoundary: "Only these areas are included. We'll agree on scope and price before assessing anything else.",
+  inputs: "We'll send a private Loom guide for one or more short recordings of your current process. We may also need sample files, answers to a few questions or limited system access. We'll explain what to share and how to do it safely. No presentation is needed.",
+  safeSharing: "Use sample data and keep passwords and sensitive details out of recordings. We won't connect live systems just for checkout. If recording isn't safe, we'll agree on another way to share information. You'll review our process summary before we finalize scope.",
+  confirmationDocuments: 'Stripe receipt, same accepted-order PDF and separate workflow guide',
+  purchaseOverview: "You'll receive a project-scoping report with our findings and feasibility assessment, a proposed workflow diagram, a phased plan and key dependencies. We'll identify likely software needs where we can assess them. If the information is sufficient, we'll include a separate fixed-price implementation proposal; otherwise we'll explain what still needs investigation. Building, connecting or activating a workflow is not included.",
+  deliverables: [
+    'Current-process review, findings, feasibility, risks and practical recommendations.',
+    'Proposed workflow diagram, phased project scope, dependencies and responsibilities.',
+    'Likely software needs and estimated usage where supportable; a separate implementation scope and quotation if sufficiently defined.',
+  ],
+  implementationExclusion: 'Implementation, configuration, integrations, testing, deployment, ongoing support and third-party software costs are excluded from this design-only service unless expressly agreed in a separate implementation order.',
+  additionalWork: "If you'd like additional work outside the agreed design scope, we'll explain its scope and price before you decide.",
 };
 let pageImagesPromise;
 
@@ -123,22 +136,6 @@ function addTemplatePage(document, image) {
   return page;
 }
 
-function addProcessAppendix(document, image, text, regularFont, boldFont) {
-  const lines = wrapText(text, regularFont, 9.8, 490);
-  const linesPerPage = 42;
-  for (let start = 0; start < lines.length; start += linesPerPage) {
-    const page = addTemplatePage(document, image);
-    page.drawRectangle({x: 58, y: 50, width: 500, height: 625, color: colors.white});
-    page.drawLine({start: {x: 60, y: 58}, end: {x: 552, y: 58}, thickness: 0.5, color: colors.rule});
-    drawInline(page, 'AGREED PROCESS DETAILS — CONTINUED', boldFont, {
-      x: 60, y: 659, size: 10, color: colors.blue,
-    });
-    lines.slice(start, start + linesPerPage).forEach((line, index) => {
-      page.drawText(line, {x: 60, y: 630 - index * 12.5, size: 9.8, font: regularFont, color: colors.body});
-    });
-  }
-}
-
 function drawFooter(document, regularFont) {
   const pages = document.getPages();
   for (let index = 1; index < pages.length; index += 1) {
@@ -164,9 +161,9 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
 
   const document = await PDFDocument.create();
   document.registerFontkit(fontkit);
-  document.setTitle(`${order.documentTitle || 'C10 accepted order'} ${value(order.reference)}`);
+  document.setTitle(`${order.documentTitle || 'Process Optimization & Solution Design Order'} ${value(order.reference)}`);
   document.setAuthor('Always Open Commerce');
-  document.setSubject(`Accepted C10 order ${value(order.reference)}`);
+  document.setSubject(`Process Optimization & Solution Design Order ${value(order.reference)}`);
   const [coverImage, scopeImage, purchaseImage, termsImage, acceptanceImage] = await Promise.all(
     (await getPageImages()).map(bytes => document.embedPng(bytes)),
   );
@@ -191,19 +188,9 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
   const issuedAt = formatDate(order.issuedAt);
   const paidAt = formatDate(purchase.paidAt);
   const currency = order.price.currency;
-  const processContent = `${process}\nDepartments: ${departments}`;
-  const processLines = wrapText(processContent, regular, 7.2, 300);
-  const hasProcessAppendix = processLines.length > 2;
-  const processAppendix = [
-    `Agreed process: ${process}`,
-    `Business area: ${value(project.businessArea)}`,
-    `Departments: ${departments}`,
-    `Systems: ${systems}`,
-  ].join('\n\n');
+  const delivery = value(service.delivery).replace(/[.\s]+$/, '');
+  const processContent = `${summarizeSingleLine(process, regular, 7.2, 300)}\nDepartments: ${departments}`;
 
-  drawTextBox(cover, `Accepted order — ${purchase.testMode ? 'sandbox payment confirmed' : 'payment confirmed'}`,
-    regular, {x: 47, y: 53.3, width: 340, height: 12, fontSize: 9.5, minFontSize: 8, maxLines: 1,
-      color: colors.muted, field: 'cover status'});
   drawTextBox(cover, business, regular, {
     x: 146.8, y: 156.8, width: 205, height: 17, fontSize: 10.5, maxLines: 1,
     color: colors.ink, field: 'cover client',
@@ -222,16 +209,17 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
   });
 
   drawInline(scope, 'ORDER REFERENCE', bold, {x: 60, y: 640.3, size: 8.2, color: colors.muted});
-  drawTextBox(scope, `${reference.slice(0, 22)}…`, bold, {
-    x: 150, y: 640.3, width: 136, height: 12, fontSize: 8.2, minFontSize: 7, maxLines: 1,
+  drawTextBox(scope, `${reference} / ${version}`, bold, {
+    x: 150, y: 640.3, width: 136, height: 18, fontSize: 7.5, minFontSize: 6, maxLines: 2,
+    lineHeightFactor: 1.05,
     color: colors.green, field: 'order reference',
   });
   drawInline(scope, 'CLIENT CONTACT', bold, {x: 294.6, y: 640.3, size: 8.2, color: colors.muted});
-  drawTextBox(scope, `${value(client.name)}${client.role ? ` (${client.role})` : ''}`, bold, {
+  drawTextBox(scope, value(client.name), bold, {
     x: 378, y: 640.3, width: 175, height: 12, fontSize: 7.8, minFontSize: 6.8, maxLines: 1,
     color: colors.green, field: 'client contact',
   });
-  drawTextBox(scope, value(service.description, included.join(' ')), regular, {
+  drawTextBox(scope, templateText.serviceDescription, regular, {
     x: 60, y: 557.8, width: 493, height: 56, fontSize: 10.2, maxLines: 4,
     color: colors.body, field: 'service description',
   });
@@ -243,9 +231,7 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
     x: 223.5, y: 419.5, width: 300, height: 18, fontSize: 9.2, maxLines: 1,
     color: colors.green, field: 'business goal',
   });
-  drawTextBox(scope, hasProcessAppendix
-    ? `Full agreed process details are in the appendix.\nDepartments: ${departments}`
-    : processContent, regular, {
+  drawTextBox(scope, processContent, regular, {
     x: 223.5, y: 400.5, width: 300, height: 17, fontSize: 7.2, minFontSize: 7.2, maxLines: 2,
     lineHeightFactor: 1.05,
     color: colors.green, field: 'agreed process',
@@ -254,44 +240,44 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
     x: 223.5, y: 374, width: 300, height: 18, fontSize: 9.2, maxLines: 1,
     color: colors.green, field: 'systems',
   });
-  drawTextBox(scope, summarizeSingleLine(value(service.excluded), bold, 8.8, 300), bold, {
-    x: 223.5, y: 351.3, width: 300, height: 18, fontSize: 8.8, minFontSize: 8.8, maxLines: 1,
+  drawTextBox(scope, value(service.excluded), bold, {
+    x: 223.5, y: 351.3, width: 300, height: 18, fontSize: 8.4, minFontSize: 5.8, maxLines: 1,
     color: colors.green, field: 'exclusions',
   });
-  drawTextBox(scope, value(service.changeControl), regular, {
+  drawTextBox(scope, templateText.scopeBoundary, regular, {
     x: 60, y: 325.3, width: 490, height: 23, fontSize: 9.1, maxLines: 2,
-    color: colors.body, field: 'scope change control',
+    color: colors.body, field: 'scope boundary',
   });
   drawInline(scope, "What we'll need from you after purchase", bold, {
     x: 60, y: 299, size: 11, color: colors.blue,
   });
   drawTextBox(scope,
-    "We'll email you secure instructions for showing us how you currently complete the workflow. Once we've reviewed the information, we'll contact you if we need additional details or clarification.",
-    regular, {x: 60, y: 278.9, width: 493, height: 40, fontSize: 10, maxLines: 3, field: 'after-purchase instructions'});
+    templateText.inputs,
+    regular, {x: 60, y: 278.9, width: 493, height: 48, fontSize: 9.6, minFontSize: 8.8, maxLines: 4, field: 'after-purchase instructions'});
   drawTextBox(scope,
-    'Share only information relevant to this process. Do not send passwords or unnecessary sensitive details. If recording is not appropriate, contact us to agree on another way to share the information.',
-    regular, {x: 60, y: 207.3, width: 493, height: 40, fontSize: 10, maxLines: 3, field: 'safe information sharing'});
+    templateText.safeSharing,
+    regular, {x: 60, y: 207.3, width: 493, height: 48, fontSize: 9.6, minFontSize: 8.8, maxLines: 4, field: 'safe information sharing'});
 
-  drawTextBox(purchasePage, 'Stripe receipt, accepted C10 and separate estimate PDF.', regular, {
+  drawTextBox(purchasePage, templateText.confirmationDocuments, regular, {
     x: 381.8, y: 664.5, width: 164, height: 40, fontSize: 9.2, maxLines: 3,
     color: colors.body, field: 'confirmation documents',
   });
-  drawTextBox(purchasePage, purchase.testMode ? 'PAYMENT Stripe sandbox confirmed' : 'PAYMENT Confirmed via Stripe', bold, {
+  drawTextBox(purchasePage, 'PAYMENT Secure Stripe checkout', bold, {
     x: 60, y: 610.5, width: 152, height: 14, fontSize: 8.8, minFontSize: 7.6, maxLines: 1,
     color: colors.muted, field: 'payment status',
   });
-  drawTextBox(purchasePage, `ORDER ${reference} / ${version}`, bold, {
+  drawTextBox(purchasePage, `ORDER ${reference}`, bold, {
     x: 220, y: 610.5, width: 330, height: 14, fontSize: 8.6, minFontSize: 7.6, maxLines: 1,
     color: colors.green, field: 'purchase order reference',
   });
-  drawTextBox(purchasePage, `Included work: ${included.join(' ')}`, regular, {
+  drawTextBox(purchasePage, templateText.purchaseOverview, regular, {
     x: 60, y: 509.1, width: 493, height: 72, fontSize: 10, maxLines: 5,
-    color: colors.body, field: 'included work summary',
+    minFontSize: 8.8, color: colors.body, field: 'purchase overview',
   });
   const includedRows = [
-    {text: included[0], x: 210.8, y: 388.5, height: 36, field: 'included work item 1'},
-    {text: included[1], x: 210.8, y: 346.6, height: 36, field: 'included work item 2'},
-    {text: included[2], x: 210.8, y: 304.7, height: 42, field: 'included work item 3'},
+    {text: templateText.deliverables[0], x: 210.8, y: 388.5, height: 36, field: 'included work item 1'},
+    {text: templateText.deliverables[1], x: 210.8, y: 346.6, height: 36, field: 'included work item 2'},
+    {text: templateText.deliverables[2], x: 210.8, y: 304.7, height: 42, field: 'included work item 3'},
   ];
   for (const row of includedRows) {
     drawTextBox(purchasePage, row.text, regular, {
@@ -300,31 +286,32 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
     });
   }
   const feeSummary = [
-    `DESIGN SERVICE FEE ${formatMoney(order.price.amount, currency)}`,
+    `DESIGN SERVICE FEE 15% of the preliminary build estimate: ${formatMoney(order.price.amount, currency)}`,
     `TAX ${value(order.price.tax)}`,
     `TOTAL DUE ${formatMoney(order.price.total, currency)}`,
-    `PAYMENT ${purchase.testMode ? 'Stripe sandbox confirmed' : 'Confirmed via Stripe'}`,
+    'PAYMENT Secure Stripe checkout',
+    ...(order.price.offerValidUntil ? [`OFFER VALID UNTIL ${value(order.price.offerValidUntil)}`] : []),
   ].join('\n');
   drawTextBox(purchasePage, feeSummary, regular, {
     x: 210.8, y: 250.4, width: 216, height: 76, fontSize: 8.5, minFontSize: 7.4,
     maxLines: 8, color: colors.green, field: 'fee and tax details',
   });
-  drawTextBox(purchasePage, 'Payment confirmed', regular, {
+  drawTextBox(purchasePage, 'Client pays at checkout', regular, {
     x: 444, y: 250.4, width: 103, height: 18, fontSize: 8.8, minFontSize: 7.5, maxLines: 1,
     color: colors.body, field: 'payment responsible party',
   });
-  drawTextBox(purchasePage, `Expected delivery: ${value(service.delivery)}`, regular, {
-    x: 60, y: 122.4, width: 493, height: 48, fontSize: 9.8, maxLines: 4,
+  drawTextBox(purchasePage, `We'll begin the agreed process optimization and solution design once your order and payment are confirmed. Expected delivery: ${delivery}. If anything essential is missing, we'll tell you what we need and whether it affects timing.`, regular, {
+    x: 60, y: 122.4, width: 493, height: 48, fontSize: 9.4, minFontSize: 8.2, maxLines: 5,
     color: colors.body, field: 'expected delivery',
   });
 
-  drawTextBox(terms, value(service.excluded), regular, {
+  drawTextBox(terms, templateText.implementationExclusion, regular, {
     x: 60, y: 728.2, width: 493, height: 44, fontSize: 9.8, maxLines: 3,
     color: colors.body, field: 'excluded work',
   });
-  drawTextBox(terms, value(service.changeControl), regular, {
+  drawTextBox(terms, templateText.additionalWork, regular, {
     x: 60, y: 679.5, width: 493, height: 36, fontSize: 9.8, maxLines: 2,
-    color: colors.body, field: 'change control terms',
+    color: colors.body, field: 'additional work terms',
   });
   drawTextBox(terms, value(service.credit), regular, {
     x: 60, y: 644.7, width: 493, height: 54, fontSize: 9.5, maxLines: 4,
@@ -334,28 +321,28 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
     x: 60, y: 582.2, width: 493, height: 23, fontSize: 9.2, maxLines: 2,
     color: colors.body, field: 'refund terms',
   });
-  drawTextBox(terms, `Changes outside scope: ${value(service.changeControl)}`, regular, {
+  drawTextBox(terms, `Changes or cancellation: ${value(service.changeControl)}`, regular, {
     x: 60, y: 561.3, width: 493, height: 25, fontSize: 8.8, minFontSize: 8, maxLines: 2,
-    color: colors.body, field: 'scope changes',
+    color: colors.body, field: 'cancellation and changes',
   });
   drawInline(terms, 'How to purchase and what follows', bold, {
     x: 60, y: 534.9, size: 11, color: colors.blue,
   });
   drawTextBox(terms,
-    '1. Before paying, review this exact accepted scope, deliverables, fee, tax, delivery timeframe and terms. The preliminary build estimate is not an implementation quote.',
-    regular, {x: 96, y: 514.9, width: 455, height: 48, fontSize: 9.4, maxLines: 3, field: 'purchase step 1'});
+    "1. Before paying, review the scope, what you'll need to share, what we'll deliver and the terms. The fee is currently 15% of the calculator's preliminary build estimate; the exact client-specific fee, tax and total appear in this order and at checkout. The build estimate is not a final implementation quote.",
+    regular, {x: 96, y: 514.9, width: 455, height: 48, fontSize: 9.2, minFontSize: 8.2, maxLines: 4, field: 'purchase step 1'});
   drawTextBox(terms,
     '2. Accept this exact client-specific order, including its version and price, before Stripe payment. Checkout records your acceptance reference and date/time.',
     regular, {x: 96, y: 459.3, width: 455, height: 35, fontSize: 9.4, maxLines: 2, field: 'purchase step 2'});
   drawTextBox(terms,
-    '3. After verified payment, we email this accepted C10 and a separate estimate PDF. The Stripe receipt remains a separate record.',
-    regular, {x: 96, y: 431.6, width: 455, height: 37, fontSize: 9.4, maxLines: 2, field: 'purchase step 3'});
+    "3. Once payment is verified as successful, we'll email the same accepted-order PDF with your confirmation. The preliminary build estimate PDF and Stripe receipt are separate documents. We'll send the recording guide and private link when they're ready.",
+    regular, {x: 96, y: 431.6, width: 455, height: 45, fontSize: 9.2, minFontSize: 8.2, maxLines: 4, field: 'purchase step 3'});
   drawTextBox(terms,
-    "4. We'll review the process information and contact you if clarification or additional detail is needed before completing the agreed work.",
-    regular, {x: 96, y: 381.9, width: 455, height: 38, fontSize: 9.4, maxLines: 3, field: 'purchase step 4'});
+    "4. We'll review the recording and any agreed samples or access, clarify what is missing and ask you to confirm our process summary. Then we'll complete the agreed optimization and solution design work.",
+    regular, {x: 96, y: 381.9, width: 455, height: 38, fontSize: 9.2, minFontSize: 8.2, maxLines: 3, field: 'purchase step 4'});
   drawTextBox(terms,
-    '5. You receive the written report and build plan stated in the accepted order. Any implementation is separately scoped and approved.',
-    regular, {x: 96, y: 332.2, width: 455, height: 38, fontSize: 9.4, maxLines: 3, field: 'purchase step 5'});
+    "5. You'll receive findings, a proposed workflow and a practical scope and plan. Any implementation quotation is separate, and no build starts without a new approval.",
+    regular, {x: 96, y: 332.2, width: 455, height: 38, fontSize: 9.2, minFontSize: 8.2, maxLines: 3, field: 'purchase step 5'});
 
   drawInline(acceptance, 'ORDER REFERENCE', bold, {x: 60, y: 592, size: 8.5, color: colors.muted});
   drawTextBox(acceptance, `${reference} / ${version} / ${issuedAt}`, bold, {
@@ -366,29 +353,29 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
     x: 70, y: 525.5, width: 225, height: 20, fontSize: 9.5, maxLines: 1,
     color: colors.green, field: 'accepting representative',
   });
-  drawTextBox(acceptance, `Acceptance reference: ${reference.slice(0, 22)}…`, regular, {
-    x: 70, y: 492.9, width: 225, height: 17, fontSize: 8.2, minFontSize: 7, maxLines: 1,
+  drawTextBox(acceptance, `Acceptance reference ${reference}`, regular, {
+    x: 70, y: 492.9, width: 225, height: 17, fontSize: 8.2, minFontSize: 6, maxLines: 1,
     color: colors.body, field: 'acceptance reference',
   });
-  drawTextBox(acceptance, `Accepted: ${acceptedAt}`, regular, {
+  drawTextBox(acceptance, `Date ${acceptedAt}`, regular, {
     x: 70, y: 477.6, width: 225, height: 17, fontSize: 8.2, minFontSize: 7, maxLines: 1,
     color: colors.body, field: 'acceptance date',
   });
-  drawTextBox(acceptance, `Stripe payment: ${value(purchase.stripePaymentReference)}`, bold, {
+  drawTextBox(acceptance, `Purchase ${value(purchase.purchaseReference)}`, bold, {
     x: 315.8, y: 525.5, width: 230, height: 20, fontSize: 8.2, minFontSize: 7, maxLines: 1,
-    color: colors.green, field: 'stripe payment reference',
+    color: colors.green, field: 'purchase reference',
   });
-  drawTextBox(acceptance, `Purchase: ${value(purchase.purchaseReference)}`, regular, {
+  drawTextBox(acceptance, `Confirmation ${value(purchase.stripePaymentReference)}`, regular, {
     x: 315.8, y: 492.9, width: 230, height: 17, fontSize: 8.2, minFontSize: 7, maxLines: 1,
-    color: colors.body, field: 'purchase confirmation reference',
+    color: colors.body, field: 'payment confirmation reference',
   });
-  drawTextBox(acceptance, `Paid: ${paidAt}`, regular, {
+  drawTextBox(acceptance, `Date ${paidAt}`, regular, {
     x: 315.8, y: 477.6, width: 230, height: 17, fontSize: 8.2, minFontSize: 7, maxLines: 1,
     color: colors.body, field: 'payment confirmation date',
   });
   drawInline(acceptance, 'AGREEMENT STATUS', bold, {x: 60, y: 448.2, size: 8.5, color: colors.muted});
   drawInline(acceptance, 'ACCEPTED AT CHECKOUT', bold, {x: 157, y: 448.2, size: 8.5, color: colors.green});
-  drawTextBox(acceptance, `ACCEPTANCE REFERENCE ${reference} / ${version}`, bold, {
+  drawTextBox(acceptance, `ACCEPTANCE REFERENCE ${reference}`, bold, {
     x: 60, y: 436.3, width: 490, height: 12, fontSize: 8.2, minFontSize: 7.2, maxLines: 1,
     color: colors.green, field: 'recorded acceptance reference',
   });
@@ -396,15 +383,6 @@ export async function createC10OrderPdf(purchase, {regularFont, boldFont} = {}) 
     x: 60, y: 424.5, width: 490, height: 12, fontSize: 8.2, minFontSize: 7.2, maxLines: 1,
     color: colors.green, field: 'recorded acceptance time',
   });
-  drawInline(acceptance, 'ACCEPTED WORDING', bold, {x: 60, y: 394, size: 9, color: colors.blue});
-  drawTextBox(acceptance, value(order.acceptance.wording), regular, {
-    x: 60, y: 378, width: 490, height: 48, fontSize: 9.2, maxLines: 4,
-    color: colors.body, field: 'accepted wording',
-  });
-
-  if (hasProcessAppendix) {
-    addProcessAppendix(document, scopeImage, processAppendix, regular, bold);
-  }
   drawFooter(document, regular);
   return document.save();
 }

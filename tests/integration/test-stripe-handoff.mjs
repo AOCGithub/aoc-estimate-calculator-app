@@ -160,7 +160,10 @@ try{
   assert.equal(initial.purchase.acceptedOrder.documentType,'C10');
   assert.equal(initial.purchase.acceptedOrder.reference,(await (await send('/api/payments/status?submission_reference='+initial.purchase.submissionReference)).json()).quoteRequest.order.reference);
   assert.equal(initial.purchase.acceptedOrder.price.amount,initial.purchase.amount);
-  assert.equal(initial.purchase.acceptedOrder.project.agreedProcess,initial.body.description);
+  assert.equal(initial.purchase.acceptedOrder.price.tax,'No separate tax amount is added at checkout.');
+  assert.equal(initial.purchase.acceptedOrder.project.sourceDescription,initial.body.description);
+  assert.equal(initial.purchase.acceptedOrder.project.agreedProcess,'Prepare invoice drafts in Wave.');
+  assert.match(initial.purchase.acceptedOrder.project.businessGoal,/Optimize the agreed finance & billing process/i);
   assert.equal(initial.purchase.acceptedOrder.acceptance.acceptedAt,initial.purchase.purchaseAgreedAt);
   assert.equal(store.purchase(initial.purchase.purchaseReference).purchase_agreement_version,auditService.purchaseAgreement.version);
   assert.equal(provider.sessions.get(initial.purchase.stripeCheckoutReference).metadata.agreement_version,

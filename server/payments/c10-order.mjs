@@ -2,10 +2,27 @@ import { createHash } from 'node:crypto';
 import questionBank from '../../public/approved-bank.js';
 import { auditService } from './audit-service.mjs';
 
-export const c10OrderVersion = 'C10-2026-11-27-v1';
+export const c10OrderVersion = 'C10-2026-11-27-v2';
 
 const value = input => input == null ? '' : Array.isArray(input) ? input.join(', ') : String(input);
 const areaName = id => questionBank.areas.find(area => area.id === id)?.label || id || 'Agreed business process';
+const sentences = input => String(input || '').replace(/\s+/g, ' ').trim().match(/[^.!?]+[.!?]?/g) || [];
+const shorten = (input, limit = 92) => {
+  const text = String(input || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= limit) return text;
+  const cut = text.slice(0, limit - 1).replace(/\s+\S*$/, '').trimEnd();
+  return `${cut || text.slice(0, limit - 1)}…`;
+};
+function agreedGoal(description, area) {
+  const explicit = sentences(description).find(sentence =>
+    /\b(?:we\s+(?:want|need)|goal|objective|improv(?:e|ing)|reduc(?:e|ing)|increas(?:e|ing)|optim(?:ize|ise|izing|ising)|automat(?:e|ing))\b/i.test(sentence));
+  return shorten(explicit?.trim() || `Optimize the agreed ${areaName(area).toLowerCase()} process described in this order.`, 112);
+}
+function agreedProcess(description, area) {
+  const action = sentences(description).find(sentence =>
+    /\b(?:process|workflow|prepare|create|send|collect|review|monitor|manage|handle|route|check|report|draft|apply|record|reconcile)\b/i.test(sentence));
+  return shorten(action?.trim() || areaName(area));
+}
 
 export function createC10OrderDraft(saved, quote) {
   const snapshot = typeof saved.snapshot === 'string' ? JSON.parse(saved.snapshot) : saved.snapshot;
@@ -30,7 +47,9 @@ export function createC10OrderDraft(saved, quote) {
     },
     project: {
       businessArea: areaName(snapshot.area),
-      agreedProcess: saved.description,
+      businessGoal: agreedGoal(saved.description, snapshot.area),
+      agreedProcess: agreedProcess(saved.description, snapshot.area),
+      sourceDescription: saved.description,
       systems,
       departments: Number.isFinite(departmentCount) && departmentCount > 0
         ? `${departmentCount} department${departmentCount === 1 ? '' : 's'}`
@@ -49,7 +68,7 @@ export function createC10OrderDraft(saved, quote) {
     price: {
       amount: quote.amount,
       currency: quote.currency,
-      tax: 'Stripe automatic tax is not enabled for this sandbox order; no separate tax amount is added at checkout.',
+      tax: 'No separate tax amount is added at checkout.',
       total: quote.amount,
     },
     acceptance: {
